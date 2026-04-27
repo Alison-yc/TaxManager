@@ -22,7 +22,6 @@ export function LoginPage() {
   return (
     <div className="panel">
       <h1 className="title">报税数据管理系统</h1>
-      <p className="muted">使用 Supabase 账号登录</p>
       <form className="form" onSubmit={handleSubmit}>
         <label className="label">
           邮箱
