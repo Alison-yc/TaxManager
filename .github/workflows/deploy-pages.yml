@@ -1,3 +1,16 @@
+# 1) 构建
+# 2) deploy：发布到本仓库的 GitHub Pages（https://<用户>.github.io/<本仓库名>/）
+# 3) deploy-to-blog：可选。把 dist 推送到「主站/博客」仓库的 TaxManager/ 子目录，供 liangzui.top/TaxManager/ 使用
+#
+# 启用博客子目录部署：仓库 Settings → Variables and secrets → Variables
+#   新建 DEPLOY_TO_BLOG = true
+# 仓库 Settings → Secrets and actions → 新建
+#   BLOG_DEPLOY_PAT = 有目标仓库 contents:write 的 PAT（与 GITHUB_TOKEN 不同）
+# 可选 Variable：BLOG_TARGET_REPO = Owner/Alison-yc.github.io（与默认不一致时填）
+# 可选 Variable：BLOG_GH_TARGET_BRANCH = gh-pages（与默认不一致时填；Hexo 若推到 main 则填 main）
+#
+# 注意：若你本地/CI 的 Hexo 会整仓覆盖 gh-pages，可能冲掉 TaxManager/，需让博客与 tax 的发布顺序一致或只在一套 CI 里拼产物。
+
 name: Deploy to GitHub Pages
 
 on:
@@ -30,11 +43,17 @@ jobs:
 
       - name: Build
         env:
-          # 与 Pages 地址 https://<用户>.github.io/<仓库名>/ 一致；本地勿设此项即可
           VITE_BASE: /${{ github.event.repository.name }}/
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: npm run build
+
+      # 给「博客子目录部署」用
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-site
+          path: dist
 
       - uses: actions/upload-pages-artifact@v3
         with:
@@ -49,3 +68,24 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  # 推送到 <owner>/<owner>.github.io 的 TaxManager/，使自定义域上的 /TaxManager/ 正确
+  deploy-to-blog:
+    needs: build
+    if: vars.DEPLOY_TO_BLOG == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist-site
+          path: dist
+
+      - name: Deploy to blog repo (TaxManager subfolder)
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          token: ${{ secrets.BLOG_DEPLOY_PAT }}
+          branch: ${{ vars.BLOG_GH_TARGET_BRANCH != '' && vars.BLOG_GH_TARGET_BRANCH || 'gh-pages' }}
+          folder: dist
+          repository-name: ${{ vars.BLOG_TARGET_REPO != '' && vars.BLOG_TARGET_REPO || format('{0}/{1}.github.io', github.repository_owner, github.repository_owner) }}
+          target-folder: TaxManager
+          clean: false
