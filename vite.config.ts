@@ -2,6 +2,10 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
+// 本地开发默认 `/`；CI 里通过 VITE_BASE=/仓库名/ 适配 github.io/仓库名/ 子路径
+const base = process.env.VITE_BASE ?? '/'
+
 export default defineConfig({
   plugins: [react()],
+  base,
 })
