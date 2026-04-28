@@ -3,10 +3,12 @@ import type { Session } from '@supabase/supabase-js'
 import { Route, BrowserRouter, Routes } from 'react-router-dom'
 import { AppShell } from './components/AppShell'
 import { LoginPage } from './components/LoginPage'
-import { RecordList } from './pages/RecordList'
+import { HomePage } from './pages/HomePage'
+import { QueryPage } from './pages/QueryPage'
 import { RecordPreview } from './pages/RecordPreview'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
 import './App.css'
+import './styles/etax.css'
 
 function App() {
   const configured = isSupabaseConfigured()
@@ -56,11 +58,7 @@ function App() {
   }
 
   if (!session) {
-    return (
-      <div className="shell">
-        <LoginPage />
-      </div>
-    )
+    return <LoginPage />
   }
 
   const email = session.user.email ?? null
@@ -74,7 +72,8 @@ function App() {
             <AppShell userEmail={email} onSignOut={() => void handleSignOut()} />
           }
         >
-          <Route index element={<RecordList />} />
+          <Route index element={<HomePage />} />
+          <Route path="query" element={<QueryPage />} />
           <Route path="record/:id" element={<RecordPreview />} />
         </Route>
       </Routes>

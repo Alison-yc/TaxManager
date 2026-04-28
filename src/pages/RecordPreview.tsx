@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { VatFormGrid } from '../components/VatFormGrid'
 import { downloadFilledExcelFile, exportPreviewDomToPdf } from '../lib/excelExport'
 import { isImportedContent } from '../lib/excelImport'
@@ -8,10 +8,13 @@ import type { FormDataRow } from '../types/database'
 
 export function RecordPreview() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [row, setRow] = useState<FormDataRow | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const captureRef = useRef<HTMLDivElement>(null)
+  const autoPdfRunRef = useRef(0)
 
   useEffect(() => {
     let cancelled = false
@@ -38,6 +41,45 @@ export function RecordPreview() {
   }, [id])
 
   const content = row?.content
+
+  /** 列表「导出」：带 ?pdf=1 打开本页则自动导出一次 PDF 并移除 query */
+  useEffect(() => {
+    const wantPdf = searchParams.get('pdf') === '1'
+    if (!wantPdf || !id) return
+    if (!row || !content) return
+    if (!isImportedContent(content)) {
+      navigate(`/record/${id}`, { replace: true })
+      return
+    }
+
+    const runToken = ++autoPdfRunRef.current
+
+    let cancelled = false
+    const t = window.setTimeout(() => {
+      if (cancelled || runToken !== autoPdfRunRef.current) return
+      if (!captureRef.current) return
+
+      void (async () => {
+        setBusy(true)
+        setError(null)
+        try {
+          await exportPreviewDomToPdf(captureRef.current!)
+        } catch (e: unknown) {
+          setError(e instanceof Error ? e.message : String(e))
+        } finally {
+          setBusy(false)
+          if (!cancelled) {
+            navigate(`/record/${id}`, { replace: true })
+          }
+        }
+      })()
+    }, 280)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(t)
+    }
+  }, [id, row, content, searchParams, navigate])
 
   async function handleExportPdf() {
     if (!captureRef.current || !content) return
@@ -69,8 +111,8 @@ export function RecordPreview() {
   return (
     <div className="shell wide">
       <div className="no-print breadcrumb-row">
-        <Link to="/" className="back-link">
-          ← 返回列表
+        <Link to="/query" className="back-link">
+          ← 返回申报信息查询
         </Link>
       </div>
 
