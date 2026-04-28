@@ -245,3 +245,332 @@
   gap: 8px;
   margin-top: 12px;
 }
+
+/* 顶栏 + 主区 */
+.app-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  width: 100%;
+  flex: 1;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--code-bg);
+  flex-shrink: 0;
+}
+
+.topbar-brand {
+  font-weight: 600;
+  color: var(--text-h);
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+.topbar-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.nav-item {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--text-h);
+  font-size: 0.9rem;
+}
+
+.nav-item:hover:not(.disabled) {
+  background: var(--social-bg);
+}
+
+.nav-item.active {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.nav-item.disabled {
+  color: var(--text);
+  opacity: 0.45;
+  cursor: not-allowed;
+  user-select: none;
+}
+
+.topbar-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.topbar-email {
+  max-width: min(220px, 36vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.main-panel {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+.shell.wide {
+  max-width: 1320px;
+}
+
+.toolbar {
+  margin-bottom: 16px;
+}
+
+.search-label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: var(--text-h);
+}
+
+.search-input {
+  max-width: 420px;
+}
+
+.hidden-file-input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  overflow: hidden;
+}
+
+label.btn.primary {
+  position: relative;
+  cursor: pointer;
+  overflow: visible;
+}
+
+.link-btn {
+  text-decoration: none;
+  display: inline-block;
+  box-sizing: border-box;
+}
+
+.breadcrumb-row {
+  margin-bottom: 12px;
+}
+
+.back-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+.preview-header {
+  align-items: flex-start;
+}
+
+.preview-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 16px;
+  background: var(--bg);
+}
+
+.preview-card-title {
+  font-size: 1rem;
+  margin: 0 0 12px;
+  color: var(--text-h);
+}
+
+.preview-dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 8px 12px;
+  font-size: 0.9rem;
+}
+
+.preview-dl dt {
+  color: var(--text);
+}
+
+.mono {
+  font-family: var(--mono);
+  word-break: break-all;
+}
+
+.preview-json {
+  margin: 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--code-bg);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.small {
+  font-size: 0.85rem;
+}
+
+.print-only-hint {
+  margin-top: 8px;
+}
+
+@media print {
+  .topbar,
+  .header-actions,
+  .no-print,
+  .breadcrumb-row {
+    display: none !important;
+  }
+
+  .app-layout {
+    display: block;
+  }
+
+  .main-panel {
+    width: 100%;
+    overflow: visible;
+  }
+
+  .shell.wide {
+    max-width: none;
+    padding: 12px !important;
+  }
+
+  .print-area {
+    border: none;
+  }
+
+  .vat-preview-frame {
+    border: none !important;
+    padding: 0 !important;
+  }
+}
+
+/* 增值税申报表：合并格 + 版心宽度 + 仿税局 PDF 字号与边线 */
+/* 外层仅作边框与留白；勿设 overflow:auto，以免 html2canvas 仅截可见区 */
+.vat-preview-frame {
+  overflow: visible;
+  background: #fff;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.vat-form-document {
+  width: 1180px;
+  max-width: none;
+  margin: 0 auto;
+  background: #fff;
+}
+
+.vat-sheet-table {
+  border-collapse: collapse;
+  width: 100%;
+  background: #fff;
+}
+
+.vat-sheet-merged {
+  table-layout: fixed;
+  border: 2px solid #000;
+  font-family:
+    'SimSun',
+    'Songti SC',
+    'STSong',
+    'Microsoft YaHei',
+    serif;
+  font-size: 12.5px;
+  color: #000;
+}
+
+.vat-sheet-merged td {
+  border: 1px solid #222;
+  padding: 4px 6px;
+  vertical-align: middle;
+  word-break: break-word;
+  line-height: 1.35;
+}
+
+.vat-cell-title {
+  font-size: 20px;
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+.vat-cell-meta {
+  font-size: 12px;
+  text-align: left;
+}
+
+.vat-cell-head {
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  background: #fafafa;
+}
+
+.vat-cell-body {
+  font-size: 12.5px;
+}
+
+.vat-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 与常见主表列宽大致接近（10 列；宽表占满 1180px） */
+.vat-sheet-merged .vat-dyn-col.col-i-0 {
+  width: 14%;
+}
+.vat-sheet-merged .vat-dyn-col.col-i-1 {
+  width: 9%;
+}
+.vat-sheet-merged .vat-dyn-col.col-i-2 {
+  width: 9%;
+}
+.vat-sheet-merged .vat-dyn-col.col-i-3 {
+  width: 9%;
+}
+.vat-sheet-merged .vat-dyn-col.col-i-4 {
+  width: 6%;
+}
+.vat-sheet-merged .vat-dyn-col.col-i-5 {
+  width: 11%;
+}
+.vat-sheet-merged .vat-dyn-col.col-i-6 {
+  width: 11%;
+}
+.vat-sheet-merged .vat-dyn-col.col-i-7 {
+  width: 11%;
+}
+.vat-sheet-merged .vat-dyn-col.col-i-8 {
+  width: 10%;
+}
+.vat-sheet-merged .vat-dyn-col.col-i-9 {
+  width: 10%;
+}

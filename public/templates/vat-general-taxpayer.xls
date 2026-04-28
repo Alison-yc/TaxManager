@@ -1,0 +1,1526 @@
+<html xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta name="ProgId" content="Excel.Sheet">
+  <meta name="Generator" content="WPS Office ET">
+  <!--[if gte mso 9]>
+   <xml>
+    <o:DocumentProperties>
+     <o:Created>2026-04-20T11:55:02</o:Created>
+     <o:LastAuthor>傲娇的小月月</o:LastAuthor>
+     <o:LastSaved>2026-04-20T12:03:08</o:LastSaved>
+    </o:DocumentProperties>
+    <o:CustomDocumentProperties>
+     <o:ICV dt:dt="string">F9299935513A4F1E9BD9B219D271FF0B_12</o:ICV>
+     <o:KSOProductBuildVer dt:dt="string">2052-12.1.0.25865</o:KSOProductBuildVer>
+     <o:CalculationRule dt:dt="float">0.0</o:CalculationRule>
+    </o:CustomDocumentProperties>
+   </xml>
+  <![endif]-->
+  <style>
+<!-- @page
+	{margin:1.00in 0.75in 1.00in 0.75in;
+	mso-header-margin:0.50in;
+	mso-footer-margin:0.50in;}
+tr
+	{mso-height-source:auto;
+	mso-ruby-visibility:none;}
+col
+	{mso-width-source:auto;
+	mso-ruby-visibility:none;}
+br
+	{mso-data-placement:same-cell;}
+.font0
+	{color:#000000;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:"宋体";
+	mso-generic-font-family:auto;
+	mso-font-charset:134;}
+.font1
+	{color:#000000;
+	font-size:9.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:"微软雅黑";
+	mso-generic-font-family:auto;
+	mso-font-charset:134;}
+.font2
+	{color:#000000;
+	font-size:16.5pt;
+	font-weight:700;
+	font-style:normal;
+	text-decoration:none;
+	font-family:"宋体";
+	mso-generic-font-family:auto;
+	mso-font-charset:134;}
+.font3
+	{color:#000000;
+	font-size:9.0pt;
+	font-weight:700;
+	font-style:normal;
+	text-decoration:none;
+	font-family:"宋体";
+	mso-generic-font-family:auto;
+	mso-font-charset:134;}
+.font4
+	{color:#000000;
+	font-size:9.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:"宋体";
+	mso-generic-font-family:auto;
+	mso-font-charset:134;}
+.font5
+	{color:#0000FF;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:underline;
+	text-underline-style:single;
+	font-family:"宋体";
+	mso-generic-font-family:auto;
+	mso-font-charset:134;}
+.font6
+	{color:#800080;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:underline;
+	text-underline-style:single;
+	font-family:"宋体";
+	mso-generic-font-family:auto;
+	mso-font-charset:134;}
+.font7
+	{color:#FF0000;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:"宋体";
+	mso-generic-font-family:auto;
+	mso-font-charset:0;}
+.font8
+	{color:#44546A;
+	font-size:18.0pt;
+	font-weight:700;
+	font-style:normal;
+	text-decoration:none;
+	font-family:"宋体";
+	mso-generic-font-family:auto;
+	mso-font-charset:134;}
+.font9
+	{color:#7F7F7F;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:italic;
+	text-decoration:none;
+	font-family:"宋体";
+	mso-generic-font-family:auto;
+	mso-font-charset:0;}
+.font10
+	{color:#44546A;
+	font-size:15.0pt;
+	font-weight:700;
+	font-style:normal;
+	text-decoration:none;
+	font-family:"宋体";
+	mso-generic-font-family:auto;
+	mso-font-charset:134;}
+.font11
+	{color:#44546A;
+	font-size:13.0pt;
+	font-weight:700;
+	font-style:normal;
+	text-decoration:none;
+	font-family:"宋体";
+	mso-generic-font-family:auto;
+	mso-font-charset:134;}
+.font12
+	{color:#44546A;
+	font-size:11.0pt;
+	font-weight:700;
+	font-style:normal;
+	text-decoration:none;
+	font-family:"宋体";
+	mso-generic-font-family:auto;
+	mso-font-charset:134;}
+.font13
+	{color:#3F3F76;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:"宋体";
+	mso-generic-font-family:auto;
+	mso-font-charset:0;}
+.font14
+	{color:#3F3F3F;
+	font-size:11.0pt;
+	font-weight:700;
+	font-style:normal;
+	text-decoration:none;
+	font-family:"宋体";
+	mso-generic-font-family:auto;
+	mso-font-charset:0;}
+.font15
+	{color:#FA7D00;
+	font-size:11.0pt;
+	font-weight:700;
+	font-style:normal;
+	text-decoration:none;
+	font-family:"宋体";
+	mso-generic-font-family:auto;
+	mso-font-charset:0;}
+.font16
+	{color:#FFFFFF;
+	font-size:11.0pt;
+	font-weight:700;
+	font-style:normal;
+	text-decoration:none;
+	font-family:"宋体";
+	mso-generic-font-family:auto;
+	mso-font-charset:0;}
+.font17
+	{color:#FA7D00;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:"宋体";
+	mso-generic-font-family:auto;
+	mso-font-charset:0;}
+.font18
+	{color:#000000;
+	font-size:11.0pt;
+	font-weight:700;
+	font-style:normal;
+	text-decoration:none;
+	font-family:"宋体";
+	mso-generic-font-family:auto;
+	mso-font-charset:0;}
+.font19
+	{color:#006100;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:"宋体";
+	mso-generic-font-family:auto;
+	mso-font-charset:0;}
+.font20
+	{color:#9C0006;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:"宋体";
+	mso-generic-font-family:auto;
+	mso-font-charset:0;}
+.font21
+	{color:#9C6500;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:"宋体";
+	mso-generic-font-family:auto;
+	mso-font-charset:0;}
+.font22
+	{color:#FFFFFF;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:"宋体";
+	mso-generic-font-family:auto;
+	mso-font-charset:0;}
+.font23
+	{color:#000000;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:"宋体";
+	mso-generic-font-family:auto;
+	mso-font-charset:0;}
+.font24
+	{color:windowtext;
+	font-size:9.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:"宋体";
+	mso-generic-font-family:auto;
+	mso-font-charset:134;}
+.style0
+	{mso-number-format:"General";
+	text-align:general;
+	vertical-align:middle;
+	white-space:nowrap;
+	mso-rotate:0;
+	mso-pattern:auto;
+	mso-background-source:auto;
+	color:#000000;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:134;
+	border:none;
+	mso-protection:locked visible;
+	mso-style-name:"常规";
+	mso-style-id:0;}
+.style16
+	{mso-number-format:"_ * \#\,\#\#0\.00_ \;_ * \\-\#\,\#\#0\.00_ \;_ * \0022-\0022??_ \;_ \@_ ";
+	mso-style-name:"千位分隔";
+	mso-style-id:3;}
+.style17
+	{mso-number-format:"_ \0022\00A5\0022* \#\,\#\#0\.00_ \;_ \0022\00A5\0022* \\-\#\,\#\#0\.00_ \;_ \0022\00A5\0022* \0022-\0022??_ \;_ \@_ ";
+	mso-style-name:"货币";
+	mso-style-id:4;}
+.style18
+	{mso-number-format:"0%";
+	mso-style-name:"百分比";
+	mso-style-id:5;}
+.style19
+	{mso-number-format:"_ * \#\,\#\#0_ \;_ * \\-\#\,\#\#0_ \;_ * \0022-\0022_ \;_ \@_ ";
+	mso-style-name:"千位分隔[0]";
+	mso-style-id:6;}
+.style20
+	{mso-number-format:"_ \0022\00A5\0022* \#\,\#\#0_ \;_ \0022\00A5\0022* \\-\#\,\#\#0_ \;_ \0022\00A5\0022* \0022-\0022_ \;_ \@_ ";
+	mso-style-name:"货币[0]";
+	mso-style-id:7;}
+.style21
+	{color:#0000FF;
+	font-size:11.0pt;
+	text-decoration:underline;
+	text-underline-style:single;
+	font-family:宋体;
+	mso-style-name:"超链接";
+	mso-style-id:8;}
+.style22
+	{color:#800080;
+	font-size:11.0pt;
+	text-decoration:underline;
+	text-underline-style:single;
+	font-family:宋体;
+	mso-style-name:"已访问的超链接";
+	mso-style-id:9;}
+.style23
+	{mso-pattern:auto none;
+	background:#FFFFCC;
+	border:.5pt solid #B2B2B2;
+	mso-style-name:"注释";}
+.style24
+	{color:#FF0000;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	mso-style-name:"警告文本";}
+.style25
+	{color:#44546A;
+	font-size:18.0pt;
+	font-weight:700;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:134;
+	mso-style-name:"标题";}
+.style26
+	{color:#7F7F7F;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:italic;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	mso-style-name:"解释性文本";}
+.style27
+	{color:#44546A;
+	font-size:15.0pt;
+	font-weight:700;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:134;
+	border-bottom:1.0pt solid #5B9BD5;
+	mso-style-name:"标题 1";}
+.style28
+	{color:#44546A;
+	font-size:13.0pt;
+	font-weight:700;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:134;
+	border-bottom:1.0pt solid #5B9BD5;
+	mso-style-name:"标题 2";}
+.style29
+	{color:#44546A;
+	font-size:11.0pt;
+	font-weight:700;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:134;
+	border-bottom:1.0pt solid #ACCCEA;
+	mso-style-name:"标题 3";}
+.style30
+	{color:#44546A;
+	font-size:11.0pt;
+	font-weight:700;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:134;
+	mso-style-name:"标题 4";}
+.style31
+	{mso-pattern:auto none;
+	background:#FFCC99;
+	color:#3F3F76;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	border:.5pt solid #7F7F7F;
+	mso-style-name:"输入";}
+.style32
+	{mso-pattern:auto none;
+	background:#F2F2F2;
+	color:#3F3F3F;
+	font-size:11.0pt;
+	font-weight:700;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	border:.5pt solid #3F3F3F;
+	mso-style-name:"输出";}
+.style33
+	{mso-pattern:auto none;
+	background:#F2F2F2;
+	color:#FA7D00;
+	font-size:11.0pt;
+	font-weight:700;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	border:.5pt solid #7F7F7F;
+	mso-style-name:"计算";}
+.style34
+	{mso-pattern:auto none;
+	background:#A5A5A5;
+	color:#FFFFFF;
+	font-size:11.0pt;
+	font-weight:700;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	border:2.0pt double #3F3F3F;
+	mso-style-name:"检查单元格";}
+.style35
+	{color:#FA7D00;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	border-bottom:2.0pt double #FF8001;
+	mso-style-name:"链接单元格";}
+.style36
+	{color:#000000;
+	font-size:11.0pt;
+	font-weight:700;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	border-top:.5pt solid #5B9BD5;
+	border-bottom:2.0pt double #5B9BD5;
+	mso-style-name:"汇总";}
+.style37
+	{mso-pattern:auto none;
+	background:#C6EFCE;
+	color:#006100;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	mso-style-name:"好";}
+.style38
+	{mso-pattern:auto none;
+	background:#FFC7CE;
+	color:#9C0006;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	mso-style-name:"差";}
+.style39
+	{mso-pattern:auto none;
+	background:#FFEB9C;
+	color:#9C6500;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	mso-style-name:"适中";}
+.style40
+	{mso-pattern:auto none;
+	background:#5B9BD5;
+	color:#FFFFFF;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	mso-style-name:"强调文字颜色 1";}
+.style41
+	{mso-pattern:auto none;
+	background:#DDEBF7;
+	color:#000000;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	mso-style-name:"20% - 强调文字颜色 1";}
+.style42
+	{mso-pattern:auto none;
+	background:#BDD7EE;
+	color:#000000;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	mso-style-name:"40% - 强调文字颜色 1";}
+.style43
+	{mso-pattern:auto none;
+	background:#9BC2E6;
+	color:#FFFFFF;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	mso-style-name:"60% - 强调文字颜色 1";}
+.style44
+	{mso-pattern:auto none;
+	background:#ED7D31;
+	color:#FFFFFF;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	mso-style-name:"强调文字颜色 2";}
+.style45
+	{mso-pattern:auto none;
+	background:#FCE4D6;
+	color:#000000;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	mso-style-name:"20% - 强调文字颜色 2";}
+.style46
+	{mso-pattern:auto none;
+	background:#F8CBAD;
+	color:#000000;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	mso-style-name:"40% - 强调文字颜色 2";}
+.style47
+	{mso-pattern:auto none;
+	background:#F4B084;
+	color:#FFFFFF;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	mso-style-name:"60% - 强调文字颜色 2";}
+.style48
+	{mso-pattern:auto none;
+	background:#A5A5A5;
+	color:#FFFFFF;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	mso-style-name:"强调文字颜色 3";}
+.style49
+	{mso-pattern:auto none;
+	background:#EDEDED;
+	color:#000000;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	mso-style-name:"20% - 强调文字颜色 3";}
+.style50
+	{mso-pattern:auto none;
+	background:#DBDBDB;
+	color:#000000;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	mso-style-name:"40% - 强调文字颜色 3";}
+.style51
+	{mso-pattern:auto none;
+	background:#C9C9C9;
+	color:#FFFFFF;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	mso-style-name:"60% - 强调文字颜色 3";}
+.style52
+	{mso-pattern:auto none;
+	background:#FFC000;
+	color:#FFFFFF;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	mso-style-name:"强调文字颜色 4";}
+.style53
+	{mso-pattern:auto none;
+	background:#FFF2CC;
+	color:#000000;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	mso-style-name:"20% - 强调文字颜色 4";}
+.style54
+	{mso-pattern:auto none;
+	background:#FFE699;
+	color:#000000;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	mso-style-name:"40% - 强调文字颜色 4";}
+.style55
+	{mso-pattern:auto none;
+	background:#FFD966;
+	color:#FFFFFF;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	mso-style-name:"60% - 强调文字颜色 4";}
+.style56
+	{mso-pattern:auto none;
+	background:#4472C4;
+	color:#FFFFFF;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	mso-style-name:"强调文字颜色 5";}
+.style57
+	{mso-pattern:auto none;
+	background:#D9E1F2;
+	color:#000000;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	mso-style-name:"20% - 强调文字颜色 5";}
+.style58
+	{mso-pattern:auto none;
+	background:#B4C6E7;
+	color:#000000;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	mso-style-name:"40% - 强调文字颜色 5";}
+.style59
+	{mso-pattern:auto none;
+	background:#8EA9DB;
+	color:#FFFFFF;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	mso-style-name:"60% - 强调文字颜色 5";}
+.style60
+	{mso-pattern:auto none;
+	background:#70AD47;
+	color:#FFFFFF;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	mso-style-name:"强调文字颜色 6";}
+.style61
+	{mso-pattern:auto none;
+	background:#E2EFDA;
+	color:#000000;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	mso-style-name:"20% - 强调文字颜色 6";}
+.style62
+	{mso-pattern:auto none;
+	background:#C6E0B4;
+	color:#000000;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	mso-style-name:"40% - 强调文字颜色 6";}
+.style63
+	{mso-pattern:auto none;
+	background:#A9D08E;
+	color:#FFFFFF;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:0;
+	mso-style-name:"60% - 强调文字颜色 6";}
+.style64
+	{mso-number-format:"General";
+	text-align:general;
+	vertical-align:top;
+	white-space:nowrap;
+	mso-rotate:0;
+	mso-pattern:auto;
+	mso-background-source:auto;
+	color:windowtext;
+	font-size:9.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:134;
+	border:none;
+	mso-protection:unlocked visible;
+	mso-style-name:"Normal";}
+td
+	{mso-style-parent:style0;
+	padding-top:1px;
+	padding-right:1px;
+	padding-left:1px;
+	mso-ignore:padding;
+	mso-number-format:"General";
+	text-align:general;
+	vertical-align:middle;
+	white-space:nowrap;
+	mso-rotate:0;
+	mso-pattern:auto;
+	mso-background-source:auto;
+	color:#000000;
+	font-size:11.0pt;
+	font-weight:400;
+	font-style:normal;
+	text-decoration:none;
+	font-family:宋体;
+	mso-generic-font-family:auto;
+	mso-font-charset:134;
+	border:none;
+	mso-protection:locked visible;}
+.xl66
+	{mso-style-parent:style0;
+	font-size:9.0pt;
+	font-family:微软雅黑, sans-serif;
+	mso-font-charset:134;}
+.xl67
+	{mso-style-parent:style0;
+	mso-number-format:"\@";
+	text-align:center;
+	white-space:normal;
+	mso-pattern:auto none;
+	background:#FFFFFF;
+	font-size:16.5pt;
+	font-weight:700;
+	mso-font-charset:134;}
+.xl68
+	{mso-style-parent:style0;
+	mso-number-format:"\@";
+	text-align:center;
+	white-space:normal;
+	mso-pattern:auto none;
+	background:#FFFFFF;
+	font-size:9.0pt;
+	font-weight:700;
+	mso-font-charset:134;}
+.xl69
+	{mso-style-parent:style0;
+	mso-number-format:"\@";
+	text-align:left;
+	white-space:normal;
+	mso-pattern:auto none;
+	background:#FFFFFF;
+	font-size:9.0pt;
+	mso-font-charset:134;}
+.xl70
+	{mso-style-parent:style0;
+	mso-number-format:"\@";
+	text-align:left;
+	white-space:normal;
+	mso-pattern:auto none;
+	background:#FFFFFF;
+	font-size:9.0pt;
+	mso-font-charset:134;
+	border-bottom:1.0pt solid #000000;}
+.xl71
+	{mso-style-parent:style0;
+	mso-number-format:"\@";
+	text-align:right;
+	white-space:normal;
+	mso-pattern:auto none;
+	background:#FFFFFF;
+	font-size:9.0pt;
+	mso-font-charset:134;
+	border-bottom:1.0pt solid #000000;}
+.xl72
+	{mso-style-parent:style0;
+	mso-number-format:"\@";
+	text-align:left;
+	white-space:normal;
+	mso-pattern:auto none;
+	background:#FFFFFF;
+	font-size:9.0pt;
+	mso-font-charset:134;
+	border:1.0pt solid #000000;}
+.xl73
+	{mso-style-parent:style0;
+	mso-number-format:"\@";
+	text-align:center;
+	white-space:normal;
+	mso-pattern:auto none;
+	background:#FFFFFF;
+	font-size:9.0pt;
+	mso-font-charset:134;
+	border:1.0pt solid #000000;}
+.xl74
+	{mso-style-parent:style0;
+	mso-number-format:"\@";
+	text-align:right;
+	white-space:normal;
+	mso-pattern:auto none;
+	background:#FFFFFF;
+	font-size:9.0pt;
+	mso-font-charset:134;
+	border:1.0pt solid #000000;}
+.xl75
+	{mso-style-parent:style0;
+	mso-number-format:"_ * \#\,\#\#0\.00_ \;_ * \\-\#\,\#\#0\.00_ \;_ * \0022-\0022??_ \;_ \@_ ";
+	font-size:9.0pt;
+	font-family:微软雅黑, sans-serif;
+	mso-font-charset:134;}
+.xl76
+	{mso-style-parent:style0;
+	mso-number-format:"\@";
+	text-align:right;
+	white-space:normal;
+	font-size:9.0pt;
+	mso-font-charset:134;
+	border:1.0pt solid #000000;}
+.xl77
+	{mso-style-parent:style0;
+	mso-number-format:"\@";
+	text-align:left;
+	vertical-align:bottom;
+	white-space:normal;
+	mso-pattern:auto none;
+	background:#FFFFFF;
+	font-size:9.0pt;
+	mso-font-charset:134;
+	border:1.0pt solid #000000;}
+.xl78
+	{mso-style-parent:style0;
+	mso-number-format:"\@";
+	text-align:center;
+	vertical-align:bottom;
+	white-space:normal;
+	mso-pattern:auto none;
+	background:#FFFFFF;
+	font-size:9.0pt;
+	mso-font-charset:134;
+	border:1.0pt solid #000000;}
+.xl79
+	{mso-style-parent:style0;
+	mso-number-format:"\@";
+	text-align:left;
+	vertical-align:bottom;
+	white-space:normal;
+	mso-pattern:auto none;
+	background:#FFFFFF;
+	font-size:9.0pt;
+	font-weight:700;
+	mso-font-charset:134;
+	border:1.0pt solid #000000;}
+.xl80
+	{mso-style-parent:style0;
+	mso-number-format:"\@";
+	text-align:left;
+	white-space:normal;
+	mso-pattern:auto none;
+	background:#FFFFFF;
+	font-size:9.0pt;
+	font-weight:700;
+	mso-font-charset:134;
+	border:1.0pt solid #000000;}
+ -->  </style>
+  <!--[if gte mso 9]>
+   <xml>
+    <x:ExcelWorkbook>
+     <x:ExcelWorksheets>
+      <x:ExcelWorksheet>
+       <x:Name>26.3增值税及附加税费申报表（一般纳税人适用）(1)</x:Name>
+       <x:WorksheetOptions>
+        <x:DefaultRowHeight>280</x:DefaultRowHeight>
+        <x:StandardWidth>2234</x:StandardWidth>
+        <x:Selected/>
+        <x:Panes>
+         <x:Pane>
+          <x:Number>3</x:Number>
+          <x:ActiveCol>11</x:ActiveCol>
+          <x:ActiveRow>6</x:ActiveRow>
+          <x:RangeSelection>L7</x:RangeSelection>
+         </x:Pane>
+        </x:Panes>
+        <x:DoNotDisplayGridlines/>
+        <x:ProtectContents>False</x:ProtectContents>
+        <x:ProtectObjects>False</x:ProtectObjects>
+        <x:ProtectScenarios>False</x:ProtectScenarios>
+        <x:Print>
+         <x:PaperSizeIndex>9</x:PaperSizeIndex>
+        </x:Print>
+       </x:WorksheetOptions>
+      </x:ExcelWorksheet>
+     </x:ExcelWorksheets>
+     <x:ProtectStructure>False</x:ProtectStructure>
+     <x:ProtectWindows>False</x:ProtectWindows>
+     <x:WindowHeight>7140</x:WindowHeight>
+     <x:WindowWidth>19200</x:WindowWidth>
+    </x:ExcelWorkbook>
+   </xml>
+  <![endif]-->
+ </head>
+ <body link="blue" vlink="purple">
+  <table width="1455" border="0" cellpadding="0" cellspacing="0" style='width:727.50pt;border-collapse:collapse;table-layout:fixed;'>
+   <col width="72" span="2" style='mso-width-source:userset;mso-width-alt:1755;'/>
+   <col width="55" style='mso-width-source:userset;mso-width-alt:1340;'/>
+   <col width="135" style='mso-width-source:userset;mso-width-alt:3291;'/>
+   <col width="90" style='mso-width-source:userset;mso-width-alt:2194;'/>
+   <col width="81" style='mso-width-source:userset;mso-width-alt:1974;'/>
+   <col width="125" span="4" style='mso-width-source:userset;mso-width-alt:3047;'/>
+   <col width="142" style='mso-width-source:userset;mso-width-alt:3461;'/>
+   <col width="154" span="2" style='mso-width-source:userset;mso-width-alt:3754;'/>
+   <tr height="40" class="xl66" style='height:20.00pt;mso-height-source:userset;mso-height-alt:400;'>
+    <td class="xl67" height="40" width="1005" colspan="10" style='height:20.00pt;width:502.50pt;border-right:none;border-bottom:none;' x:str>增值税及附加税费申报表</td>
+    <td class="xl66" width="142" style='width:71.00pt;'></td>
+    <td class="xl66" width="154" style='width:77.00pt;'></td>
+    <td class="xl66" width="154" style='width:77.00pt;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl68" height="25" colspan="10" style='height:12.50pt;border-right:none;border-bottom:none;' x:str>（一般纳税人适用）</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl69" height="25" colspan="10" style='height:12.50pt;border-right:none;border-bottom:none;' x:str>    根据国家税收法律法规及增值税相关规定制定本表。纳税人不论有无销售额，均应按税务机关核定的纳税期限填写本表，并向当地税务机关申报。</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl70" height="25" colspan="6" style='height:12.50pt;border-right:none;border-bottom:1.0pt solid #000000;'></td>
+    <td class="xl70" colspan="2" style='border-right:none;border-bottom:1.0pt solid #000000;'></td>
+    <td class="xl71" colspan="2" style='border-right:none;border-bottom:1.0pt solid #000000;' x:str>金额单位：元（列至角分）</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="36" class="xl66" style='height:18.00pt;mso-height-source:userset;mso-height-alt:360;'>
+    <td class="xl72" height="36" colspan="2" style='height:18.00pt;border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>纳税人识别号（统一社会信用代码）：</td>
+    <td class="xl72" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>911305316610547945</td>
+    <td class="xl73" x:str>所属行业：</td>
+    <td class="xl72" colspan="5" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>其他基础化学原料制造</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="36" class="xl66" style='height:18.00pt;mso-height-source:userset;mso-height-alt:360;'>
+    <td class="xl72" height="36" colspan="2" style='height:18.00pt;border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>纳税人名称：</td>
+    <td class="xl72" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>河北镁神科技股份有限公司</td>
+    <td class="xl73" x:str>法定代表人姓名</td>
+    <td class="xl72" x:str>孙孟勇</td>
+    <td class="xl73" x:str>注册地址</td>
+    <td class="xl72" x:str>河北省邢台市广宗县创业大道西侧0018号</td>
+    <td class="xl73" x:str>生产经营地址</td>
+    <td class="xl72" x:str>河北省邢台市广宗县创业大道西侧0018号</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="36" class="xl66" style='height:18.00pt;mso-height-source:userset;mso-height-alt:360;'>
+    <td class="xl72" height="36" colspan="2" style='height:18.00pt;border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>开户银行及账号</td>
+    <td class="xl72" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>广宗县农村信用合作联社：106022011032654</td>
+    <td class="xl73" x:str>登记注册类型</td>
+    <td class="xl72" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>非国有控股非上市企业</td>
+    <td class="xl73" x:str>电话号码</td>
+    <td class="xl72" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>15690392261</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" height="25" colspan="2" style='height:12.50pt;border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>税款所属期起</td>
+    <td class="xl72" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>2026年3月1日</td>
+    <td class="xl73" x:str>税款所属期止</td>
+    <td class="xl72" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>2026年3月31日</td>
+    <td class="xl73" x:str>填表日期</td>
+    <td class="xl72" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>2026年4月15日</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl73" height="50" colspan="4" rowspan="2" style='height:25.00pt;border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>项     目</td>
+    <td class="xl73" colspan="2" rowspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>栏次</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>一般项目</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>即征即退项目</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl73" x:str>本月数</td>
+    <td class="xl73" x:str>本年累计</td>
+    <td class="xl73" x:str>本月数</td>
+    <td class="xl73" x:str>本年累计</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl73" height="250" rowspan="10" style='height:125.00pt;border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>销售额</td>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>（一）按适用税率计税销售额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>1</td>
+    <td class="xl74" x:str>39,047,463.03</td>
+    <td class="xl74" x:str>72,702,354.90</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>其中：应税货物销售额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>2</td>
+    <td class="xl74" x:str>39,047,463.03</td>
+    <td class="xl74" x:str>72,702,354.90</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl66"></td>
+    <td class="xl75" colspan="2" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>      应税劳务销售额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>3</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>      纳税检查调整的销售额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>4</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>（二）按简易办法计税销售额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>5</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>其中：纳税检查调整的销售额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>6</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>（三）免、抵、退办法出口销售额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>7</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>（四）免税销售额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>8</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>其中：免税货物销售额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>9</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>      免税劳务销售额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>10</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl73" height="375" rowspan="14" style='height:187.50pt;border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>税款计算</td>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>销项税额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>11</td>
+    <td class="xl74" x:str>5,076,170.19</td>
+    <td class="xl74" x:str>9,451,306.14</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl75" colspan="2" style='mso-ignore:colspan;'></td>
+    <td class="xl66"></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>进项税额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>12</td>
+    <td class="xl74" x:str>4,230,908.38</td>
+    <td class="xl74" x:str>7,053,586.83</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>上期留抵税额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>13</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>进项税额转出</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>14</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>免、抵、退应退税额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>15</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl76" x:str>0.00</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl66"></td>
+    <td class="xl75"></td>
+    <td class="xl66"></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>按适用税率计算的纳税检查应补缴税额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>16</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>应抵扣税额合计</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>17=12+13-14-15+16</td>
+    <td class="xl74" x:str>4,230,908.38</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl75"></td>
+    <td class="xl66" colspan="2" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="50" class="xl66" style='height:25.00pt;mso-height-source:userset;mso-height-alt:500;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>实际抵扣税额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>18（如17&lt;11，则为17，否则为11）</td>
+    <td class="xl74" x:str>4,230,908.38</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>应纳税额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>19=11-18</td>
+    <td class="xl74" x:str>845,261.81</td>
+    <td class="xl74" x:str>2,397,719.31</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>期末留抵税额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>20=17-18</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>简易计税办法计算的应纳税额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>21</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>按简易计税办法计算的纳税检查应补缴税额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>22</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>应纳税额减征额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>23</td>
+    <td class="xl74" x:str>3,000.00</td>
+    <td class="xl74" x:str>9,000.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>应纳税额合计</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>24=19+21-23</td>
+    <td class="xl74" x:str>842,261.81</td>
+    <td class="xl74" x:str>2,388,719.31</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl73" height="350" rowspan="14" style='height:175.00pt;border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>税款缴纳</td>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>期初未缴税额（多缴为负数）</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>25</td>
+    <td class="xl74" x:str>550,140.14</td>
+    <td class="xl74" x:str>573,565.91</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>实收出口开具专用缴款书退税额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>26</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>本期已缴税额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>27=28+29+30+31</td>
+    <td class="xl74" x:str>567,749.54</td>
+    <td class="xl74" x:str>2,137,632.81</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>①分次预缴税额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>28</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>②出口开具专用缴款书预缴税额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>29</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>③本期缴纳上期应纳税额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>30</td>
+    <td class="xl74" x:str>567,749.54</td>
+    <td class="xl74" x:str>2,125,632.81</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>④本期缴纳欠缴税额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>31</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>12,000.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>期末未缴税额（多缴为负数）</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>32=24+25+26-27</td>
+    <td class="xl74" x:str>824,652.41</td>
+    <td class="xl74" x:str>824,652.41</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>其中：欠缴税额（≥0）</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>33=25+26-27</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>本期应补(退)税额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>34＝24-28-29</td>
+    <td class="xl74" x:str>842,261.81</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>即征即退实际退税额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>35</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>期初未缴查补税额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>36</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>本期入库查补税额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>37</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="25" class="xl66" style='height:12.50pt;mso-height-source:userset;mso-height-alt:250;'>
+    <td class="xl72" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>期末未缴查补税额</td>
+    <td class="xl73" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>38=16+22+36-37</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl74" x:str>0.00</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl73" x:str>——</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="20" class="xl66" style='height:10.00pt;mso-height-source:userset;mso-height-alt:200;'>
+    <td class="xl73" height="60" rowspan="3" style='height:30.00pt;border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>附加税费</td>
+    <td class="xl77" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>城市维护建设税本期应补（退）税额</td>
+    <td class="xl78" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>39</td>
+    <td class="xl74" x:str>42,263.09</td>
+    <td class="xl74" x:str>119,885.97</td>
+    <td class="xl78" x:str>——</td>
+    <td class="xl78" x:str>——</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="20" class="xl66" style='height:10.00pt;mso-height-source:userset;mso-height-alt:200;'>
+    <td class="xl77" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>教育费附加本期应补（退）费额</td>
+    <td class="xl78" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>40</td>
+    <td class="xl74" x:str>25,357.85</td>
+    <td class="xl74" x:str>71,931.57</td>
+    <td class="xl78" x:str>——</td>
+    <td class="xl78" x:str>——</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="20" class="xl66" style='height:10.00pt;mso-height-source:userset;mso-height-alt:200;'>
+    <td class="xl77" colspan="3" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>地方教育附加本期应补（退）费额</td>
+    <td class="xl78" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>41</td>
+    <td class="xl74" x:str>16,905.24</td>
+    <td class="xl74" x:str>47,954.39</td>
+    <td class="xl78" x:str>——</td>
+    <td class="xl78" x:str>——</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="20" class="xl66" style='height:10.00pt;mso-height-source:userset;mso-height-alt:200;'>
+    <td class="xl79" height="20" colspan="2" style='height:10.00pt;border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>是否代理申报</td>
+    <td class="xl79" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>否</td>
+    <td class="xl80" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>经办人名称</td>
+    <td class="xl79" x:str>韩海燕</td>
+    <td class="xl79" x:str>经办人地址</td>
+    <td class="xl80" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;'></td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="20" class="xl66" style='height:10.00pt;mso-height-source:userset;mso-height-alt:200;'>
+    <td class="xl79" height="20" colspan="2" style='height:10.00pt;border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>经办人员身份证件类型</td>
+    <td class="xl79" colspan="4" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>居民身份证</td>
+    <td class="xl80" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>经办人员身份证件号码</td>
+    <td class="xl80" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>130533*********820</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="20" class="xl66" style='height:10.00pt;mso-height-source:userset;mso-height-alt:200;'>
+    <td class="xl79" height="20" colspan="2" style='height:10.00pt;border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>代理机构名称</td>
+    <td class="xl79" colspan="4" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;'></td>
+    <td class="xl80" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>代理机构统一社会信用代码</td>
+    <td class="xl80" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;'></td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="20" class="xl66" style='height:10.00pt;mso-height-source:userset;mso-height-alt:200;'>
+    <td class="xl79" height="20" style='height:10.00pt;' x:str>授权人</td>
+    <td class="xl79" colspan="4" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;'></td>
+    <td class="xl80" x:str>声明人</td>
+    <td class="xl80" colspan="4" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;'></td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <tr height="36" class="xl66" style='height:18.00pt;mso-height-source:userset;mso-height-alt:360;'>
+    <td class="xl79" height="36" style='height:18.00pt;' x:str>主管税务机关：</td>
+    <td class="xl80" colspan="4" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>国家税务总局广宗县税务局</td>
+    <td class="xl80" x:str>接收人：</td>
+    <td class="xl80" colspan="2" style='border-right:1.0pt solid #000000;border-bottom:1.0pt solid #000000;' x:str>新电子税务局</td>
+    <td class="xl80" x:str>接收日期：</td>
+    <td class="xl80" x:str>2026年4月15日</td>
+    <td class="xl66" colspan="3" style='mso-ignore:colspan;'></td>
+   </tr>
+   <![if supportMisalignedColumns]>
+    <tr width="0" style='display:none;'>
+     <td width="72" style='width:36;'></td>
+     <td width="55" style='width:28;'></td>
+     <td width="135" style='width:68;'></td>
+     <td width="90" style='width:45;'></td>
+     <td width="81" style='width:41;'></td>
+     <td width="125" style='width:63;'></td>
+     <td width="142" style='width:71;'></td>
+     <td width="154" style='width:77;'></td>
+    </tr>
+   <![endif]>
+  </table>
+ </body>
+</html>

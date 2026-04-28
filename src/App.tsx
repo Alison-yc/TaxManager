@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { FormDataCRUD } from './components/FormDataCRUD'
+import { Route, BrowserRouter, Routes } from 'react-router-dom'
+import { AppShell } from './components/AppShell'
 import { LoginPage } from './components/LoginPage'
+import { RecordList } from './pages/RecordList'
+import { RecordPreview } from './pages/RecordPreview'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
 import './App.css'
 
@@ -60,11 +63,22 @@ function App() {
     )
   }
 
+  const email = session.user.email ?? null
+
   return (
-    <FormDataCRUD
-      userEmail={session.user.email ?? null}
-      onSignOut={() => void handleSignOut()}
-    />
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <AppShell userEmail={email} onSignOut={() => void handleSignOut()} />
+          }
+        >
+          <Route index element={<RecordList />} />
+          <Route path="record/:id" element={<RecordPreview />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   )
 }
 
