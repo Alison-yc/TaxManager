@@ -1,71 +1,129 @@
 import { NavLink, Outlet } from 'react-router-dom'
+import { ETAX_PUBLIC } from '../constants/assetBase'
 
 type Props = {
   userEmail: string | null
   onSignOut: () => void
 }
 
-function UserIcon() {
-  return (
-    <svg className="topbar-user-svg" width="22" height="22" viewBox="0 0 24 24" aria-hidden>
-      <circle cx="12" cy="9" r="4" fill="currentColor" opacity="0.85" />
-      <path
-        fill="currentColor"
-        opacity="0.55"
-        d="M5 20c.7-3.2 4-5 7-5s6.3 1.8 7 5"
-      />
-    </svg>
-  )
-}
-
 /**
- * 顶栏：仅「首页」「申报信息查询」为真实路由；其余保持悬停高亮、无跳转。
- * 顶条与徽标用 CSS/SVG 还原风格，不嵌整页设计截图。
+ * 门户顶栏：对齐河北电子税务局首页（图2）— 仅「首页」「我要查询」为真实路由，其余与搜索为装饰。
  */
 export function AppShell({ userEmail, onSignOut }: Props) {
   return (
-    <div className="app-layout etax-shell">
-      <div className="etax-top-strip" aria-hidden />
-      <header className="topbar" aria-label="主导航">
-        <div className="topbar-brand-row">
-          <span className="etax-brand-mark" aria-hidden>
-            税
-          </span>
-          <div className="topbar-brand">全国统一规范电子税务局（模拟）</div>
-        </div>
-        <nav className="topbar-nav">
-          <NavLink
-            to="/"
-            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-            end
+    <div className="app-layout etax-portal-layout">
+      <header className="etax-portal-header" aria-label="门户主导航">
+        <div className="etax-portal-header-inner">
+          <div className="etax-portal-brand">
+            <img
+              className="etax-portal-brand-image"
+              src={`${ETAX_PUBLIC}banner-top-left.png`}
+              alt="全国统一规范电子税务局 河北"
+              width={471}
+              height={65}
+            />
+          </div>
+
+          <div className="etax-portal-center">
+            <nav className="etax-portal-nav" aria-label="主导航菜单">
+              <NavLink
+                to="/"
+                className={({ isActive }) =>
+                  `etax-portal-nav-item${isActive ? ' active' : ''}`
+                }
+                end
+              >
+                首页
+              </NavLink>
+              <span className="etax-portal-nav-item fake">我要办税</span>
+              <NavLink
+                to="/query"
+                className={({ isActive }) =>
+                  `etax-portal-nav-item${isActive ? ' active' : ''}`
+                }
+              >
+                我要查询
+              </NavLink>
+              <span className="etax-portal-nav-item fake">公众服务</span>
+              <span className="etax-portal-nav-item fake">地方特色</span>
+            </nav>
+
+            <div className="etax-portal-search" role="search">
+              <input
+                className="etax-portal-search-input"
+                type="search"
+                placeholder="请输入关键词"
+                readOnly
+                title="示意搜索框"
+                aria-label="搜索（示意）"
+              />
+              <button type="button" className="etax-portal-search-btn fake" aria-label="搜索">
+                <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden>
+                  <circle cx="10" cy="10" r="6.5" fill="none" stroke="#fff" strokeWidth="2" />
+                  <path d="M15 15l5 5" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div
+            className="etax-portal-user etax-portal-user-dropdown"
+            aria-haspopup="true"
           >
-            首页
-          </NavLink>
-          <NavLink
-            to="/query"
-            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-          >
-            申报信息查询
-          </NavLink>
-          <span className="nav-item fake" title="本期仅占位">
-            办税服务厅
-          </span>
-          <span className="nav-item fake" title="本期仅占位">
-            互动中心
-          </span>
-          <span className="nav-item fake" title="本期仅占位">
-            公众服务
-          </span>
-        </nav>
-        <div className="topbar-user muted small">
-          <UserIcon />
-          {userEmail ? <span className="topbar-email">{userEmail}</span> : null}
-          <button type="button" className="btn ghost sm" onClick={onSignOut}>
-            退出
-          </button>
+            <span className="etax-portal-avatar-wrap" aria-hidden>
+              <img
+                className="etax-portal-avatar"
+                src={`${ETAX_PUBLIC}user-icon.png`}
+                alt=""
+                width={32}
+                height={32}
+              />
+            </span>
+            <div className="etax-portal-user-trigger">
+              <span className="etax-portal-user-name">张*超</span>
+              <span className="etax-portal-caret" aria-hidden>
+                <img
+                  className="etax-portal-caret-img"
+                  src={`${ETAX_PUBLIC}nav-chevron-down.png`}
+                  alt=""
+                  aria-hidden
+                />
+              </span>
+            </div>
+            {userEmail ? <span className="sr-only">{userEmail}</span> : null}
+            <div className="etax-portal-user-menu" role="menu" aria-label="用户菜单">
+              <p className="etax-portal-user-menu-greet">欢迎您，张*超</p>
+              <div className="etax-portal-user-menu-sep" role="separator" />
+              <div className="etax-portal-user-menu-actions">
+                <button type="button" className="etax-portal-user-menu-action fake" role="menuitem">
+                  <span className="etax-portal-user-menu-action-ic" aria-hidden>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
+                      <circle cx="12" cy="8" r="3.5" />
+                      <path d="M5 20v-1c0-3 3.5-5 7-5s7 2 7 5v1" />
+                    </svg>
+                  </span>
+                  <span>账户中心</span>
+                </button>
+                <button type="button" className="etax-portal-user-menu-action" role="menuitem" onClick={onSignOut}>
+                  <span className="etax-portal-user-menu-action-ic" aria-hidden>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                      <path
+                        stroke="currentColor"
+                        strokeWidth="1.75"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                      />
+                    </svg>
+                  </span>
+                  <span>退出登录</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </header>
-      <main className="main-panel">
+      <main className="main-panel etax-portal-main">
         <Outlet />
       </main>
     </div>
