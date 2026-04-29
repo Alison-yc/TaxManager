@@ -597,7 +597,7 @@ export function QueryPage() {
               locale={{
                 emptyText:
                   rows.length === 0
-                    ? '暂无数据：可通过右上角用户菜单「账户中心」导入 Excel'
+                    ? '暂无数据'
                     : '无匹配记录，请调整条件',
               }}
               scroll={{ x: 1100 }}
