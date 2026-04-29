@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx'
 import type { Json } from '../types/database'
+import { extractDeclarationIndexFromGrid } from './declarationIndex'
 
 /** 与 xlsx 写入兼容的单元格值 */
 export type GridCell = string | number | boolean
@@ -17,6 +18,19 @@ export type ImportedExcelContent = {
   /** 合并单元格信息（与原表一致时再导出） */
   merges: XLSX.Range[]
   summary: string
+  /** 入库索引字段快照（写入 form_data JSON 与各列冗余） */
+  declaration_index?: {
+    form_code: string
+    form_type_label: string
+    correction_type: string
+    void_flag: string
+    taxpayer_name: string | null
+    credit_code: string | null
+    tax_period_start: string | null
+    tax_period_end: string | null
+    declaration_date: string | null
+    tax_amount_due: number | null
+  }
 }
 
 function pickDisplaySummary(firstRow: Record<string, unknown>): string {
@@ -99,6 +113,8 @@ export function parseExcelFile(buffer: ArrayBuffer, fileName: string): Json {
   const displaySummary =
     rows.length > 0 ? pickDisplaySummary(rows[0]) : '（空表或未识别数据）'
 
+  const declaration_index = extractDeclarationIndexFromGrid(grid, sheet)
+
   const payload: ImportedExcelContent = {
     importVersion: 2,
     excel: {
@@ -110,6 +126,7 @@ export function parseExcelFile(buffer: ArrayBuffer, fileName: string): Json {
     grid,
     merges,
     summary: displaySummary,
+    declaration_index,
   }
 
   return payload as unknown as Json

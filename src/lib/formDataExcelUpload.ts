@@ -1,4 +1,6 @@
 import { parseExcelFile } from './excelImport'
+import type { ImportedExcelContent } from './excelImport'
+import { flattenDeclarationForInsert } from './declarationIndex'
 import { supabase } from './supabase'
 import type { Json } from '../types/database'
 
@@ -22,7 +24,15 @@ export async function uploadFormDataFromExcelFile(
   try {
     const buf = await file.arrayBuffer()
     const content = parseExcelFile(buf, file.name) as Json
-    const { error } = await supabase.from('form_data').insert({ content })
+    const parsed = content as unknown as ImportedExcelContent
+    if (!parsed.declaration_index) {
+      return {
+        ok: false,
+        message: '无法从 Excel 提取申报检索字段（请使用标准模版：增值税及附加税费申报表）',
+      }
+    }
+    const row = flattenDeclarationForInsert(content, parsed.declaration_index)
+    const { error } = await supabase.from('form_data').insert(row)
     if (error) {
       return { ok: false, message: error.message }
     }

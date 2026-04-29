@@ -1,4 +1,4 @@
-import { Link, Outlet } from 'react-router-dom'
+import { Link, Outlet, useLocation } from 'react-router-dom'
 import { ETAX_PUBLIC } from '../constants/assetBase'
 import { PortalNavMegaMenus } from './PortalNavMegaMenus'
 import { UserExcelImportMenuItem } from './UserExcelImportMenuItem'
@@ -9,13 +9,23 @@ type Props = {
 }
 
 /**
- * 门户顶栏：「首页」回根路径；「我要办税 / 我要查询」为悬浮大菜单；Excel 导入在右上角用户菜单「账户中心」；菜单内「申报信息查询」进入 `/query`。
+ * 门户顶栏：「首页」回根路径；「我要办税 / 我要查询」为悬浮大菜单；Excel 导入在用户菜单「账户中心」；
+ * 「申报信息查询」列表页 `/query` 收敛为示意税局明细页——隐藏中间菜单与示意搜索框，仅保留品牌与用户区。
  */
 export function AppShell({ userEmail, onSignOut }: Props) {
+  const location = useLocation()
+  const queryListCompactHeader =
+    location.pathname === '/query' || location.pathname.endsWith('/query')
+
   return (
     <div className="app-layout etax-portal-layout">
-      <header className="etax-portal-header" aria-label="门户主导航">
-        <div className="etax-portal-header-inner">
+      <header
+        className={`etax-portal-header${queryListCompactHeader ? ' etax-portal-header--querylist' : ''}`}
+        aria-label="门户主导航"
+      >
+        <div
+          className={`etax-portal-header-inner${queryListCompactHeader ? ' etax-portal-header-inner--querylist' : ''}`}
+        >
           <div className="etax-portal-brand">
             <img
               className="etax-portal-brand-image"
@@ -26,7 +36,9 @@ export function AppShell({ userEmail, onSignOut }: Props) {
             />
           </div>
 
-          <div className="etax-portal-center">
+          <div
+            className={`etax-portal-center${queryListCompactHeader ? ' etax-portal-center--compact etax-portal-center--hide' : ''}`}
+          >
             <nav className="etax-portal-nav" aria-label="主导航菜单">
               <Link to="/" className="etax-portal-nav-item">
                 首页
@@ -53,10 +65,7 @@ export function AppShell({ userEmail, onSignOut }: Props) {
             </div>
           </div>
 
-          <div
-            className="etax-portal-user etax-portal-user-dropdown"
-            aria-haspopup="true"
-          >
+          <div className="etax-portal-user etax-portal-user-dropdown" aria-haspopup="true">
             <span className="etax-portal-avatar-wrap" aria-hidden>
               <img
                 className="etax-portal-avatar"
@@ -102,7 +111,9 @@ export function AppShell({ userEmail, onSignOut }: Props) {
           </div>
         </div>
       </header>
-      <main className="main-panel etax-portal-main">
+      <main
+        className={`main-panel etax-portal-main${queryListCompactHeader ? ' etax-portal-main--querylist' : ''}`}
+      >
         <Outlet />
       </main>
     </div>

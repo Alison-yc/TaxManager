@@ -3271,3 +3271,400 @@
   flex: 1 1 auto;
   min-height: 190px;
 }
+
+/* ========== 申报信息查询列表 `/query` ========== */
+.etax-portal-center.etax-portal-center--hide {
+  display: none !important;
+}
+
+.etax-portal-header-inner.etax-portal-header-inner--querylist {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.etax-portal-header.etax-portal-header--querylist .etax-portal-brand {
+  flex-shrink: 0;
+}
+
+.etax-portal-main.etax-portal-main--querylist {
+  box-sizing: border-box;
+  padding: 12px 24px 40px;
+}
+
+.etax-query-page {
+  box-sizing: border-box;
+  max-width: 1360px;
+  margin: 0 auto;
+}
+
+.etax-query-bc-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.etax-query-back {
+  border: none;
+  background: transparent;
+  color: #2563eb;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 2px;
+  white-space: nowrap;
+}
+
+.etax-query-back:hover {
+  text-decoration: underline;
+}
+
+.etax-query-bc {
+  flex: 1;
+  font-size: 13px;
+  color: #4b5968;
+}
+
+.etax-bc-link {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.etax-bc-link:hover {
+  text-decoration: underline;
+}
+
+.etax-bc-sep {
+  margin: 0 6px;
+  color: #94a3b8;
+}
+
+.etax-bc-plain {
+  color: #475569;
+}
+
+.etax-bc-current {
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.etax-query-filters-panel {
+  background: #fff;
+  border: 1px solid #c9deef;
+  border-radius: 4px;
+  margin-bottom: 14px;
+  box-shadow: 0 2px 6px rgba(15, 60, 100, 0.06);
+}
+
+.etax-query-filters-panel.collapsed {
+  padding-bottom: 0;
+}
+
+.etax-query-filters-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid #dfe9f6;
+}
+
+.etax-query-panel-title {
+  margin: 0;
+  padding-left: 10px;
+  border-left: 4px solid #1976ff;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0c3766;
+}
+
+.etax-query-collapse-toggle {
+  border: none;
+  background: none;
+  color: #1976ff;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+
+.etax-query-filter-form {
+  padding: 14px 16px 18px;
+}
+
+.etax-query-filter-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 20px;
+  margin-bottom: 12px;
+}
+
+.etax-query-filter-row-actions {
+  align-items: end;
+}
+
+.etax-q-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: #334155;
+}
+
+.etax-q-req-mark {
+  color: #e11d48;
+}
+
+.etax-q-required {
+  position: relative;
+}
+
+.etax-q-input {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid #cfd8ec;
+  border-radius: 2px;
+  font-size: 13px;
+  color: #1e293b;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.etax-q-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.etax-query-form-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  grid-column: 2 / span 2;
+}
+
+.etax-q-btn {
+  min-width: 72px;
+  height: 32px;
+  padding: 0 16px;
+  border-radius: 2px;
+  font-size: 13px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.etax-q-btn-ghost {
+  background: #fff;
+  border-color: #cdd8eb;
+  color: #475569;
+}
+
+.etax-q-btn-primary {
+  background: #1976ff;
+  border-color: #1976ff;
+  color: #fff;
+}
+
+.etax-query-banner-warn {
+  margin: -4px 0 12px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #92400e;
+  font-size: 13px;
+}
+
+.etax-query-result-panel {
+  background: #fff;
+  border: 1px solid #c9deef;
+  border-radius: 4px;
+  padding: 0 0 12px;
+  box-shadow: 0 2px 6px rgba(15, 60, 100, 0.06);
+}
+
+.etax-query-result-panel > .etax-query-panel-title {
+  padding: 10px 16px;
+  margin: 0;
+  border-bottom: 1px solid #dfe9f6;
+}
+
+.etax-query-table-wrap {
+  overflow-x: auto;
+}
+
+.etax-query-table-v2 {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.etax-query-table-v2 thead th {
+  padding: 10px 8px;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid #c5d9ec;
+  background: linear-gradient(180deg, #f0f7ff 0%, #e3eefc 100%);
+  color: #0b457a;
+}
+
+.etax-query-table-v2 tbody td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #e8eff7;
+}
+
+.etax-query-table-v2 tbody tr:hover td {
+  background: rgba(230, 244, 255, 0.45);
+}
+
+.etax-query-empty-cell {
+  text-align: center;
+  color: #64748b;
+  padding: 36px !important;
+}
+
+.etax-td-money {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.etax-q-table-link {
+  color: #0b63c7;
+  text-decoration: none;
+}
+
+.etax-q-table-link:hover {
+  text-decoration: underline;
+}
+
+.etax-td-act {
+  white-space: nowrap;
+}
+
+.etax-td-c {
+  text-align: center;
+}
+
+.etax-query-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px 8px;
+  border-top: 1px solid #edf2f9;
+}
+
+.etax-query-pager {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.etax-q-page-btn {
+  min-width: 64px;
+  height: 28px;
+  border-radius: 2px;
+  border: 1px solid #cdd8eb;
+  background: #fff;
+  cursor: pointer;
+}
+
+.etax-q-page-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ========== 申报查询页 antd ========== */
+.etax-query-antd .etax-query-filters-card.ant-card {
+  border: 1px solid #c9deef;
+  border-radius: 4px;
+  margin-bottom: 14px;
+  box-shadow: 0 2px 6px rgba(15, 60, 100, 0.06);
+}
+
+.etax-query-antd .etax-query-filters-card .ant-card-head {
+  border-bottom: 1px solid #dfe9f6;
+  min-height: 48px;
+}
+
+.etax-query-antd .etax-query-filters-card--collapsed .ant-card-body {
+  padding: 0;
+}
+
+.etax-query-panel-title--card {
+  margin: 0;
+  padding-left: 10px;
+  border-left: 4px solid #1976ff;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0c3766;
+}
+
+.etax-query-alert-warn.ant-alert {
+  margin: 0 0 12px;
+  border-radius: 4px;
+}
+
+.etax-query-antd-form .ant-form-item {
+  margin-bottom: 14px;
+}
+
+.etax-query-antd-form .etax-query-antd-actions {
+  margin-bottom: 0;
+}
+
+.etax-query-antd-form .etax-query-antd-actions .ant-form-item-control-input {
+  justify-content: flex-end;
+}
+
+.etax-query-antd .ant-select-selector,
+.etax-query-antd .ant-picker {
+  background-color: #fff;
+}
+
+.etax-query-antd .ant-table-thead > tr > th {
+  background: linear-gradient(180deg, #f0f7ff 0%, #e3eefc 100%) !important;
+  color: #0b457a;
+  border-bottom: 1px solid #c5d9ec;
+  font-weight: 600;
+}
+
+.etax-query-result-antd .ant-spin-nested-loading {
+  min-height: 120px;
+}
+
+.etax-query-pagination-antd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 16px 8px;
+  border-top: 1px solid #edf2f9;
+}
+
+.etax-query-antd-form--horizontal.etax-query-antd-form .ant-form-item-label {
+  padding-right: 8px;
+}
+
+.etax-query-antd-form--horizontal .etax-query-form-actions-row {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid #eef4fb;
+}
+
+.etax-query-antd-form--horizontal .etax-query-form-actions-row .ant-col {
+  max-width: 100%;
+}
+
+.etax-query-filters-card .ant-card-extra {
+  display: flex;
+  align-items: center;
+}
+
+.etax-query-filter-row-primary {
+  margin-bottom: 4px;
+}
+
+.etax-query-filter-rows-secondary {
+  padding-top: 4px;
+}
+

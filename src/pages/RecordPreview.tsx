@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { VatFormGrid } from '../components/VatFormGrid'
-import { downloadFilledExcelFile, exportPreviewDomToPdf } from '../lib/excelExport'
+import { exportPreviewDomToPdf } from '../lib/excelExport'
 import { isImportedContent } from '../lib/excelImport'
 import { supabase } from '../lib/supabase'
 import type { FormDataRow } from '../types/database'
@@ -94,18 +94,6 @@ export function RecordPreview() {
     }
   }
 
-  function handleExportExcel() {
-    if (!content || !isImportedContent(content)) {
-      setError('当前记录不含可导出的表格网格，请重新导入模版 Excel')
-      return
-    }
-    try {
-      downloadFilledExcelFile(content)
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : String(e))
-    }
-  }
-
   if (!id) return <p className="muted">缺少记录 ID</p>
 
   return (
@@ -126,14 +114,6 @@ export function RecordPreview() {
         <div className="header-actions no-print">
           <button
             type="button"
-            className="btn"
-            onClick={handleExportExcel}
-            disabled={!row || !isImportedContent(content)}
-          >
-            下载 Excel
-          </button>
-          <button
-            type="button"
             className="btn primary"
             onClick={() => void handleExportPdf()}
             disabled={!row || !isImportedContent(content) || busy}
@@ -150,8 +130,7 @@ export function RecordPreview() {
       {row && content && isImportedContent(content) && (
         <>
           <p className="muted small no-print">
-            下列版式与导入时的 Excel 行列一致；导出 PDF 为整表截图，效果接近税局表样。若需与本地 Excel
-            「另存为 PDF」完全一致，建议同时保留「下载 Excel」在本地另存。
+            下列版式与导入时的表格网格一致；「导出 PDF」为整页截图，效果接近税局表样。
           </p>
           <div className="vat-preview-frame">
             <VatFormGrid ref={captureRef} grid={content.grid} merges={content.merges} />
