@@ -1074,6 +1074,8 @@
 .etax-portal-header {
   flex-shrink: 0;
   height: 64px;
+  position: relative;
+  z-index: 400;
   background-color: rgb(66, 133, 244);
   color: #fff;
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.14);
@@ -1114,7 +1116,7 @@
 }
 
 .etax-portal-title {
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 600;
   letter-spacing: 0.02em;
   white-space: nowrap;
@@ -1172,7 +1174,7 @@
   padding: 0 14px;
   height: 64px;
   border-radius: 0;
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 600;
   color: #fff;
   text-decoration: none;
@@ -1195,6 +1197,284 @@
 
 .etax-portal-nav-item.fake {
   cursor: default;
+}
+
+/* 顶栏：我要办税 / 我要查询 悬浮大菜单 */
+.etax-nav-dd {
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+  flex-shrink: 0;
+}
+
+.etax-nav-dd-trigger {
+  cursor: pointer;
+}
+
+.etax-portal-mm {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 64px;
+  z-index: 399;
+  box-sizing: border-box;
+  padding: 14px 20px 18px;
+  background: #fff;
+  color: #333;
+  border-radius: 0;
+  box-shadow:
+    0 8px 28px rgba(23, 51, 104, 0.18),
+    0 1px 0 rgba(0, 0, 0, 0.06);
+  max-height: min(calc(100vh - 68px), 820px);
+  overflow: auto;
+}
+
+.etax-mm-close {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  z-index: 2;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #b0b8c4;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.etax-mm-close::before {
+  content: '\00d7';
+  display: block;
+  font-weight: 300;
+}
+
+.etax-mm-close:hover {
+  color: #5c6b7a;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.etax-mm-inner {
+  display: flex;
+  gap: 0;
+  max-width: min(1180px, 100%);
+  margin: 0 auto;
+  min-height: 380px;
+}
+
+.etax-mm-side {
+  flex: 0 0 228px;
+  padding: 6px 12px 14px 8px;
+  box-sizing: border-box;
+  background: #f5f7fb;
+  border: 1px solid #e4e9f2;
+  border-radius: 10px 0 0 10px;
+}
+
+.etax-mm-side-title {
+  margin: 4px 4px 12px 6px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a1a;
+  letter-spacing: 0.02em;
+}
+
+.etax-mm-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.etax-mm-tab {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 9px 14px 9px 16px;
+  box-sizing: border-box;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: #333;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.etax-mm-tab:hover {
+  background: rgba(47, 111, 235, 0.08);
+  color: #1e4fc4;
+}
+
+.etax-mm-tab.active {
+  background: #2f6feb;
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(47, 111, 235, 0.35);
+}
+
+.etax-mm-body {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 40px 14px 22px;
+  border: 1px solid #e4e9f2;
+  border-left: none;
+  border-radius: 0 10px 10px 0;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.etax-mm-block + .etax-mm-block {
+  margin-top: 20px;
+}
+
+.etax-mm-searchbar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  max-width: 100%;
+  height: 34px;
+  margin: 0 0 18px;
+  padding: 0 4px 0 2px;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid #cfd8e6;
+  background: #fafbfd;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.etax-mm-search-input {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  font-size: 13px;
+  color: #333;
+  background: transparent;
+  box-sizing: border-box;
+}
+
+.etax-mm-search-input::placeholder {
+  color: #9aa5b1;
+}
+
+.etax-mm-search-input:focus,
+.etax-mm-search-input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+/* 仅保留插入点光标，避免出现与外层圆角不统一的直角块状聚焦高亮 */
+
+.etax-mm-search-btn {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  margin-right: 2px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  background: #e02020 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2'%3E%3Ccircle cx='10' cy='10' r='6'/%3E%3Cpath d='M15 15l5 5' stroke-linecap='round'/%3E%3C/svg%3E")
+    center no-repeat;
+  box-shadow: 0 1px 3px rgba(224, 32, 32, 0.35);
+}
+
+.etax-mm-search-btn:hover {
+  background-color: #d01818;
+}
+
+.etax-mm-search-btn:focus-visible {
+  outline: 2px solid rgba(47, 111, 235, 0.7);
+  outline-offset: 2px;
+}
+
+.etax-mm-search-empty {
+  margin: 8px 0 0;
+  padding: 12px 0;
+  font-size: 13px;
+  line-height: 1.55;
+  font-weight: 400;
+  color: #6b7785;
+}
+
+.etax-mm-heading {
+  margin: 0 0 10px;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #2863d9;
+}
+
+.etax-mm-cols {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px 24px;
+  align-items: start;
+}
+
+.etax-mm-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+}
+
+.etax-mm-fake-link {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #333;
+  text-align: left;
+  cursor: default;
+  text-decoration: none;
+}
+
+.etax-mm-fake-link:hover,
+.etax-mm-fake-link--route:hover {
+  color: #2863d9;
+  text-decoration: underline;
+}
+
+/* 与示意链接同色；仅真实路由可点，由 --route 提供手型 */
+.etax-mm-fake-link--route {
+  cursor: pointer;
+  color: #333;
+}
+
+.etax-mm-fake-link--busy {
+  opacity: 0.88;
+  cursor: wait;
+}
+
+.etax-mm-excel-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  max-width: 100%;
+}
+
+.etax-mm-inline-err {
+  font-size: 11px;
+  line-height: 1.35;
+  color: #c41e1e;
+  word-break: break-word;
 }
 
 .etax-portal-search {
@@ -1236,7 +1516,6 @@
 
 .etax-portal-search-input:focus {
   outline: none;
-  box-shadow: inset 0 0 0 2px rgba(43, 125, 212, 0.35);
 }
 
 .etax-portal-search-btn {
@@ -2027,6 +2306,28 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+  align-items: start;
+}
+
+.etax-user-excel-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.etax-portal-user-menu-action--busy {
+  opacity: 0.85;
+  cursor: wait;
+}
+
+.etax-portal-user-menu-err {
+  margin: 0;
+  padding: 0 2px 0 26px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #c41e1e;
+  word-break: break-word;
 }
 
 .etax-portal-user-menu-action {

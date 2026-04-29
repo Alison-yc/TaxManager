@@ -1,5 +1,7 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { Link, Outlet } from 'react-router-dom'
 import { ETAX_PUBLIC } from '../constants/assetBase'
+import { PortalNavMegaMenus } from './PortalNavMegaMenus'
+import { UserExcelImportMenuItem } from './UserExcelImportMenuItem'
 
 type Props = {
   userEmail: string | null
@@ -7,7 +9,7 @@ type Props = {
 }
 
 /**
- * 门户顶栏：对齐河北电子税务局首页（图2）— 仅「首页」「我要查询」为真实路由，其余与搜索为装饰。
+ * 门户顶栏：「首页」回根路径；「我要办税 / 我要查询」为悬浮大菜单；Excel 导入在右上角用户菜单「账户中心」；菜单内「申报信息查询」进入 `/query`。
  */
 export function AppShell({ userEmail, onSignOut }: Props) {
   return (
@@ -26,24 +28,10 @@ export function AppShell({ userEmail, onSignOut }: Props) {
 
           <div className="etax-portal-center">
             <nav className="etax-portal-nav" aria-label="主导航菜单">
-              <NavLink
-                to="/"
-                className={({ isActive }) =>
-                  `etax-portal-nav-item${isActive ? ' active' : ''}`
-                }
-                end
-              >
+              <Link to="/" className="etax-portal-nav-item">
                 首页
-              </NavLink>
-              <span className="etax-portal-nav-item fake">我要办税</span>
-              <NavLink
-                to="/query"
-                className={({ isActive }) =>
-                  `etax-portal-nav-item${isActive ? ' active' : ''}`
-                }
-              >
-                我要查询
-              </NavLink>
+              </Link>
+              <PortalNavMegaMenus />
               <span className="etax-portal-nav-item fake">公众服务</span>
               <span className="etax-portal-nav-item fake">地方特色</span>
             </nav>
@@ -53,7 +41,6 @@ export function AppShell({ userEmail, onSignOut }: Props) {
                 className="etax-portal-search-input"
                 type="search"
                 placeholder="请输入关键词"
-                readOnly
                 title="示意搜索框"
                 aria-label="搜索（示意）"
               />
@@ -95,15 +82,7 @@ export function AppShell({ userEmail, onSignOut }: Props) {
               <p className="etax-portal-user-menu-greet">欢迎您，张*超</p>
               <div className="etax-portal-user-menu-sep" role="separator" />
               <div className="etax-portal-user-menu-actions">
-                <button type="button" className="etax-portal-user-menu-action fake" role="menuitem">
-                  <span className="etax-portal-user-menu-action-ic" aria-hidden>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
-                      <circle cx="12" cy="8" r="3.5" />
-                      <path d="M5 20v-1c0-3 3.5-5 7-5s7 2 7 5v1" />
-                    </svg>
-                  </span>
-                  <span>账户中心</span>
-                </button>
+                <UserExcelImportMenuItem />
                 <button type="button" className="etax-portal-user-menu-action" role="menuitem" onClick={onSignOut}>
                   <span className="etax-portal-user-menu-action-ic" aria-hidden>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>

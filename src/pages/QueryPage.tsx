@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { parseExcelFile } from '../lib/excelImport'
+import { FORM_DATA_EXCEL_IMPORTED_EVENT } from '../lib/formDataExcelUpload'
 import { supabase } from '../lib/supabase'
-import type { FormDataRow, Json } from '../types/database'
+import type { FormDataRow } from '../types/database'
 
 function getSummary(row: FormDataRow): string {
   const c = row.content as Record<string, unknown> | null
@@ -47,15 +47,13 @@ function EmptyIllustration() {
 }
 
 /**
- * 申报信息查询：版式用页面结构还原；导入、筛选、表格交互逻辑不变。
+ * 申报信息查询：版式用页面结构还原；筛选与表格交互不变；Excel 录入从右上角用户菜单「账户中心」进入。
  */
 export function QueryPage() {
   const [rows, setRows] = useState<FormDataRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
-  const [importBusy, setImportBusy] = useState(false)
-
   const [correctionType, setCorrectionType] = useState('normal')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
@@ -75,6 +73,11 @@ export function QueryPage() {
     }
     setLoading(false)
   }, [])
+  useEffect(() => {
+    const onImported = () => void load()
+    window.addEventListener(FORM_DATA_EXCEL_IMPORTED_EVENT, onImported)
+    return () => window.removeEventListener(FORM_DATA_EXCEL_IMPORTED_EVENT, onImported)
+  }, [load])
 
   useEffect(() => {
     const id = window.setTimeout(() => {
@@ -97,33 +100,6 @@ export function QueryPage() {
     return list
   }, [rows, query])
 
-  async function handleFile(ev: React.ChangeEvent<HTMLInputElement>) {
-    const file = ev.target.files?.[0]
-    ev.target.value = ''
-    if (!file) return
-    const lower = file.name.toLowerCase()
-    if (!lower.endsWith('.xlsx') && !lower.endsWith('.xls')) {
-      setError('请选择 .xlsx 或 .xls 文件')
-      return
-    }
-    setImportBusy(true)
-    setError(null)
-    try {
-      const buf = await file.arrayBuffer()
-      const content = parseExcelFile(buf, file.name) as Json
-      const { error: insErr } = await supabase.from('form_data').insert({ content })
-      if (insErr) {
-        setError(insErr.message)
-        return
-      }
-      await load()
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setImportBusy(false)
-    }
-  }
-
   function handleSearchClick(e: React.FormEvent) {
     e.preventDefault()
     void load()
@@ -137,16 +113,6 @@ export function QueryPage() {
           <p className="muted etax-query-sub">按条件筛选申报记录；查询可先拉取全部数据再在前端筛选。</p>
         </div>
         <div className="header-actions">
-          <label className="btn primary">
-            {importBusy ? '导入中…' : '导入 Excel'}
-            <input
-              type="file"
-              accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-              className="hidden-file-input"
-              onChange={(ev) => void handleFile(ev)}
-              disabled={importBusy}
-            />
-          </label>
           <button type="button" className="btn" onClick={() => void load()} disabled={loading}>
             刷新
           </button>
@@ -259,7 +225,7 @@ export function QueryPage() {
                         <EmptyIllustration />
                         <span className="muted etax-empty-text">
                           {rows.length === 0
-                            ? '暂无数据，可先「导入 Excel」'
+                            ? '暂无数据：可使用右上角用户名旁下拉菜单中的「账户中心」导入 Excel'
                             : '无匹配记录，请调整关键字或条件'}
                         </span>
                       </div>
