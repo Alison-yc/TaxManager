@@ -1157,6 +1157,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  font-weight: 600;
   flex-wrap: nowrap;
   gap: 0;
   width: max-content;
@@ -1172,7 +1173,7 @@
   height: 64px;
   border-radius: 0;
   font-size: 15px;
-  font-weight: 400;
+  font-weight: 600;
   color: #fff;
   text-decoration: none;
   border: none;
@@ -1381,32 +1382,33 @@
 }
 
 .etx-ph-usercard {
-  height: 82px;
-  padding: 0 18px;
+  height: auto;
+  min-height: 82px;
+  padding: 12px 18px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  box-sizing: border-box;
+  border-radius: 4px;
+}
+
+.etx-ph-user-line1,
+.etx-ph-user-line2 {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-}
-
-.etx-ph-user-main {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
+  gap: 10px 14px;
   min-width: 0;
 }
 
-.etx-ph-user-identity {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
 .etx-ph-user-name {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 16px;
   font-weight: 700;
   color: #1a1a1a;
+  line-height: 1.35;
 }
 
 .etx-ph-user-ribbon {
@@ -1417,33 +1419,61 @@
 }
 
 .etx-ph-user-id {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 13px;
   color: #222;
   letter-spacing: 0.04em;
 }
 
+.etx-ph-user-period {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 400;
+  color: #8b9099;
+  white-space: nowrap;
+}
+
 .etx-ph-user-badge {
   flex-shrink: 0;
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  width: 76px;
+  align-items: stretch;
   height: 34px;
   padding: 0;
   border-radius: 3px;
-  border: 1px solid #a9e1bb;
-  background: #e5f8e9;
-  color: #25934e;
-  font-size: 13px;
-  font-weight: 400;
+  border: 0;
+  overflow: hidden;
+  background: transparent;
+  box-shadow: none;
 }
 
 .etx-ph-user-badge-ic {
-  width: 13px;
-  height: 13px;
-  border-radius: 2px;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0;
   background: #20a455;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.etx-ph-user-badge-text {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0 12px;
+  box-sizing: border-box;
+  background: #e8f7f1;
+  color: #16a464;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .etx-ph-subcard {
@@ -1913,8 +1943,8 @@
 /* ========== 门户首页细化覆盖：品牌大图 / 隐藏默认 logo 文案（样式已合并至门户首页段落） ========== */
 .etax-portal-brand-image {
   display: block;
-  width: 420px;
-  max-width: min(420px, 38vw);
+  width: 370px;
+  max-width: 370px;
   height: auto;
   max-height: 58px;
   object-fit: contain;
@@ -2415,75 +2445,11 @@
   object-fit: contain;
 }
 
-/* ========== 用户补充资源后的首页二次精修（仅保留未被末段覆盖的增量） ========== */
-.etx-ph-user-identity {
-  gap: 5px;
-}
-
-.etx-ph-user-name {
-  min-width: 48px;
-}
-
-.etx-ph-name-eye {
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.etx-ph-name-eye img {
-  display: block;
-  width: 16px;
-  height: 16px;
-  object-fit: contain;
-}
-
-.etx-ph-user-badge {
-  width: 108px;
-  height: 36px;
-  padding: 0;
-  gap: 0;
-  border: 0;
-  border-radius: 3px;
-  overflow: hidden;
-  background: transparent;
-  box-shadow: none;
-}
-
-.etx-ph-user-badge-ic {
-  width: 36px;
-  height: 36px;
-  border-radius: 0;
-  background: #1fbd78;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  mask: none;
-  -webkit-mask: none;
-}
-
-.etx-ph-user-badge-ic img {
-  width: 18px;
-  height: 18px;
-  object-fit: contain;
-}
-
-.etx-ph-user-badge-text {
-  height: 36px;
-  min-width: 60px;
-  padding: 0 10px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: #e8f7f1;
-  color: #16a464;
-  font-size: 13px;
-  font-weight: 500;
+/* ========== 首页用户卡：与资源图一致（A 级标识等），小眼睛已移除 ========== */
+.etx-ph-top .etx-ph-usercard {
+  flex-shrink: 0;
+  min-height: 96px;
+  height: auto;
 }
 
 .etx-ph-hot-item {
@@ -2977,11 +2943,6 @@
   flex-direction: column;
   min-height: 0;
   align-self: stretch;
-}
-
-.etx-ph-top .etx-ph-usercard {
-  flex-shrink: 0;
-  height: 96px;
 }
 
 .etx-ph-top .etx-ph-subcard {

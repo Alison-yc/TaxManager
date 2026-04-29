@@ -227,8 +227,6 @@ function todoStatusClass(tone: TodoStatusTone): string {
 export function HomePage() {
   const [favTab, setFavTab] = useState<'fav' | 'scene'>('fav')
   const [todoTab, setTodoTab] = useState<TodoTabId>('declare')
-  const [isNameVisible, setIsNameVisible] = useState(false)
-  const displayName = isNameVisible ? '测试机' : '测*机'
 
   return (
     <div className="etax-portal-home">
@@ -237,30 +235,19 @@ export function HomePage() {
         <section className="etax-ph-row etx-ph-top" aria-label="用户与待办">
           <div className="etx-ph-col">
             <div className="etx-ph-card etx-ph-usercard">
-              <div className="etx-ph-user-main">
-                <div className="etx-ph-user-identity">
-                  <span className="etx-ph-user-name">{displayName}</span>
-                  <button
-                    type="button"
-                    className="etx-ph-name-eye"
-                    aria-label={isNameVisible ? '隐藏姓名' : '显示姓名'}
-                    onClick={() => setIsNameVisible((visible) => !visible)}
-                  >
-                    <img
-                      src={`${homeAsset}${isNameVisible ? 'eye-open.png' : 'eye-closed.png'}`}
-                      alt=""
-                      aria-hidden
-                    />
-                  </button>
-                </div>
-                <span className="etx-ph-user-id">**************7213</span>
-              </div>
-              <span className="etx-ph-user-badge">
-                <span className="etx-ph-user-badge-ic" aria-hidden>
-                  <img src={`${ETAX_PUBLIC}user-icon.png`} alt="" aria-hidden />
+              <div className="etx-ph-user-line1">
+                <span className="etx-ph-user-name">河北镁神科技股份有限公司</span>
+                <span className="etx-ph-user-badge">
+                  <span className="etx-ph-user-badge-ic" aria-hidden>
+                    A
+                  </span>
+                  <span className="etx-ph-user-badge-text">级纳税人</span>
                 </span>
-                <span className="etx-ph-user-badge-text">自然人</span>
-              </span>
+              </div>
+              <div className="etx-ph-user-line2">
+                <span className="etx-ph-user-id">911305316610547945</span>
+                <span className="etx-ph-user-period">本月征期已结束</span>
+              </div>
             </div>
             <div className="etx-ph-card etx-ph-subcard">
               <div className="etx-ph-reminder-titlebar">
