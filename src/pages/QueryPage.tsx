@@ -191,10 +191,14 @@ function voidLabel(row: FormDataRow): string {
   return row.void_flag ?? indexFromRow(row).void_flag ?? DEFAULT_VOID_FLAG
 }
 
+/** 与税局列表页常见宽度对齐：标签区略宽避免折行不齐 */
 const FORM_ITEM_HORIZONTAL = {
-  labelCol: { flex: '0 0 134px' },
+  labelCol: { flex: '0 0 142px' },
   wrapperCol: { flex: '1 1 0', style: { minWidth: 0 } },
 }
+
+/** 检索区栅格：横向略放大、纵向拉开行距（对照参考页） */
+const QUERY_FILTER_ROW_GUTTER: [number, number] = [28, 18]
 
 /**
  * 申报信息查询列表：antd 表单 + 表格；折叠仅收起第 2、3 行条件；申报日期必填。
@@ -383,6 +387,7 @@ export function QueryPage() {
         token: {
           colorPrimary: '#1976ff',
           borderRadius: 4,
+          controlHeight: 34,
         },
       }}
     >
@@ -413,14 +418,16 @@ export function QueryPage() {
               </h2>
             }
             extra={
-              <button
-                type="button"
-                className="etax-query-collapse-toggle"
-                onClick={() => setFiltersExpanded((v) => !v)}
-                aria-expanded={filtersExpanded}
-              >
-                {filtersExpanded ? '收起 ^' : '展开 v'}
-              </button>
+              <span className="etax-query-card-extra-actions">
+                <button
+                  type="button"
+                  className="etax-query-collapse-toggle"
+                  onClick={() => setFiltersExpanded((v) => !v)}
+                  aria-expanded={filtersExpanded}
+                >
+                  {filtersExpanded ? '收起 ^' : '展开 v'}
+                </button>
+              </span>
             }
           >
             <Form<QueryFormShape>
@@ -440,7 +447,7 @@ export function QueryPage() {
                 setAppliedFilters(formShapeToFilterVals(shape))
               }}
             >
-              <Row gutter={[20, 8]} wrap className="etax-query-filter-row-primary">
+              <Row gutter={QUERY_FILTER_ROW_GUTTER} wrap className="etax-query-filter-row-primary">
                 <Col
                   xs={24}
                   lg={8}
@@ -490,7 +497,7 @@ export function QueryPage() {
                 style={{ display: filtersExpanded ? undefined : 'none' }}
                 aria-hidden={!filtersExpanded}
               >
-                <Row gutter={[20, 8]}>
+                <Row gutter={QUERY_FILTER_ROW_GUTTER}>
                   <Col xs={24} md={12} xl={8}>
                     <Form.Item name="taxPeriodFrom" label="税款所属期起">
                       <DatePicker
@@ -526,7 +533,7 @@ export function QueryPage() {
                     </Form.Item>
                   </Col>
                 </Row>
-                <Row gutter={[20, 8]}>
+                <Row gutter={QUERY_FILTER_ROW_GUTTER}>
                   <Col xs={24} md={12} xl={8}>
                     <Form.Item
                       name="declTo"

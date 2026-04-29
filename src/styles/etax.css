@@ -3288,7 +3288,8 @@
 
 .etax-portal-main.etax-portal-main--querylist {
   box-sizing: border-box;
-  padding: 12px 24px 40px;
+  padding: 14px 28px 40px;
+  background: #edf1f7;
 }
 
 .etax-query-page {
@@ -3383,7 +3384,17 @@
   color: #1976ff;
   font-size: 13px;
   cursor: pointer;
-  padding: 4px 6px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  line-height: 1.45;
+  transition: background-color 0.15s ease;
+}
+
+.etax-query-collapse-toggle:hover {
+  background: rgba(25, 118, 255, 0.09);
+  color: #1565d8;
 }
 
 .etax-query-filter-form {
@@ -3576,13 +3587,29 @@
 .etax-query-antd .etax-query-filters-card.ant-card {
   border: 1px solid #c9deef;
   border-radius: 4px;
-  margin-bottom: 14px;
-  box-shadow: 0 2px 6px rgba(15, 60, 100, 0.06);
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(15, 60, 100, 0.07);
+  overflow: hidden;
+  background: #fff;
 }
 
 .etax-query-antd .etax-query-filters-card .ant-card-head {
   border-bottom: 1px solid #dfe9f6;
-  min-height: 48px;
+  min-height: 46px;
+  padding: 0 20px;
+}
+
+.etax-query-antd .etax-query-filters-card .ant-card-head-wrapper {
+  align-items: center;
+  width: 100%;
+}
+
+.etax-query-antd .etax-query-filters-card .ant-card-head-title {
+  padding: 12px 0;
+}
+
+.etax-query-antd .etax-query-filters-card .ant-card-body {
+  padding: 18px 22px 16px;
 }
 
 .etax-query-antd .etax-query-filters-card--collapsed .ant-card-body {
@@ -3596,6 +3623,7 @@
   font-size: 15px;
   font-weight: 700;
   color: #0c3766;
+  line-height: 1.35;
 }
 
 .etax-query-alert-warn.ant-alert {
@@ -3604,7 +3632,15 @@
 }
 
 .etax-query-antd-form .ant-form-item {
-  margin-bottom: 14px;
+  margin-bottom: 16px;
+}
+
+.etax-query-filter-rows-secondary .ant-form-item {
+  margin-bottom: 16px;
+}
+
+.etax-query-filter-rows-secondary .ant-row:last-child .ant-form-item {
+  margin-bottom: 2px;
 }
 
 .etax-query-antd-form .etax-query-antd-actions {
@@ -3637,18 +3673,23 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-  padding: 12px 16px 8px;
+  padding: 12px 22px 10px;
   border-top: 1px solid #edf2f9;
 }
 
 .etax-query-antd-form--horizontal.etax-query-antd-form .ant-form-item-label {
-  padding-right: 8px;
+  padding-right: 10px;
+}
+
+.etax-query-antd-form--horizontal.etax-query-antd-form .ant-form-item-label > label {
+  height: auto;
+  line-height: 34px;
 }
 
 .etax-query-antd-form--horizontal .etax-query-form-actions-row {
-  margin-top: 4px;
-  padding-top: 4px;
-  border-top: 1px solid #eef4fb;
+  margin-top: 6px;
+  padding-top: 14px;
+  border-top: 1px solid #e8eef7;
 }
 
 .etax-query-antd-form--horizontal .etax-query-form-actions-row .ant-col {
@@ -3657,14 +3698,39 @@
 
 .etax-query-filters-card .ant-card-extra {
   display: flex;
+  align-items: stretch;
+  padding: 8px 0;
+}
+
+.etax-query-card-extra-actions {
+  display: inline-flex;
   align-items: center;
+  justify-content: flex-end;
+  margin-left: 12px;
 }
 
 .etax-query-filter-row-primary {
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .etax-query-filter-rows-secondary {
-  padding-top: 4px;
+  padding-top: 2px;
+}
+
+.etax-query-filter-rows-secondary .ant-row + .ant-row {
+  margin-top: 2px;
+}
+
+.etax-query-result-panel.etax-query-result-antd {
+  padding-bottom: 4px;
+}
+
+.etax-query-result-antd .etax-query-panel-title {
+  padding-left: 22px;
+  padding-right: 22px;
+}
+
+.etax-query-antd .etax-query-result-antd .ant-table-wrapper {
+  padding: 0 16px 8px;
 }
 
