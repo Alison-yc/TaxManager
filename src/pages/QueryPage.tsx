@@ -62,6 +62,26 @@ type SelectOption = {
 
 const QUERY_EXPORT_SNAPSHOT_KEY = 'taxmanager:query-export-snapshot'
 const QUERY_EXPORT_SNAPSHOT_MAX_AGE_MS = 10 * 60 * 1000
+const FORM_KIND_OPTION_FETCH_LIMIT = 500
+const LEGACY_FALLBACK_FETCH_LIMIT = 2000
+
+const FORM_DATA_LIST_SELECT_COLUMNS = [
+  'id',
+  'user_id',
+  'created_at',
+  'form_code',
+  'form_type_label',
+  'correction_type',
+  'void_flag',
+  'taxpayer_name',
+  'credit_code',
+  'tax_period_start',
+  'tax_period_end',
+  'declaration_date',
+  'tax_amount_due',
+].join(',')
+
+const FORM_DATA_LEGACY_SELECT_COLUMNS = `${FORM_DATA_LIST_SELECT_COLUMNS},content`
 
 const STATIC_FORM_KIND_OPTIONS = QUERY_PAGE_FORM_KIND_OPTIONS
 
@@ -294,6 +314,7 @@ export function QueryPage() {
   const defaultFilters = useMemo(() => restoredExportFilters ?? buildDefaultFilters(), [restoredExportFilters])
   const [appliedFilters, setAppliedFilters] = useState<FilterVals>(() => ({ ...defaultFilters }))
   const [rows, setRows] = useState<FormDataRow[]>([])
+  const [totalRows, setTotalRows] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [formKindOptions, setFormKindOptions] = useState<SelectOption[]>(STATIC_FORM_KIND_OPTIONS)
@@ -318,6 +339,7 @@ export function QueryPage() {
       .select('form_code, form_type_label')
       .not('form_code', 'is', null)
       .order('form_code', { ascending: true })
+      .limit(FORM_KIND_OPTION_FETCH_LIMIT)
 
     if (qErr) return
 
@@ -339,12 +361,15 @@ export function QueryPage() {
     setLoading(true)
     setError(null)
     const filters = appliedFilters
+    const from = (page - 1) * pageSize
+    const to = from + pageSize - 1
     try {
       let q = supabase
         .from('form_data')
-        .select('*')
+        .select(FORM_DATA_LIST_SELECT_COLUMNS, { count: 'exact' })
         .order('declaration_date', { ascending: false })
         .order('created_at', { ascending: false })
+        .range(from, to)
 
       if (filters.correctionTypes.length > 0) {
         q = q.in('correction_type', filters.correctionTypes)
@@ -366,31 +391,38 @@ export function QueryPage() {
 
       if (filters.declTo) q = q.lte('declaration_date', filters.declTo)
 
-      const { data, error: qErr } = await q
+      const { data, error: qErr, count } = await q
 
       if (qErr) {
-        const fb = await supabase.from('form_data').select('*').order('created_at', { ascending: false })
+        const fb = await supabase
+          .from('form_data')
+          .select(FORM_DATA_LEGACY_SELECT_COLUMNS)
+          .order('created_at', { ascending: false })
+          .limit(LEGACY_FALLBACK_FETCH_LIMIT)
         if (fb.error) {
           setError(`${qErr.message}（若缺少列请先执行 migrations）`)
           setRows([])
+          setTotalRows(0)
         } else {
-          const merged = filterRowsLegacy((fb.data ?? []) as FormDataRow[], filters)
-          setRows(merged)
+          const merged = filterRowsLegacy((fb.data ?? []) as unknown as FormDataRow[], filters)
+          setRows(merged.slice(from, to + 1))
+          setTotalRows(merged.length)
           setError(
-            '检测到尚未迁移结构化列：已仅用 JSON 快照（content.declaration_index）参与筛选展示。请在 Supabase 执行 supabase/migrations 中的 SQL。',
+            `检测到尚未迁移结构化列：已用 JSON 快照筛选。当前为兼容模式，仅扫描最新 ${LEGACY_FALLBACK_FETCH_LIMIT} 条，请尽快执行 supabase/migrations 中的 SQL。`,
           )
         }
       } else {
-        setRows(filterRowsLegacy((data ?? []) as FormDataRow[], filters))
+        setRows((data ?? []) as unknown as FormDataRow[])
+        setTotalRows(count ?? 0)
         setError(null)
       }
     } catch {
       setError('加载失败')
       setRows([])
+      setTotalRows(0)
     }
     setLoading(false)
-    setPage(1)
-  }, [appliedFilters])
+  }, [appliedFilters, page, pageSize])
 
   const loadRef = useRef(loadInner)
   useEffect(() => {
@@ -406,6 +438,7 @@ export function QueryPage() {
 
   useEffect(() => {
     const onImported = () => {
+      setPage(1)
       void loadRef.current()
       void loadFormKindOptions()
     }
@@ -413,18 +446,12 @@ export function QueryPage() {
     return () => window.removeEventListener(FORM_DATA_EXCEL_IMPORTED_EVENT, onImported)
   }, [loadFormKindOptions])
 
-  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize))
-  const currentPage = Math.min(Math.max(1, page), totalPages)
-  const pageRows = useMemo(() => {
-    const from = (currentPage - 1) * pageSize
-    return rows.slice(from, from + pageSize)
-  }, [rows, currentPage, pageSize])
-
   const initialFormValues = useMemo(() => filterValsToFormShape(defaultFilters), [defaultFilters])
 
   const handleReset = () => {
     const next = buildDefaultFilters()
     form.setFieldsValue(filterValsToFormShape(next))
+    setPage(1)
     setAppliedFilters(next)
   }
 
@@ -435,7 +462,7 @@ export function QueryPage() {
         key: 'idx',
         width: 70,
         align: 'center',
-        render: (_v, _r, i) => (currentPage - 1) * pageSize + (i ?? 0) + 1,
+        render: (_v, _r, i) => (page - 1) * pageSize + (i ?? 0) + 1,
       },
       {
         title: '申报表种类',
@@ -506,7 +533,7 @@ export function QueryPage() {
         ),
       },
     ],
-    [appliedFilters, currentPage, pageSize],
+    [appliedFilters, page, pageSize],
   )
 
   return (
@@ -563,6 +590,7 @@ export function QueryPage() {
                   ...v,
                   formKind: QUERY_FORM_KIND_SELECTOR_HIDDEN ? getActiveQueryFormKind(v.formKind ?? '') : v.formKind,
                 }
+                setPage(1)
                 setAppliedFilters(formShapeToFilterVals(shape))
               }}
             >
@@ -725,25 +753,22 @@ export function QueryPage() {
               className="etax-query-table-antd"
               rowKey="id"
               columns={columns}
-              dataSource={loading ? [] : pageRows}
+              dataSource={loading ? [] : rows}
               pagination={false}
               locale={{
-                emptyText:
-                  rows.length === 0
-                    ? '暂无数据'
-                    : '无匹配记录，请调整条件',
+                emptyText: '暂无数据',
               }}
               scroll={{ x: 1100 }}
             />
 
-            {!loading && rows.length > 0 ? (
+            {!loading && totalRows > 0 ? (
               <div className="etax-query-pagination etax-query-pagination-antd">
-                <span className="muted">共 {rows.length} 项数据</span>
+                <span className="muted">共 {totalRows} 项数据</span>
                 <Pagination
                   size="small"
-                  current={currentPage}
+                  current={page}
                   pageSize={pageSize}
-                  total={rows.length}
+                  total={totalRows}
                   showSizeChanger={false}
                   onChange={(p) => setPage(p)}
                 />
