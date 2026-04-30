@@ -50,7 +50,12 @@ type FilterVals = {
   declTo: string
 }
 
-const FORM_KIND_OPTIONS = QUERY_PAGE_FORM_KIND_OPTIONS
+type SelectOption = {
+  value: string
+  label: string
+}
+
+const STATIC_FORM_KIND_OPTIONS = QUERY_PAGE_FORM_KIND_OPTIONS
 
 const VOID_OPTIONS = [
   { value: VOID_FLAG_ALL_LABEL, label: VOID_FLAG_ALL_LABEL },
@@ -61,6 +66,23 @@ const VOID_OPTIONS = [
 const CORRECTION_SELECT_OPTIONS = QUERY_CORRECTION_TYPE_OPTIONS.map((x) => ({ value: x, label: x }))
 
 const defaultCorrectionTypesAll = () => [...QUERY_CORRECTION_TYPE_OPTIONS]
+
+function mergeFormKindOptions(staticOptions: SelectOption[], dbOptions: SelectOption[]): SelectOption[] {
+  const seen = new Set<string>()
+  const merged: SelectOption[] = []
+  for (const option of [...staticOptions, ...dbOptions]) {
+    if (seen.has(option.value)) continue
+    seen.add(option.value)
+    merged.push(option)
+  }
+  return merged
+}
+
+function dbFormKindLabel(code: string, label?: string | null): string {
+  const text = label?.trim()
+  if (!text) return code
+  return text.startsWith(code) ? text : `${code} ${text}`
+}
 
 function buildDefaultFilters(): FilterVals {
   const start = dayjs().startOf('month')
@@ -212,11 +234,35 @@ export function QueryPage() {
   const [rows, setRows] = useState<FormDataRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [formKindOptions, setFormKindOptions] = useState<SelectOption[]>(STATIC_FORM_KIND_OPTIONS)
 
   /** true = 展开第 2、3 行；false = 仅展示第一行（种类 / 更正 / 作废） */
   const [filtersExpanded, setFiltersExpanded] = useState(true)
   const [page, setPage] = useState(1)
   const pageSize = 10
+
+  const loadFormKindOptions = useCallback(async () => {
+    const { data, error: qErr } = await supabase
+      .from('form_data')
+      .select('form_code, form_type_label')
+      .not('form_code', 'is', null)
+      .order('form_code', { ascending: true })
+
+    if (qErr) return
+
+    const dbOptions = ((data ?? []) as Pick<FormDataRow, 'form_code' | 'form_type_label'>[])
+      .map((row) => {
+        const code = row.form_code?.trim()
+        if (!code) return null
+        return {
+          value: code,
+          label: dbFormKindLabel(code, row.form_type_label),
+        }
+      })
+      .filter((x): x is SelectOption => x !== null)
+
+    setFormKindOptions(mergeFormKindOptions(STATIC_FORM_KIND_OPTIONS, dbOptions))
+  }, [])
 
   const loadInner = useCallback(async () => {
     setLoading(true)
@@ -283,14 +329,18 @@ export function QueryPage() {
   useEffect(() => {
     queueMicrotask(() => {
       void loadInner()
+      void loadFormKindOptions()
     })
-  }, [loadInner])
+  }, [loadInner, loadFormKindOptions])
 
   useEffect(() => {
-    const onImported = () => void loadRef.current()
+    const onImported = () => {
+      void loadRef.current()
+      void loadFormKindOptions()
+    }
     window.addEventListener(FORM_DATA_EXCEL_IMPORTED_EVENT, onImported)
     return () => window.removeEventListener(FORM_DATA_EXCEL_IMPORTED_EVENT, onImported)
-  }, [])
+  }, [loadFormKindOptions])
 
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize))
   const currentPage = Math.min(Math.max(1, page), totalPages)
@@ -447,7 +497,7 @@ export function QueryPage() {
                     <Select
                       showSearch
                       optionFilterProp="label"
-                      options={FORM_KIND_OPTIONS}
+                      options={formKindOptions}
                       placeholder="请选择"
                       getPopupContainer={(n) => n.parentElement ?? document.body}
                     />
