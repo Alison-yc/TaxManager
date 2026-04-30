@@ -54,10 +54,12 @@ export function RecordPreview() {
   useEffect(() => {
     const wantPdf = searchParams.get('pdf') === '1'
     const shouldReturnQuery = searchParams.get('return') === 'query'
+    const shouldRestoreQuery = searchParams.get('restoreQuery') === 'export'
+    const queryReturnUrl = shouldRestoreQuery ? '/query?restoreQuery=export' : '/query'
     if (!wantPdf || !id) return
     if (!row || !content) return
     if (!isImportedContent(content)) {
-      navigate(shouldReturnQuery ? '/query' : `/record/${id}`, { replace: true })
+      navigate(shouldReturnQuery ? queryReturnUrl : `/record/${id}`, { replace: true })
       return
     }
 
@@ -78,7 +80,7 @@ export function RecordPreview() {
         } finally {
           setBusy(false)
           if (!cancelled) {
-            navigate(shouldReturnQuery ? '/query' : `/record/${id}`, { replace: true })
+            navigate(shouldReturnQuery ? queryReturnUrl : `/record/${id}`, { replace: true })
           }
         }
       })()

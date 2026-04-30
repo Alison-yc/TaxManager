@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Alert,
   Button,
@@ -49,10 +49,19 @@ type FilterVals = {
   declTo: string
 }
 
+type QueryExportSnapshot = {
+  reason: 'record-export-return'
+  savedAt: number
+  filters: FilterVals
+}
+
 type SelectOption = {
   value: string
   label: string
 }
+
+const QUERY_EXPORT_SNAPSHOT_KEY = 'taxmanager:query-export-snapshot'
+const QUERY_EXPORT_SNAPSHOT_MAX_AGE_MS = 10 * 60 * 1000
 
 const STATIC_FORM_KIND_OPTIONS = QUERY_PAGE_FORM_KIND_OPTIONS
 
@@ -95,6 +104,48 @@ function buildDefaultFilters(): FilterVals {
     declFrom: start.format('YYYY-MM-DD'),
     declTo: end.format('YYYY-MM-DD'),
   }
+}
+
+function isFilterVals(value: unknown): value is FilterVals {
+  if (!value || typeof value !== 'object') return false
+  const f = value as Partial<FilterVals>
+  return (
+    typeof f.formKind === 'string' &&
+    Array.isArray(f.correctionTypes) &&
+    f.correctionTypes.every((x) => typeof x === 'string') &&
+    typeof f.voidFlag === 'string' &&
+    typeof f.taxPeriodFrom === 'string' &&
+    typeof f.taxPeriodTo === 'string' &&
+    typeof f.declFrom === 'string' &&
+    typeof f.declTo === 'string'
+  )
+}
+
+function readExportQuerySnapshot(): FilterVals | null {
+  const params = new URLSearchParams(window.location.search)
+  if (params.get('restoreQuery') !== 'export') return null
+
+  const raw = window.sessionStorage.getItem(QUERY_EXPORT_SNAPSHOT_KEY)
+  if (!raw) return null
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<QueryExportSnapshot>
+    if (parsed.reason !== 'record-export-return') return null
+    if (typeof parsed.savedAt !== 'number') return null
+    if (Date.now() - parsed.savedAt > QUERY_EXPORT_SNAPSHOT_MAX_AGE_MS) return null
+    return isFilterVals(parsed.filters) ? parsed.filters : null
+  } catch {
+    return null
+  }
+}
+
+function writeExportQuerySnapshot(filters: FilterVals) {
+  const snapshot: QueryExportSnapshot = {
+    reason: 'record-export-return',
+    savedAt: Date.now(),
+    filters,
+  }
+  window.sessionStorage.setItem(QUERY_EXPORT_SNAPSHOT_KEY, JSON.stringify(snapshot))
 }
 
 function filterValsToFormShape(f: FilterVals): QueryFormShape {
@@ -231,9 +282,11 @@ function getQueryPopupContainer(trigger: HTMLElement): HTMLElement {
  */
 export function QueryPage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [form] = Form.useForm<QueryFormShape>()
+  const [restoredExportFilters] = useState<FilterVals | null>(() => readExportQuerySnapshot())
 
-  const defaultFilters = useMemo(() => buildDefaultFilters(), [])
+  const defaultFilters = useMemo(() => restoredExportFilters ?? buildDefaultFilters(), [restoredExportFilters])
   const [appliedFilters, setAppliedFilters] = useState<FilterVals>(() => ({ ...defaultFilters }))
   const [rows, setRows] = useState<FormDataRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -244,6 +297,14 @@ export function QueryPage() {
   const [filtersExpanded, setFiltersExpanded] = useState(true)
   const [page, setPage] = useState(1)
   const pageSize = 10
+
+  useEffect(() => {
+    if (searchParams.get('restoreQuery') !== 'export') return
+    window.sessionStorage.removeItem(QUERY_EXPORT_SNAPSHOT_KEY)
+    const next = new URLSearchParams(searchParams)
+    next.delete('restoreQuery')
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
 
   const loadFormKindOptions = useCallback(async () => {
     const { data, error: qErr } = await supabase
@@ -425,13 +486,17 @@ export function QueryPage() {
         width: 88,
         fixed: 'right',
         render: (_v, row) => (
-          <Link className="etax-q-table-link" to={`/record/${row.id}?pdf=1&return=query`}>
+          <Link
+            className="etax-q-table-link"
+            to={`/record/${row.id}?pdf=1&return=query&restoreQuery=export`}
+            onClick={() => writeExportQuerySnapshot(appliedFilters)}
+          >
             导出
           </Link>
         ),
       },
     ],
-    [currentPage, pageSize],
+    [appliedFilters, currentPage, pageSize],
   )
 
   return (
