@@ -634,7 +634,7 @@ export function QueryPage() {
             查询结果
           </h2>
 
-          <Spin spinning={loading} tip="加载中…">
+          <Spin spinning={loading} description="加载中…">
             <Table<FormDataRow>
               className="etax-query-table-antd"
               rowKey="id"
