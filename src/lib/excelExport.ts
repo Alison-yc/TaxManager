@@ -58,7 +58,7 @@ export async function exportPreviewDomToPdf(
   const pageW = pdf.internal.pageSize.getWidth()
   const pageH = pdf.internal.pageSize.getHeight()
   const marginX = 20
-  const marginY = 18
+  const marginY = 16
   const contentW = pageW - marginX * 2
   const contentH = pageH - marginY * 2
 
