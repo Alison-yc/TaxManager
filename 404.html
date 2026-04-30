@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>正在返回应用...</title>
+    <script>
+      ;(() => {
+        const base = '%BASE_URL%'
+        const { origin, pathname, search, hash } = window.location
+        const normalizedBase = base.startsWith('/') ? base : '/'
+        const route = pathname.startsWith(normalizedBase)
+          ? pathname.slice(Math.max(0, normalizedBase.length - 1))
+          : pathname
+        const normalizedRoute = route.startsWith('/') ? route : `/${route}`
+
+        window.location.replace(
+          `${origin}${normalizedBase}?spa-route=${encodeURIComponent(
+            `${normalizedRoute}${search}${hash}`,
+          )}`,
+        )
+      })()
+    </script>
+  </head>
+  <body>
+    正在返回应用...
+  </body>
+</html>

@@ -7,6 +7,18 @@
     <link rel="preload" as="image" href="%BASE_URL%assets/etax/login-bg.optimized.jpg" fetchpriority="high" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>电子税务局· TaxManager</title>
+    <script>
+      ;(() => {
+        const params = new URLSearchParams(window.location.search)
+        const route = params.get('spa-route')
+        if (!route) return
+        params.delete('spa-route')
+        const rest = params.toString()
+        const basePath = window.location.pathname.replace(/\/$/, '')
+        const nextUrl = `${basePath}${route}${rest ? `${route.includes('?') ? '&' : '?'}${rest}` : ''}`
+        window.history.replaceState(null, '', nextUrl)
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>
