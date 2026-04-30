@@ -1,13 +1,11 @@
-import * as XLSX from 'xlsx'
-import html2canvas from 'html2canvas'
-import { jsPDF } from 'jspdf'
 import type { ImportedExcelContent } from './excelImport'
 
 /** 由保存的 grid + merges 生成 xlsx（版式与导入模版一致） */
-export function downloadFilledExcelFile(
+export async function downloadFilledExcelFile(
   content: ImportedExcelContent,
   baseName = '增值税及附加税费申报表',
-): void {
+): Promise<void> {
+  const XLSX = await import('xlsx')
   const wb = XLSX.utils.book_new()
   const ws = XLSX.utils.aoa_to_sheet(content.grid as (string | number | boolean)[][])
   if (content.merges?.length) {
@@ -23,6 +21,11 @@ export async function exportPreviewDomToPdf(
   element: HTMLElement,
   fileName = '增值税及附加税费申报表.pdf',
 ): Promise<void> {
+  const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+    import('html2canvas'),
+    import('jspdf'),
+  ])
+
   const canvas = await html2canvas(element, {
     scale: Math.min(3, Math.max(2, (window.devicePixelRatio || 1) * 1.8)),
     logging: false,

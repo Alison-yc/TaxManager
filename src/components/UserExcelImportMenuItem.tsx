@@ -1,7 +1,5 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { message } from 'antd'
-import { uploadFormDataFromExcelFile } from '../lib/formDataExcelUpload'
 
 /**
  * 顶栏用户下拉「账户中心」：选择 Excel 导入至 form_data，成功后跳转申报信息查询。
@@ -9,7 +7,6 @@ import { uploadFormDataFromExcelFile } from '../lib/formDataExcelUpload'
 export function UserExcelImportMenuItem() {
   const navigate = useNavigate()
   const inputRef = useRef<HTMLInputElement>(null)
-  const [messageApi, contextHolder] = message.useMessage()
   const [busy, setBusy] = useState(false)
 
   async function handleFile(ev: React.ChangeEvent<HTMLInputElement>) {
@@ -18,12 +15,16 @@ export function UserExcelImportMenuItem() {
     if (!file) return
     setBusy(true)
     try {
+      const [{ message }, { uploadFormDataFromExcelFile }] = await Promise.all([
+        import('antd'),
+        import('../lib/formDataExcelUpload'),
+      ])
       const r = await uploadFormDataFromExcelFile(file)
-      if (!r.ok) {
-        void messageApi.error(r.message)
+      if (r.ok === false) {
+        void message.error(r.message)
         return
       }
-      void messageApi.success('导入成功')
+      void message.success('导入成功')
       navigate('/query')
     } finally {
       setBusy(false)
@@ -32,7 +33,6 @@ export function UserExcelImportMenuItem() {
 
   return (
     <>
-      {contextHolder}
       <div className="etax-user-excel-slot">
         <button
           type="button"

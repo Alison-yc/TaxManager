@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { useState } from 'react'
 import { ETAX_PUBLIC } from '../constants/assetBase'
 
@@ -227,6 +228,9 @@ function todoStatusClass(tone: TodoStatusTone): string {
 export function HomePage() {
   const [favTab, setFavTab] = useState<'fav' | 'scene'>('fav')
   const [todoTab, setTodoTab] = useState<TodoTabId>('declare')
+  const recommendBannerStyle = {
+    '--etax-home-recommend-bg': `url(${ETAX_PUBLIC}home-recommend.optimized.jpg)`,
+  } as CSSProperties
 
   return (
     <div className="etax-portal-home">
@@ -409,7 +413,7 @@ export function HomePage() {
 
         {/* 为你推荐 */}
         <section className="etx-ph-recommend" aria-label="为你推荐">
-          <div className="etx-ph-rec-banner">
+          <div className="etx-ph-rec-banner" style={recommendBannerStyle}>
             <div className="etx-ph-rec-banner-overlay">
               <span className="etx-ph-rec-banner-title">为你推荐</span>
             </div>

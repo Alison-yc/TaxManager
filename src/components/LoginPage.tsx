@@ -102,7 +102,7 @@ export function LoginPage() {
   const activeFields = loginFieldsByTab[activeTab]
 
   const loginWrapStyle = {
-    '--etax-login-bg': `url(${ETAX_PUBLIC}login-bg.png)`,
+    '--etax-login-bg': `url(${ETAX_PUBLIC}login-bg.optimized.jpg)`,
   } as CSSProperties
 
   async function handleSubmit(e: React.FormEvent) {
@@ -153,9 +153,11 @@ export function LoginPage() {
           <div className="etax-login-logo-area">
             <img
               className="etax-login-emblem"
-              src={`${loginAsset}china-tax-logo.png`}
+              src={`${loginAsset}china-tax-logo-sm.png`}
               alt=""
               aria-hidden
+              width={48}
+              height={48}
             />
             <span className="etax-login-system-name">全国统一规范电子税务局</span>
             <span className="etax-login-region">

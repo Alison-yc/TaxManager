@@ -1,14 +1,15 @@
-import { useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { Route, BrowserRouter, Routes } from 'react-router-dom'
-import { AppShell } from './components/AppShell'
 import { LoginPage } from './components/LoginPage'
-import { HomePage } from './pages/HomePage'
-import { QueryPage } from './pages/QueryPage'
-import { RecordPreview } from './pages/RecordPreview'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
 import './App.css'
 import './styles/etax.css'
+
+const AppShell = lazy(() => import('./components/AppShell').then((m) => ({ default: m.AppShell })))
+const HomePage = lazy(() => import('./pages/HomePage').then((m) => ({ default: m.HomePage })))
+const QueryPage = lazy(() => import('./pages/QueryPage').then((m) => ({ default: m.QueryPage })))
+const RecordPreview = lazy(() => import('./pages/RecordPreview').then((m) => ({ default: m.RecordPreview })))
 
 function App() {
   const configured = isSupabaseConfigured()
@@ -65,18 +66,26 @@ function App() {
 
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <AppShell userEmail={email} onSignOut={() => void handleSignOut()} />
-          }
-        >
-          <Route index element={<HomePage />} />
-          <Route path="query" element={<QueryPage />} />
-          <Route path="record/:id" element={<RecordPreview />} />
-        </Route>
-      </Routes>
+      <Suspense
+        fallback={
+          <div className="shell">
+            <p className="muted">加载中…</p>
+          </div>
+        }
+      >
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <AppShell userEmail={email} onSignOut={() => void handleSignOut()} />
+            }
+          >
+            <Route index element={<HomePage />} />
+            <Route path="query" element={<QueryPage />} />
+            <Route path="record/:id" element={<RecordPreview />} />
+          </Route>
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   )
 }
