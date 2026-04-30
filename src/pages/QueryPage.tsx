@@ -26,7 +26,6 @@ import {
   VOID_FLAG_ALL_LABEL,
   QUERY_FORM_KIND_ALL_VALUE,
   getActiveQueryFormKind,
-  getDefaultQueryFormKind,
 } from '../constants/queryFormKinds'
 import {
   DEFAULT_FORM_CODE,
@@ -88,7 +87,7 @@ function buildDefaultFilters(): FilterVals {
   const start = dayjs().startOf('month')
   const end = dayjs().endOf('month')
   return {
-    formKind: getDefaultQueryFormKind(),
+    formKind: QUERY_FORM_KIND_ALL_VALUE,
     correctionTypes: defaultCorrectionTypesAll(),
     voidFlag: VOID_FLAG_ALL_LABEL,
     taxPeriodFrom: '',
@@ -100,7 +99,7 @@ function buildDefaultFilters(): FilterVals {
 
 function filterValsToFormShape(f: FilterVals): QueryFormShape {
   return {
-    formKind: f.formKind,
+    formKind: f.formKind || undefined,
     correctionTypes: f.correctionTypes.length ? [...f.correctionTypes] : defaultCorrectionTypesAll(),
     voidFlag: f.voidFlag,
     taxPeriodFrom: f.taxPeriodFrom ? dayjs(f.taxPeriodFrom) : undefined,
@@ -112,7 +111,7 @@ function filterValsToFormShape(f: FilterVals): QueryFormShape {
 
 function formShapeToFilterVals(v: QueryFormShape): FilterVals {
   return {
-    formKind: QUERY_FORM_KIND_SELECTOR_HIDDEN ? getActiveQueryFormKind(v.formKind) : v.formKind,
+    formKind: QUERY_FORM_KIND_SELECTOR_HIDDEN ? getActiveQueryFormKind(v.formKind ?? '') : (v.formKind ?? ''),
     correctionTypes: v.correctionTypes?.length ? [...v.correctionTypes] : [],
     voidFlag: v.voidFlag,
     taxPeriodFrom: v.taxPeriodFrom ? v.taxPeriodFrom.format('YYYY-MM-DD') : '',
@@ -123,7 +122,7 @@ function formShapeToFilterVals(v: QueryFormShape): FilterVals {
 }
 
 type QueryFormShape = {
-  formKind: string
+  formKind?: string
   correctionTypes: string[]
   voidFlag: string
   taxPeriodFrom?: Dayjs
@@ -221,6 +220,11 @@ const FORM_ITEM_HORIZONTAL = {
 
 /** 检索区栅格：横向略放大、纵向拉开行距（对照参考页） */
 const QUERY_FILTER_ROW_GUTTER: [number, number] = [28, 18]
+
+function getQueryPopupContainer(trigger: HTMLElement): HTMLElement {
+  const page = trigger.closest('.etax-query-page')
+  return page instanceof HTMLElement ? page : document.body
+}
 
 /**
  * 申报信息查询列表：antd 表单 + 表格；折叠仅收起第 2、3 行条件；申报日期必填。
@@ -438,6 +442,7 @@ export function QueryPage() {
           colorPrimary: '#1976ff',
           borderRadius: 4,
           controlHeight: 34,
+          zIndexPopupBase: 3000,
         },
       }}
     >
@@ -481,7 +486,7 @@ export function QueryPage() {
               onFinish={(v) => {
                 const shape: QueryFormShape = {
                   ...v,
-                  formKind: QUERY_FORM_KIND_SELECTOR_HIDDEN ? getActiveQueryFormKind(v.formKind) : v.formKind,
+                  formKind: QUERY_FORM_KIND_SELECTOR_HIDDEN ? getActiveQueryFormKind(v.formKind ?? '') : v.formKind,
                 }
                 setAppliedFilters(formShapeToFilterVals(shape))
               }}
@@ -496,10 +501,11 @@ export function QueryPage() {
                   <Form.Item name="formKind" label="申报表种类">
                     <Select
                       showSearch
+                      allowClear
                       optionFilterProp="label"
                       options={formKindOptions}
                       placeholder="请选择"
-                      getPopupContainer={(n) => n.parentElement ?? document.body}
+                      getPopupContainer={getQueryPopupContainer}
                     />
                   </Form.Item>
                 </Col>
@@ -516,16 +522,17 @@ export function QueryPage() {
                       options={CORRECTION_SELECT_OPTIONS}
                       placeholder="请选择"
                       optionFilterProp="label"
-                      getPopupContainer={(n) => n.parentElement ?? document.body}
+                      getPopupContainer={getQueryPopupContainer}
                     />
                   </Form.Item>
                 </Col>
                 <Col xs={24} lg={8}>
                   <Form.Item name="voidFlag" label="作废标志">
                     <Select
+                      allowClear
                       options={VOID_OPTIONS}
                       placeholder="请选择"
-                      getPopupContainer={(n) => n.parentElement ?? document.body}
+                      getPopupContainer={getQueryPopupContainer}
                     />
                   </Form.Item>
                 </Col>
@@ -541,9 +548,10 @@ export function QueryPage() {
                     <Form.Item name="taxPeriodFrom" label="税款所属期起">
                       <DatePicker
                         style={{ width: '100%' }}
+                        allowClear
                         format="YYYY-MM-DD"
                         placeholder="请选择"
-                        getPopupContainer={(n) => n.parentElement ?? document.body}
+                        getPopupContainer={getQueryPopupContainer}
                       />
                     </Form.Item>
                   </Col>
@@ -551,9 +559,10 @@ export function QueryPage() {
                     <Form.Item name="taxPeriodTo" label="税款所属期止">
                       <DatePicker
                         style={{ width: '100%' }}
+                        allowClear
                         format="YYYY-MM-DD"
                         placeholder="请选择"
-                        getPopupContainer={(n) => n.parentElement ?? document.body}
+                        getPopupContainer={getQueryPopupContainer}
                       />
                     </Form.Item>
                   </Col>
@@ -565,9 +574,10 @@ export function QueryPage() {
                     >
                       <DatePicker
                         style={{ width: '100%' }}
+                        allowClear
                         format="YYYY-MM-DD"
                         placeholder="请选择"
-                        getPopupContainer={(n) => n.parentElement ?? document.body}
+                        getPopupContainer={getQueryPopupContainer}
                       />
                     </Form.Item>
                   </Col>
@@ -594,9 +604,10 @@ export function QueryPage() {
                     >
                       <DatePicker
                         style={{ width: '100%' }}
+                        allowClear
                         format="YYYY-MM-DD"
                         placeholder="请选择"
-                        getPopupContainer={(n) => n.parentElement ?? document.body}
+                        getPopupContainer={getQueryPopupContainer}
                       />
                     </Form.Item>
                   </Col>

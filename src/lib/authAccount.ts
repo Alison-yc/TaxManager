@@ -9,7 +9,7 @@
 
 /** 后缀里不要自带 @（如填 qq.com、company.com）；若写成 @qq.com 会自动去掉前缀 @ */
 function loginEmailSuffix(): string {
-  const raw = (import.meta.env.VITE_AUTH_EMAIL_SUFFIX as string | undefined)?.trim()
+  const raw = import.meta.env.VITE_AUTH_EMAIL_SUFFIX?.trim()
   const s = raw ? raw.replace(/^@/, '') : ''
   return s || 'qq.com'
 }

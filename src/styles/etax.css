@@ -1,563 +1,4 @@
-/* 电子税务局原型：用 HTML/CSS 还原视觉（参考截图落版，不落整图嵌入）；与 App.css 变量兼容 */
-
-/* ========== 顶栏顶条 ========== */
-.etax-top-strip {
-  flex-shrink: 0;
-  height: 3px;
-  background: linear-gradient(
-    90deg,
-    #b91c1c 0%,
-    #b91c1c 38%,
-    #f8fafc 38%,
-    #f8fafc 62%,
-    #1e40af 62%,
-    #1e40af 100%
-  );
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
-}
-
-.topbar-brand-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-.etax-brand-mark {
-  flex-shrink: 0;
-  width: 48px;
-  height: 48px;
-  border-radius: 6px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.1rem;
-  font-weight: 800;
-  color: #fff;
-  letter-spacing: 0.06em;
-  font-family: "Songti SC", "SimSun", serif;
-  background: linear-gradient(145deg, #c9182a 0%, #991b1b 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.15),
-    0 1px 3px rgba(90, 0, 0, 0.25);
-}
-
-.topbar-user-svg {
-  flex-shrink: 0;
-  color: rgba(37, 99, 150, 0.85);
-}
-
-/* ========== Shell 顶栏色 ========== */
-.etax-shell .topbar {
-  flex-wrap: wrap;
-  row-gap: 8px;
-  background: linear-gradient(180deg, #f7fbff 0%, #e8f2fb 55%, #ddeaf6 100%);
-  border-bottom: 1px solid #a8c6e8;
-}
-
-.etax-shell .nav-item.fake {
-  cursor: default;
-}
-
-.etax-shell .nav-item.fake:hover {
-  background: rgba(24, 100, 180, 0.12);
-  color: var(--text-h);
-}
-
-.etax-shell .nav-item.active {
-  border: 1px solid rgba(30, 100, 180, 0.4);
-  background: rgba(255, 255, 255, 0.65);
-}
-
-/* ========== 首页 ========== */
-.etax-home {
-  padding: 20px 16px 48px;
-  max-width: 1180px;
-  margin: 0 auto;
-}
-
-.etax-banner {
-  position: relative;
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid #b8d4f0;
-  background: linear-gradient(110deg, #e8f4ff 0%, #f2f9ff 38%, #dceefa 100%);
-  box-shadow: 0 4px 18px rgba(20, 80, 140, 0.1);
-}
-
-.etax-banner-pattern {
-  position: absolute;
-  inset: 0;
-  opacity: 0.45;
-  background-image:
-    radial-gradient(
-      circle at 10% 20%,
-      rgba(24, 120, 200, 0.12) 0,
-      transparent 35%
-    ),
-    radial-gradient(
-      circle at 90% 80%,
-      rgba(30, 90, 180, 0.1) 0,
-      transparent 40%
-    );
-  pointer-events: none;
-}
-
-.etax-banner-inner {
-  position: relative;
-  display: grid;
-  grid-template-columns: 1fr minmax(160px, 280px);
-  gap: 20px;
-  align-items: center;
-  padding: 28px 24px;
-}
-
-.etax-banner-copy {
-  min-width: 0;
-}
-
-.etax-banner-badge {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: 4px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: #0b4a8c;
-  background: rgba(255, 255, 255, 0.85);
-  border: 1px solid rgba(50, 120, 200, 0.35);
-  margin-bottom: 10px;
-}
-
-.etax-banner-title {
-  margin: 0 0 10px;
-  font-size: 1.35rem;
-  font-weight: 700;
-  color: #083e75;
-  line-height: 1.35;
-}
-
-.etax-banner-lead {
-  margin: 0 0 18px;
-  font-size: 0.92rem;
-  color: #3d5d7a;
-  line-height: 1.55;
-}
-
-.etax-banner-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.etax-pill {
-  padding: 8px 16px;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  border: 1px solid rgba(60, 130, 200, 0.45);
-  background: rgba(255, 255, 255, 0.75);
-  color: #155e9a;
-  cursor: default;
-  transition:
-    background 0.18s,
-    border-color 0.18s,
-    box-shadow 0.18s;
-}
-
-.etax-pill:hover {
-  background: #fff;
-  border-color: rgba(30, 100, 180, 0.55);
-  box-shadow: 0 2px 8px rgba(30, 100, 160, 0.12);
-}
-
-.etax-banner-art {
-  position: relative;
-  height: 160px;
-}
-
-.etax-banner-art-shape {
-  position: absolute;
-  border-radius: 50%;
-  background: linear-gradient(
-    135deg,
-    rgba(40, 130, 220, 0.35),
-    rgba(20, 80, 180, 0.15)
-  );
-}
-
-.etax-banner-art-shape:first-child {
-  width: 120px;
-  height: 120px;
-  right: 10%;
-  top: 8%;
-}
-
-.etax-banner-art-shape.b {
-  width: 70px;
-  height: 70px;
-  right: 38%;
-  bottom: 10%;
-  opacity: 0.85;
-}
-
-.etax-banner-art-shape.c {
-  width: 44px;
-  height: 44px;
-  right: 4%;
-  bottom: 22%;
-  opacity: 0.7;
-}
-
-.etax-section-heading {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-
-.etax-section-marker {
-  width: 4px;
-  height: 1.1em;
-  border-radius: 2px;
-  background: linear-gradient(180deg, #1d6fd4, #0d47a1);
-  flex-shrink: 0;
-}
-
-.etax-home-dual {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  margin-top: 22px;
-  align-items: stretch;
-}
-
-.etax-home-block {
-  border: 1px solid #c5d9ec;
-  border-radius: 10px;
-  padding: 18px 16px;
-  background: #fff;
-  box-shadow: 0 2px 10px rgba(20, 60, 120, 0.06);
-}
-
-.etax-block-title {
-  margin: 0;
-  font-size: 1.05rem;
-  color: #0c3d6e;
-  font-weight: 700;
-}
-
-.etax-muted-hint {
-  margin-top: 4px !important;
-  margin-bottom: 0 !important;
-}
-
-.etax-fake-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 14px;
-}
-
-.etax-fake-tile {
-  font: inherit;
-  cursor: default;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  text-align: left;
-  padding: 12px 14px;
-  border-radius: 8px;
-  border: 1px solid #c5d5e5;
-  background: linear-gradient(180deg, #fbfdff 0%, #f0f6fc 100%);
-  color: #133b5c;
-  transition:
-    background 0.18s ease,
-    border-color 0.18s ease,
-    box-shadow 0.18s ease;
-}
-
-.etax-fake-tile-ic {
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #0d5494;
-  background: rgba(30, 120, 200, 0.12);
-  border: 1px solid rgba(30, 120, 200, 0.2);
-}
-
-.etax-fake-tile:hover {
-  background: linear-gradient(180deg, #eaf4ff 0%, #dfeefa 100%);
-  border-color: rgba(59, 130, 246, 0.45);
-  box-shadow: 0 3px 10px rgba(30, 90, 180, 0.12);
-}
-
-.etax-query-card {
-  margin-top: 12px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 16px 18px;
-  border-radius: 10px;
-  text-decoration: none;
-  border: 1px solid rgba(21, 120, 200, 0.45);
-  background: linear-gradient(135deg, #eef6ff 0%, #e0f0ff 50%, #d4eafd 100%);
-  box-shadow: 0 2px 12px rgba(25, 100, 180, 0.12);
-  color: inherit;
-  transition:
-    transform 0.18s ease,
-    box-shadow 0.18s ease,
-    border-color 0.18s ease;
-}
-
-.etax-query-card:hover {
-  border-color: rgba(13, 100, 200, 0.65);
-  box-shadow: 0 6px 20px rgba(20, 80, 160, 0.18);
-  transform: translateY(-1px);
-}
-
-.etax-query-card:focus-visible {
-  outline: 2px solid #2563eb;
-  outline-offset: 3px;
-}
-
-.etax-query-card-icon {
-  flex-shrink: 0;
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #0c4a94;
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(40, 120, 200, 0.25);
-}
-
-.etax-query-card-body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.etax-query-card-title {
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: #06345e;
-}
-
-.etax-query-card-sub {
-  font-size: 0.82rem;
-  color: #3d5d7a;
-  line-height: 1.45;
-}
-
-.etax-query-card-arrow {
-  flex-shrink: 0;
-  font-size: 1.5rem;
-  font-weight: 300;
-  color: #1d6fd4;
-  line-height: 1;
-}
-
-.etax-rec-block {
-  margin-top: 24px;
-  padding: 18px 16px;
-  border-radius: 10px;
-  border: 1px solid #c5d9ec;
-  background: #fff;
-  box-shadow: 0 2px 10px rgba(20, 60, 120, 0.05);
-}
-
-.etax-rec-cards {
-  margin: 12px 0 0;
-  padding: 0;
-  list-style: none;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px;
-}
-
-.etax-rec-card {
-  cursor: default;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  width: 100%;
-  padding: 14px 14px;
-  text-align: left;
-  border-radius: 8px;
-  border: 1px solid #d9e6f3;
-  background: linear-gradient(180deg, #fbfdff, #f3f8fd);
-  font: inherit;
-  transition:
-    background 0.18s ease,
-    border-color 0.18s ease,
-    box-shadow 0.18s ease;
-}
-
-.etax-rec-card:hover {
-  background: #eaf4ff;
-  border-color: rgba(59, 130, 246, 0.4);
-  box-shadow: 0 2px 8px rgba(30, 100, 180, 0.1);
-}
-
-.etax-rec-card-h {
-  font-weight: 600;
-  color: #0c3d6e;
-  font-size: 0.92rem;
-}
-
-.etax-rec-card-d {
-  font-size: 0.8rem;
-  color: #5a7189;
-  line-height: 1.4;
-}
-
-/* ========== 查询页 ========== */
-.etax-query-page-head {
-  margin-bottom: 12px !important;
-}
-
-.etax-query-h1 {
-  color: #083e75;
-}
-
-.etax-query-sub {
-  margin-bottom: 0 !important;
-}
-
-.etax-query-filters-card {
-  border: 1px solid #b8d0e8;
-  border-radius: 10px;
-  padding: 16px 18px 18px;
-  margin-bottom: 18px;
-  background: linear-gradient(180deg, #f7fbff 0%, #eef5fc 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
-}
-
-.etax-filter-section-title {
-  margin: 0 0 14px;
-  padding-left: 10px;
-  border-left: 4px solid #1d6fd4;
-  font-size: 1rem;
-  font-weight: 700;
-  color: #0c3d6e;
-  line-height: 1.2;
-}
-
-.etax-filter-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px 16px;
-  align-items: end;
-}
-
-.etax-filter-item {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 0.875rem;
-  color: #1a3d5c;
-  font-weight: 500;
-}
-
-.etax-filter-submit {
-  grid-column: 1 / -1;
-  justify-self: start;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.etax-query-toolbar {
-  margin-bottom: 16px !important;
-}
-
-.etax-input {
-  background: #fff !important;
-  border-color: #a8bdd4 !important;
-}
-
-.etax-input:focus-visible {
-  border-color: #2563eb !important;
-}
-
-.etax-result-title {
-  margin: 0 0 12px;
-  font-size: 1rem;
-  font-weight: 700;
-  color: #0c3d6e;
-  padding-bottom: 6px;
-  border-bottom: 1px solid #c5d9ec;
-}
-
-.etax-loading {
-  padding: 20px;
-}
-
-.etax-table-shell {
-  border-color: #a8bdd4;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.etax-query-table thead th {
-  background: linear-gradient(180deg, #e6f3ff 0%, #daeaf8 100%);
-  border-bottom-color: #8eb4d9 !important;
-  color: #0b3f7a !important;
-  font-weight: 600;
-  font-size: 0.875rem;
-  white-space: nowrap;
-}
-
-.etax-query-table tbody tr:hover td {
-  background: rgba(220, 240, 255, 0.45);
-}
-
-.etax-query-table tbody td {
-  border-bottom-color: #d4e4f4 !important;
-}
-
-.etax-td-num {
-  text-align: center;
-  color: #5a758e;
-}
-
-.etax-kind-link {
-  color: #0b6ebe;
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.etax-kind-link:hover {
-  text-decoration: underline;
-}
-
-.etax-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  padding: 40px 12px;
-}
-
-.etax-empty-text {
-  text-align: center;
-  max-width: 420px;
-  line-height: 1.5;
-}
+/* 电子税务局原型：用 HTML/CSS 还原视觉（参考截图落版，不落整图嵌入）。 */
 
 /* ========== 登录页 1:1 方向重做：顶部栏 + 山水背景 + 扫码/表单双栏 ========== */
 .sr-only {
@@ -3290,13 +2731,14 @@
   box-sizing: border-box;
   padding: 0 28px 40px;
   background: #edf1f7;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .etax-query-page {
   box-sizing: border-box;
   max-width: 1360px;
   margin: 0 auto;
+  position: relative;
 }
 
 .etax-query-bc-bar {
@@ -3378,26 +2820,6 @@
   color: #1e293b;
 }
 
-.etax-query-filters-panel {
-  background: #fff;
-  border: 1px solid #c9deef;
-  border-radius: 4px;
-  margin-bottom: 14px;
-  box-shadow: 0 2px 6px rgba(15, 60, 100, 0.06);
-}
-
-.etax-query-filters-panel.collapsed {
-  padding-bottom: 0;
-}
-
-.etax-query-filters-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 16px;
-  border-bottom: 1px solid #dfe9f6;
-}
-
 .etax-query-panel-title {
   margin: 0;
   padding-left: 10px;
@@ -3426,92 +2848,6 @@
   color: #1565d8;
 }
 
-.etax-query-filter-form {
-  padding: 14px 16px 18px;
-}
-
-.etax-query-filter-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px 20px;
-  margin-bottom: 12px;
-}
-
-.etax-query-filter-row-actions {
-  align-items: end;
-}
-
-.etax-q-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 13px;
-  color: #334155;
-}
-
-.etax-q-req-mark {
-  color: #e11d48;
-}
-
-.etax-q-required {
-  position: relative;
-}
-
-.etax-q-input {
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid #cfd8ec;
-  border-radius: 2px;
-  font-size: 13px;
-  color: #1e293b;
-  background: #fff;
-  box-sizing: border-box;
-}
-
-.etax-q-input:focus {
-  outline: none;
-  border-color: #3b82f6;
-}
-
-.etax-query-form-actions {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  grid-column: 2 / span 2;
-}
-
-.etax-q-btn {
-  min-width: 72px;
-  height: 32px;
-  padding: 0 16px;
-  border-radius: 2px;
-  font-size: 13px;
-  cursor: pointer;
-  border: 1px solid transparent;
-}
-
-.etax-q-btn-ghost {
-  background: #fff;
-  border-color: #cdd8eb;
-  color: #475569;
-}
-
-.etax-q-btn-primary {
-  background: #1976ff;
-  border-color: #1976ff;
-  color: #fff;
-}
-
-.etax-query-banner-warn {
-  margin: -4px 0 12px;
-  padding: 8px 12px;
-  border-radius: 4px;
-  background: rgba(245, 158, 11, 0.12);
-  border: 1px solid rgba(245, 158, 11, 0.4);
-  color: #92400e;
-  font-size: 13px;
-}
-
 .etax-query-result-panel {
   background: #fff;
   border: 1px solid #c9deef;
@@ -3524,40 +2860,6 @@
   padding: 10px 16px;
   margin: 0;
   border-bottom: 1px solid #dfe9f6;
-}
-
-.etax-query-table-wrap {
-  overflow-x: auto;
-}
-
-.etax-query-table-v2 {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.etax-query-table-v2 thead th {
-  padding: 10px 8px;
-  text-align: left;
-  white-space: nowrap;
-  border-bottom: 1px solid #c5d9ec;
-  background: linear-gradient(180deg, #f0f7ff 0%, #e3eefc 100%);
-  color: #0b457a;
-}
-
-.etax-query-table-v2 tbody td {
-  padding: 10px 8px;
-  border-bottom: 1px solid #e8eff7;
-}
-
-.etax-query-table-v2 tbody tr:hover td {
-  background: rgba(230, 244, 255, 0.45);
-}
-
-.etax-query-empty-cell {
-  text-align: center;
-  color: #64748b;
-  padding: 36px !important;
 }
 
 .etax-td-money {
@@ -3573,14 +2875,6 @@
 
 .etax-q-table-link:hover {
   text-decoration: underline;
-}
-
-.etax-td-act {
-  white-space: nowrap;
-}
-
-.etax-td-c {
-  text-align: center;
 }
 
 .etax-query-pagination {
@@ -3614,19 +2908,22 @@
 
 /* ========== 申报查询页 antd ========== */
 .etax-query-workbench-panel {
+  position: relative;
   background: #fff;
   border: none;
   border-radius: 0;
   box-shadow: none;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .etax-query-antd .etax-query-filters-card.ant-card {
+  position: relative;
+  z-index: 30;
   border: none;
   border-radius: 0;
   margin-bottom: 0;
   box-shadow: none;
-  overflow: hidden;
+  overflow: visible;
   background: #fff;
 }
 
@@ -3647,6 +2944,7 @@
 
 .etax-query-antd .etax-query-filters-card .ant-card-body {
   padding: 18px 22px 18px;
+  overflow: visible;
 }
 
 .etax-query-antd .etax-query-filters-card--collapsed .ant-card-body {
@@ -3691,6 +2989,16 @@
 .etax-query-antd .ant-select-selector,
 .etax-query-antd .ant-picker {
   background-color: #fff;
+}
+
+.ant-select-dropdown,
+.ant-picker-dropdown {
+  z-index: 10000 !important;
+}
+
+.etax-query-result-antd {
+  position: relative;
+  z-index: 1;
 }
 
 .etax-query-antd .ant-table-thead > tr > th {

@@ -46,7 +46,3 @@ export function getActiveQueryFormKind(selectedFromForm: string): string {
   }
   return selectedFromForm
 }
-
-export function getDefaultQueryFormKind(): string {
-  return QUERY_FORM_KIND_OPTIONS[0]?.value ?? QUERY_FORM_KIND_ALL_VALUE
-}

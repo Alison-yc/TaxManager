@@ -42,7 +42,7 @@
 | 登录 / 首页 / 查询 | 作为 **视觉对齐目标** | 版面、色值、留白在代码中逐项还原（`etax.css` + 语义化组件），**不靠整图嵌入**。 |
 | 预览 | 表预览区以 **VAT 表格组件**为准 | 与模版 Excel 对齐；可参考 `preview-core.png` 做像素比对。 |
 
-以下为历史存档路径（仍可放在 `public/assets/etax/` 供对照）：`home-main-core.png`、`banner-query-core.png`、`query-list-core.png`、`login-banner.jpg` 等。
+历史整页截图仅作为设计参考，不进入 `public/` 产物；页面按组件和 CSS 还原，避免 GitHub Pages 发布无用大图。
 
 ---
 
@@ -52,7 +52,7 @@
 |------|------|
 | 路由 | **`/`** 首页；**`/query`** 申报信息查询；**`/record/:id`** 预览。`basename = import.meta.env.BASE_URL`。 |
 | 变量 | `VITE_SUPABASE_*`、`VITE_AUTH_EMAIL_SUFFIX`（账号自动拼后缀）。 |
-| Excel | `xlsx` 解析；`public/templates/` 税表模版。 |
+| Excel | `xlsx` 解析用户上传文件；解析后的网格与索引字段写入 Supabase。 |
 | PDF | `html2canvas` + `jsPDF`；`?pdf=1` 触发自动导出。 |
 
 ---

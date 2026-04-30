@@ -26,7 +26,7 @@ export const DEFAULT_FORM_CODE = 'BDA0610606'
 export const DEFAULT_FORM_TYPE_LABEL = '《增值税及附加税费申报表（一般纳税人适用）》'
 
 /** 解析「年月日」为 ISO 日期字符串 */
-export function cnDateToIso(s: string): string | null {
+function cnDateToIso(s: string): string | null {
   const t = s.trim()
   const m = t.match(/^(\d{4})年(\d{1,2})月(\d{1,2})日?$/)
   if (!m) return null

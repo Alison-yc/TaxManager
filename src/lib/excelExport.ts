@@ -1,21 +1,3 @@
-import type { ImportedExcelContent } from './excelImport'
-
-/** 由保存的 grid + merges 生成 xlsx（版式与导入模版一致） */
-export async function downloadFilledExcelFile(
-  content: ImportedExcelContent,
-  baseName = '增值税及附加税费申报表',
-): Promise<void> {
-  const XLSX = await import('xlsx')
-  const wb = XLSX.utils.book_new()
-  const ws = XLSX.utils.aoa_to_sheet(content.grid as (string | number | boolean)[][])
-  if (content.merges?.length) {
-    ws['!merges'] = content.merges
-  }
-  XLSX.utils.book_append_sheet(wb, ws, content.excel.sheetName || 'Sheet1')
-  const safe = baseName.replace(/[/\\?%*:|"<>]/g, '-')
-  XLSX.writeFile(wb, `${safe}.xlsx`, { bookType: 'xlsx' })
-}
-
 /** 将预览用的 DOM 截图按纵向 A4 单页缩放下载，尽量贴近税局导出的整页 PDF。 */
 export async function exportPreviewDomToPdf(
   element: HTMLElement,
