@@ -3305,6 +3305,8 @@
   gap: 14px;
   margin: 0 0 16px;
   padding: 10px 0;
+  font-size: 13px;
+  line-height: 20px;
   background: #fff;
   box-shadow: 0 0 0 100vmax #fff;
   clip-path: inset(0 -100vmax);
@@ -3312,28 +3314,45 @@
 }
 
 .etax-query-back {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 48px;
+  min-width: 48px;
   border: none;
   background: transparent;
-  color: #2563eb;
-  font-size: 14px;
-  font-weight: 600;
+  color: #111827;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 20px;
   cursor: pointer;
-  padding: 4px 2px;
+  padding: 0;
   white-space: nowrap;
+  text-decoration: none;
+  appearance: none;
 }
 
 .etax-query-back:hover {
-  text-decoration: underline;
+  color: #1976ff;
+  text-decoration: none;
 }
 
 .etax-query-bc {
   flex: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
   font-size: 13px;
+  line-height: 20px;
   color: #4b5968;
 }
 
 .etax-bc-link {
   color: #2563eb;
+  font-size: inherit;
+  line-height: inherit;
   text-decoration: none;
 }
 
@@ -3344,10 +3363,14 @@
 .etax-bc-sep {
   margin: 0 6px;
   color: #94a3b8;
+  font-size: inherit;
+  line-height: inherit;
 }
 
 .etax-bc-plain {
   color: #475569;
+  font-size: inherit;
+  line-height: inherit;
 }
 
 .etax-bc-current {
@@ -3753,5 +3776,159 @@
 
 .etax-query-antd .etax-query-result-antd .ant-table-wrapper {
   padding: 0 16px 8px;
+}
+
+/* ========== 申报信息查询详情 / 预览页 ========== */
+.etax-record-preview-page {
+  box-sizing: border-box;
+  max-width: 1360px;
+  margin: 0 auto;
+  padding-bottom: 24px;
+}
+
+.etax-record-workbench {
+  width: 900px;
+  margin: 0 auto;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(15, 60, 100, 0.05);
+}
+
+.etax-record-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid #edf1f6;
+}
+
+.etax-record-main-form {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.etax-record-preview-frame.vat-preview-frame {
+  border: none;
+  border-radius: 0;
+  padding: 18px 28px 22px;
+  background: #fff;
+}
+
+.etax-record-preview-frame .vat-form-document {
+  width: 780px;
+  margin: 0 auto;
+}
+
+.etax-record-preview-frame .vat-sheet-merged {
+  border: 3px solid #000;
+  font-size: 12.5px;
+  line-height: 1.2;
+}
+
+.etax-record-preview-frame .vat-form-head {
+  margin-bottom: 2px;
+}
+
+.etax-record-preview-frame .vat-form-title {
+  font-size: 23px;
+  line-height: 1.38;
+}
+
+.etax-record-preview-frame .vat-form-subtitle {
+  font-size: 17px;
+  line-height: 1.28;
+}
+
+.etax-record-preview-frame .vat-form-note {
+  color: #333;
+  font-weight: 500;
+  margin-top: 1px;
+  font-size: 12.5px;
+  line-height: 1.26;
+}
+
+.etax-record-preview-frame .vat-form-unit {
+  min-height: 17px;
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.etax-record-preview-frame .vat-sheet-merged td {
+  border-color: #000;
+  border-width: 1.8px;
+  overflow: hidden;
+  padding: 2px 3px;
+  line-height: 1.2;
+}
+
+.etax-record-preview-frame .vat-cell-content {
+  display: block;
+  overflow: hidden;
+}
+
+.etax-record-preview-frame .vat-cell-meta {
+  height: 30px;
+  max-height: 30px;
+  vertical-align: middle;
+}
+
+.etax-record-preview-frame .vat-cell-meta .vat-cell-content {
+  max-height: 28px;
+  line-height: 14px;
+}
+
+.etax-record-preview-frame .vat-cell-title {
+  font-size: 20px;
+  line-height: 1.25;
+}
+
+.etax-record-preview-frame .vat-cell-meta,
+.etax-record-preview-frame .vat-cell-head,
+.etax-record-preview-frame .vat-cell-body {
+  font-size: 12.5px;
+}
+
+.etax-record-preview-frame .vat-sheet-merged .vat-dyn-col.col-i-0 {
+  width: 7%;
+}
+
+.etax-record-preview-frame .vat-sheet-merged .vat-dyn-col.col-i-1 {
+  width: 13%;
+}
+
+.etax-record-preview-frame .vat-sheet-merged .vat-dyn-col.col-i-2 {
+  width: 13%;
+}
+
+.etax-record-preview-frame .vat-sheet-merged .vat-dyn-col.col-i-3 {
+  width: 11%;
+}
+
+.etax-record-preview-frame .vat-sheet-merged .vat-dyn-col.col-i-4 {
+  width: 6%;
+}
+
+.etax-record-preview-frame .vat-sheet-merged .vat-dyn-col.col-i-5 {
+  width: 8%;
+}
+
+.etax-record-preview-frame .vat-sheet-merged .vat-dyn-col.col-i-6,
+.etax-record-preview-frame .vat-sheet-merged .vat-dyn-col.col-i-7,
+.etax-record-preview-frame .vat-sheet-merged .vat-dyn-col.col-i-8,
+.etax-record-preview-frame .vat-sheet-merged .vat-dyn-col.col-i-9 {
+  width: 10.5%;
+}
+
+.etax-record-footer {
+  width: 900px;
+  margin: 16px auto 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.8;
+  text-align: center;
 }
 

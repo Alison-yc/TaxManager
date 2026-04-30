@@ -493,6 +493,47 @@ label.btn.primary {
   background: #fff;
 }
 
+.vat-form-head {
+  font-family:
+    'SimSun',
+    'Songti SC',
+    'STSong',
+    'Microsoft YaHei',
+    serif;
+  color: #000;
+}
+
+.vat-form-title {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.5;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+.vat-form-subtitle {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.vat-form-note {
+  max-width: 92%;
+  margin: 3px auto 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.vat-form-unit {
+  min-height: 18px;
+  font-size: 12px;
+  line-height: 18px;
+  text-align: right;
+}
+
 .vat-sheet-merged {
   table-layout: fixed;
   border: 2px solid #000;
@@ -541,6 +582,10 @@ label.btn.primary {
   text-align: right;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.vat-center {
+  text-align: center;
 }
 
 /* 与常见主表列宽大致接近（10 列；宽表占满 1180px） */

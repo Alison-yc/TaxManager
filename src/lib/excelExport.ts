@@ -18,7 +18,7 @@ export function downloadFilledExcelFile(
   XLSX.writeFile(wb, `${safe}.xlsx`, { bookType: 'xlsx' })
 }
 
-/** 将预览用的 DOM 截图写入横向 A4 PDF 并下载（版式接近屏幕上的整表） */
+/** 将预览用的 DOM 截图按纵向 A4 单页缩放下载，尽量贴近税局导出的整页 PDF。 */
 export async function exportPreviewDomToPdf(
   element: HTMLElement,
   fileName = '增值税及附加税费申报表.pdf',
@@ -50,17 +50,17 @@ export async function exportPreviewDomToPdf(
   })
 
   const pdf = new jsPDF({
-    orientation: 'landscape',
+    orientation: 'portrait',
     unit: 'mm',
     format: 'a4',
   })
 
   const pageW = pdf.internal.pageSize.getWidth()
   const pageH = pdf.internal.pageSize.getHeight()
-  /** 与打印机可打印区相比尽量贴边，显著减小 PDF 左右留白 */
-  const margin = 20
-  const contentW = pageW - margin * 2
-  const contentH = pageH - margin * 2
+  const marginX = 20
+  const marginY = 18
+  const contentW = pageW - marginX * 2
+  const contentH = pageH - marginY * 2
 
   const imgW = canvas.width
   const imgH = canvas.height
@@ -69,42 +69,13 @@ export async function exportPreviewDomToPdf(
     return
   }
 
-  /** 以页面宽度为基准等比缩放后的总高度（mm）。先铺满宽，避免「先限高」导致两侧大片空白。 */
-  const totalHmm = (imgH / imgW) * contentW
+  const scale = Math.min(contentW / imgW, contentH / imgH)
+  const drawW = imgW * scale
+  const drawH = imgH * scale
+  const x = marginX + (contentW - drawW) / 2
+  const y = marginY
 
-  if (totalHmm <= contentH) {
-    const y = margin + (contentH - totalHmm) / 2
-    pdf.addImage(canvas, 'JPEG', margin, y, contentW, totalHmm)
-    pdf.save(fileName.replace(/[/\\?%*:|"<>]/g, '-'))
-    return
-  }
-
-  /**
-   * 单页在「铺满宽度」下可容纳的截图像素高度（再高了就分页）。
-   * contentH(mm) 对应原图上一段高度 hPx：因整宽均映射到 contentW，比例一致。
-   */
-  const stripePx = (contentH * imgW) / contentW
-
-  let ySrc = 0
-  while (ySrc < imgH) {
-    const hPx = Math.min(stripePx, imgH - ySrc)
-    const slice = document.createElement('canvas')
-    slice.width = imgW
-    slice.height = hPx
-    const ctx = slice.getContext('2d')
-    if (!ctx) break
-    ctx.fillStyle = '#ffffff'
-    ctx.fillRect(0, 0, imgW, hPx)
-    ctx.drawImage(canvas, 0, ySrc, imgW, hPx, 0, 0, imgW, hPx)
-
-    const hMm = (hPx / imgW) * contentW
-    pdf.addImage(slice, 'JPEG', margin, margin, contentW, hMm)
-
-    ySrc += hPx
-    if (ySrc < imgH) {
-      pdf.addPage('a4', 'landscape')
-    }
-  }
+  pdf.addImage(canvas, 'JPEG', x, y, drawW, drawH, undefined, 'FAST')
 
   pdf.save(fileName.replace(/[/\\?%*:|"<>]/g, '-'))
 }

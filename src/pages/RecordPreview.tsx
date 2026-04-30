@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Button, Select } from 'antd'
 import { VatFormGrid } from '../components/VatFormGrid'
 import { exportPreviewDomToPdf } from '../lib/excelExport'
 import { isImportedContent } from '../lib/excelImport'
@@ -42,13 +43,21 @@ export function RecordPreview() {
 
   const content = row?.content
 
+  const pdfFileName = useMemo(() => {
+    if (content && isImportedContent(content)) {
+      return `${content.excel.fileName.replace(/\.[^.]+$/, '')}.pdf`
+    }
+    return '增值税及附加税费申报表.pdf'
+  }, [content])
+
   /** 列表「导出」：带 ?pdf=1 打开本页则自动导出一次 PDF 并移除 query */
   useEffect(() => {
     const wantPdf = searchParams.get('pdf') === '1'
+    const shouldReturnQuery = searchParams.get('return') === 'query'
     if (!wantPdf || !id) return
     if (!row || !content) return
     if (!isImportedContent(content)) {
-      navigate(`/record/${id}`, { replace: true })
+      navigate(shouldReturnQuery ? '/query' : `/record/${id}`, { replace: true })
       return
     }
 
@@ -63,13 +72,13 @@ export function RecordPreview() {
         setBusy(true)
         setError(null)
         try {
-          await exportPreviewDomToPdf(captureRef.current!)
+          await exportPreviewDomToPdf(captureRef.current!, pdfFileName)
         } catch (e: unknown) {
           setError(e instanceof Error ? e.message : String(e))
         } finally {
           setBusy(false)
           if (!cancelled) {
-            navigate(`/record/${id}`, { replace: true })
+            navigate(shouldReturnQuery ? '/query' : `/record/${id}`, { replace: true })
           }
         }
       })()
@@ -79,14 +88,14 @@ export function RecordPreview() {
       cancelled = true
       window.clearTimeout(t)
     }
-  }, [id, row, content, searchParams, navigate])
+  }, [id, row, content, searchParams, navigate, pdfFileName])
 
   async function handleExportPdf() {
     if (!captureRef.current || !content) return
     setBusy(true)
     setError(null)
     try {
-      await exportPreviewDomToPdf(captureRef.current)
+      await exportPreviewDomToPdf(captureRef.current, pdfFileName)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -97,45 +106,60 @@ export function RecordPreview() {
   if (!id) return <p className="muted">缺少记录 ID</p>
 
   return (
-    <div className="shell wide">
-      <div className="no-print breadcrumb-row">
-        <Link to="/query" className="back-link">
-          ← 返回申报信息查询
+    <div className="etax-record-preview-page">
+      <div className="no-print etax-query-bc-bar">
+        <Link to="/query" className="etax-query-back">
+          ← 返回
         </Link>
+        <nav className="etax-query-bc" aria-label="面包屑">
+          <Link to="/" className="etax-bc-link">
+            税务数字账户
+          </Link>
+          <span className="etax-bc-sep">&gt;</span>
+          <span className="etax-bc-plain">账户查询</span>
+          <span className="etax-bc-sep">&gt;</span>
+          <Link to="/query" className="etax-bc-link">
+            申报信息查询
+          </Link>
+          <span className="etax-bc-sep">&gt;</span>
+          <span className="etax-bc-plain etax-bc-current">申报信息查询详情</span>
+        </nav>
       </div>
-
-      <header className="header preview-header">
-        <div>
-          <h1 className="title">申报表预览</h1>
-          <p className="muted">
-            {row ? `创建于 ${new Date(row.created_at).toLocaleString()}` : ''}
-          </p>
-        </div>
-        <div className="header-actions no-print">
-          <button
-            type="button"
-            className="btn primary"
-            onClick={() => void handleExportPdf()}
-            disabled={!row || !isImportedContent(content) || busy}
-          >
-            {busy ? '生成 PDF…' : '导出 PDF'}
-          </button>
-        </div>
-      </header>
 
       {error && <p className="err banner">{error}</p>}
 
       {!row && !error && <p className="muted">加载中…</p>}
 
       {row && content && isImportedContent(content) && (
-        <>
-          <p className="muted small no-print">
-            下列版式与导入时的表格网格一致；「导出 PDF」为整页截图，效果接近税局表样。
-          </p>
-          <div className="vat-preview-frame">
+        <section className="etax-record-workbench">
+          <div className="no-print etax-record-toolbar">
+            <label className="etax-record-main-form">
+              <span>主列表单：</span>
+              <Select
+                size="small"
+                value="vat-main"
+                options={[
+                  {
+                    value: 'vat-main',
+                    label: '增值税及附加税费申报表（一般纳税人适用）',
+                  },
+                ]}
+                style={{ width: 300 }}
+              />
+            </label>
+            <Button
+              size="small"
+              onClick={() => void handleExportPdf()}
+              disabled={!row || !isImportedContent(content) || busy}
+            >
+              {busy ? '生成中…' : '导出'}
+            </Button>
+          </div>
+
+          <div className="vat-preview-frame etax-record-preview-frame">
             <VatFormGrid ref={captureRef} grid={content.grid} merges={content.merges} />
           </div>
-        </>
+        </section>
       )}
 
       {row && content && !isImportedContent(content) && (
@@ -147,6 +171,11 @@ export function RecordPreview() {
           <pre className="preview-json">{JSON.stringify(content, null, 2)}</pre>
         </div>
       )}
+
+      <footer className="no-print etax-record-footer">
+        <p>主管税务机关：国家税务总局河北省电子税务局</p>
+        <p>本页面为申报信息查询详情预览，导出 PDF 以当前申报表版式生成。</p>
+      </footer>
     </div>
   )
 }

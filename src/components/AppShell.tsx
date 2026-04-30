@@ -10,12 +10,14 @@ type Props = {
 
 /**
  * 门户顶栏：「首页」回根路径；「我要办税 / 我要查询」为悬浮大菜单；Excel 导入在用户菜单「账户中心」；
- * 「申报信息查询」列表页 `/query` 收敛为示意税局明细页——隐藏中间菜单与示意搜索框，仅保留品牌与用户区。
+ * 「申报信息查询」列表页和详情页收敛为示意税局明细页——隐藏中间菜单与示意搜索框，仅保留品牌与用户区。
  */
 export function AppShell({ userEmail, onSignOut }: Props) {
   const location = useLocation()
   const queryListCompactHeader =
-    location.pathname === '/query' || location.pathname.endsWith('/query')
+    location.pathname === '/query' ||
+    location.pathname.endsWith('/query') ||
+    location.pathname.startsWith('/record/')
 
   return (
     <div className="app-layout etax-portal-layout">
@@ -76,7 +78,7 @@ export function AppShell({ userEmail, onSignOut }: Props) {
               />
             </span>
             <div className="etax-portal-user-trigger">
-              <span className="etax-portal-user-name">张*超</span>
+              <span className="etax-portal-user-name">**燕</span>
               <span className="etax-portal-caret" aria-hidden>
                 <img
                   className="etax-portal-caret-img"
@@ -88,7 +90,7 @@ export function AppShell({ userEmail, onSignOut }: Props) {
             </div>
             {userEmail ? <span className="sr-only">{userEmail}</span> : null}
             <div className="etax-portal-user-menu" role="menu" aria-label="用户菜单">
-              <p className="etax-portal-user-menu-greet">欢迎您，张*超</p>
+              <p className="etax-portal-user-menu-greet">欢迎您，**燕</p>
               <div className="etax-portal-user-menu-sep" role="separator" />
               <div className="etax-portal-user-menu-actions">
                 <UserExcelImportMenuItem />

@@ -7,6 +7,8 @@ type Props = {
   merges: Range[]
 }
 
+const UNBORDERED_HEADER_ROWS = 4
+
 function cellText(v: GridCell): string {
   if (v === null || v === undefined) return ''
   if (typeof v === 'number' && Number.isFinite(v)) return String(v)
@@ -41,18 +43,35 @@ function looksLikeAmount(s: string): boolean {
   return /^-?\d+(\.\d+)?$/.test(t)
 }
 
+function looksLikeEmptyDash(s: string): boolean {
+  return /^[—–-]+$/.test(s.trim())
+}
+
 function cellAlignClass(colIndex: number, rowIndex: number, raw: GridCell): string {
+  if (rowIndex <= 7) return ''
+  if (colIndex === 0) return 'vat-center'
+  if (colIndex === 4) return 'vat-center'
+  if (typeof raw === 'string' && looksLikeEmptyDash(raw)) return 'vat-center'
   if (typeof raw === 'number' && Number.isFinite(raw)) return 'vat-num'
   if (typeof raw === 'string' && raw && looksLikeAmount(raw)) return 'vat-num'
-  if (colIndex >= 4 && rowIndex >= 8) return 'vat-num'
   return ''
 }
 
+function cellContent(raw: GridCell): JSX.Element {
+  return <span className="vat-cell-content">{cellText(raw) || '\u00a0'}</span>
+}
+
 function rowClassTd(rowIndex: number): string {
-  if (rowIndex <= 2) return 'vat-cell-title'
   if (rowIndex <= 7) return 'vat-cell-meta'
   if (rowIndex <= 9) return 'vat-cell-head'
   return 'vat-cell-body'
+}
+
+function rowText(row: GridCell[] | undefined): string {
+  return (row ?? [])
+    .map((c) => cellText(c).trim())
+    .filter(Boolean)
+    .join(' ')
 }
 
 /**
@@ -72,7 +91,9 @@ export const VatFormGrid = forwardRef<HTMLDivElement, Props>(function VatFormGri
   }
 
   const normalized = normalizeGrid(grid)
-  const rows = normalized.length
+  const headerRows = Math.min(UNBORDERED_HEADER_ROWS, normalized.length)
+  const tableGrid = normalized.slice(headerRows)
+  const rows = tableGrid.length
   const cols = normalized[0]?.length ?? 0
   const maxRow = rows - 1
   const maxCol = cols - 1
@@ -83,7 +104,12 @@ export const VatFormGrid = forwardRef<HTMLDivElement, Props>(function VatFormGri
 
   const startMap = new Map<string, Range>()
   for (const m of merges) {
-    const cm = clampMerge(m, maxRow, maxCol)
+    if (m.s.r < headerRows || m.e.r < headerRows) continue
+    const shifted = {
+      s: { r: m.s.r - headerRows, c: m.s.c },
+      e: { r: m.e.r - headerRows, c: m.e.c },
+    }
+    const cm = clampMerge(shifted, maxRow, maxCol)
     if (!cm) continue
     const rs = cm.e.r - cm.s.r + 1
     const cs = cm.e.c - cm.s.c + 1
@@ -98,7 +124,8 @@ export const VatFormGrid = forwardRef<HTMLDivElement, Props>(function VatFormGri
       if (covered[r][c]) continue
 
       const rng = startMap.get(`${r},${c}`)
-      const raw = normalized[r][c]
+      const raw = tableGrid[r]?.[c] ?? ''
+      const originalRowIndex = r + headerRows
 
       if (rng) {
         const rs = rng.e.r - rng.s.r + 1
@@ -113,9 +140,9 @@ export const VatFormGrid = forwardRef<HTMLDivElement, Props>(function VatFormGri
             key={`${r}-${c}`}
             rowSpan={rs}
             colSpan={cs}
-            className={`${rowClassTd(r)} ${cellAlignClass(c, r, raw)}`.trim()}
+            className={`${rowClassTd(originalRowIndex)} ${cellAlignClass(c, originalRowIndex, raw)}`.trim()}
           >
-            {cellText(raw) || '\u00a0'}
+            {cellContent(raw)}
           </td>,
         )
       } else {
@@ -123,9 +150,9 @@ export const VatFormGrid = forwardRef<HTMLDivElement, Props>(function VatFormGri
         cells.push(
           <td
             key={`${r}-${c}`}
-            className={`${rowClassTd(r)} ${cellAlignClass(c, r, raw)}`.trim()}
+            className={`${rowClassTd(originalRowIndex)} ${cellAlignClass(c, originalRowIndex, raw)}`.trim()}
           >
-            {cellText(raw) || '\u00a0'}
+            {cellContent(raw)}
           </td>,
         )
       }
@@ -148,6 +175,12 @@ export const VatFormGrid = forwardRef<HTMLDivElement, Props>(function VatFormGri
 
   return (
     <div ref={ref} className="vat-form-document">
+      <div className="vat-form-head">
+        <div className="vat-form-title">{rowText(normalized[0])}</div>
+        <div className="vat-form-subtitle">{rowText(normalized[1])}</div>
+        <div className="vat-form-note">{rowText(normalized[2])}</div>
+        <div className="vat-form-unit">{rowText(normalized[3])}</div>
+      </div>
       <table className="vat-sheet-table vat-sheet-merged">
         {colsEls}
         <tbody>{body}</tbody>

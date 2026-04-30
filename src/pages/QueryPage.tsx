@@ -371,7 +371,7 @@ export function QueryPage() {
         width: 88,
         fixed: 'right',
         render: (_v, row) => (
-          <Link className="etax-q-table-link" to={`/record/${row.id}?pdf=1`}>
+          <Link className="etax-q-table-link" to={`/record/${row.id}?pdf=1&return=query`}>
             导出
           </Link>
         ),
@@ -393,8 +393,8 @@ export function QueryPage() {
     >
       <div className="etax-query-page etax-query-antd">
         <div className="etax-query-bc-bar">
-          <button type="button" className="etax-query-back" onClick={() => navigate(-1)}>
-            ‹ 返回
+          <button type="button" className="etax-query-back" onClick={() => navigate('/')}>
+            ← 返回
           </button>
           <nav className="etax-query-bc" aria-label="面包屑">
             <Link to="/" className="etax-bc-link">
