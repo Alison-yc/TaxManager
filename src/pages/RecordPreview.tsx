@@ -107,10 +107,16 @@ export function RecordPreview() {
 
   if (!id) return <p className="muted">缺少记录 ID</p>
 
+  const restoreQueryMode = searchParams.get('restoreQuery')
+  const queryBackUrl =
+    restoreQueryMode === 'export' || restoreQueryMode === 'preview'
+      ? `/query?restoreQuery=${restoreQueryMode}`
+      : '/query'
+
   return (
     <div className="etax-record-preview-page">
       <div className="no-print etax-query-bc-bar">
-        <Link to="/query" className="etax-query-back">
+        <Link to={queryBackUrl} className="etax-query-back">
           ← 返回
         </Link>
         <nav className="etax-query-bc" aria-label="面包屑">
@@ -120,7 +126,7 @@ export function RecordPreview() {
           <span className="etax-bc-sep">&gt;</span>
           <span className="etax-bc-plain">账户查询</span>
           <span className="etax-bc-sep">&gt;</span>
-          <Link to="/query" className="etax-bc-link">
+          <Link to={queryBackUrl} className="etax-bc-link">
             申报信息查询
           </Link>
           <span className="etax-bc-sep">&gt;</span>

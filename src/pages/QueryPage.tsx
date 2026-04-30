@@ -50,7 +50,7 @@ type FilterVals = {
 }
 
 type QueryExportSnapshot = {
-  reason: 'record-export-return'
+  reason: 'record-export-return' | 'record-preview-return'
   savedAt: number
   filters: FilterVals
 }
@@ -123,14 +123,16 @@ function isFilterVals(value: unknown): value is FilterVals {
 
 function readExportQuerySnapshot(): FilterVals | null {
   const params = new URLSearchParams(window.location.search)
-  if (params.get('restoreQuery') !== 'export') return null
+  const restoreReason = params.get('restoreQuery')
+  if (restoreReason !== 'export' && restoreReason !== 'preview') return null
 
   const raw = window.sessionStorage.getItem(QUERY_EXPORT_SNAPSHOT_KEY)
   if (!raw) return null
 
   try {
     const parsed = JSON.parse(raw) as Partial<QueryExportSnapshot>
-    if (parsed.reason !== 'record-export-return') return null
+    if (restoreReason === 'export' && parsed.reason !== 'record-export-return') return null
+    if (restoreReason === 'preview' && parsed.reason !== 'record-preview-return') return null
     if (typeof parsed.savedAt !== 'number') return null
     if (Date.now() - parsed.savedAt > QUERY_EXPORT_SNAPSHOT_MAX_AGE_MS) return null
     return isFilterVals(parsed.filters) ? parsed.filters : null
@@ -139,9 +141,12 @@ function readExportQuerySnapshot(): FilterVals | null {
   }
 }
 
-function writeExportQuerySnapshot(filters: FilterVals) {
+function writeQueryReturnSnapshot(
+  filters: FilterVals,
+  reason: QueryExportSnapshot['reason'],
+) {
   const snapshot: QueryExportSnapshot = {
-    reason: 'record-export-return',
+    reason,
     savedAt: Date.now(),
     filters,
   }
@@ -299,7 +304,8 @@ export function QueryPage() {
   const pageSize = 10
 
   useEffect(() => {
-    if (searchParams.get('restoreQuery') !== 'export') return
+    const restoreReason = searchParams.get('restoreQuery')
+    if (restoreReason !== 'export' && restoreReason !== 'preview') return
     window.sessionStorage.removeItem(QUERY_EXPORT_SNAPSHOT_KEY)
     const next = new URLSearchParams(searchParams)
     next.delete('restoreQuery')
@@ -436,7 +442,11 @@ export function QueryPage() {
         dataIndex: 'id',
         ellipsis: true,
         render: (_id, row) => (
-          <Link className="etax-q-table-link" to={`/record/${row.id}`}>
+          <Link
+            className="etax-q-table-link"
+            to={`/record/${row.id}?return=query&restoreQuery=preview`}
+            onClick={() => writeQueryReturnSnapshot(appliedFilters, 'record-preview-return')}
+          >
             {formLinkLabel(row)}
           </Link>
         ),
@@ -489,7 +499,7 @@ export function QueryPage() {
           <Link
             className="etax-q-table-link"
             to={`/record/${row.id}?pdf=1&return=query&restoreQuery=export`}
-            onClick={() => writeExportQuerySnapshot(appliedFilters)}
+            onClick={() => writeQueryReturnSnapshot(appliedFilters, 'record-export-return')}
           >
             导出
           </Link>
