@@ -3288,8 +3288,9 @@
 
 .etax-portal-main.etax-portal-main--querylist {
   box-sizing: border-box;
-  padding: 14px 28px 40px;
+  padding: 0 28px 40px;
   background: #edf1f7;
+  overflow: hidden;
 }
 
 .etax-query-page {
@@ -3302,7 +3303,12 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 12px;
+  margin: 0 0 16px;
+  padding: 10px 0;
+  background: #fff;
+  box-shadow: 0 0 0 100vmax #fff;
+  clip-path: inset(0 -100vmax);
+  border-bottom: 1px solid #e5edf7;
 }
 
 .etax-query-back {
@@ -3584,17 +3590,25 @@
 }
 
 /* ========== 申报查询页 antd ========== */
+.etax-query-workbench-panel {
+  background: #fff;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: hidden;
+}
+
 .etax-query-antd .etax-query-filters-card.ant-card {
-  border: 1px solid #c9deef;
-  border-radius: 4px;
-  margin-bottom: 16px;
-  box-shadow: 0 2px 8px rgba(15, 60, 100, 0.07);
+  border: none;
+  border-radius: 0;
+  margin-bottom: 0;
+  box-shadow: none;
   overflow: hidden;
   background: #fff;
 }
 
 .etax-query-antd .etax-query-filters-card .ant-card-head {
-  border-bottom: 1px solid #dfe9f6;
+  border-bottom: 1px solid #edf1f6;
   min-height: 46px;
   padding: 0 20px;
 }
@@ -3609,7 +3623,7 @@
 }
 
 .etax-query-antd .etax-query-filters-card .ant-card-body {
-  padding: 18px 22px 16px;
+  padding: 18px 22px 18px;
 }
 
 .etax-query-antd .etax-query-filters-card--collapsed .ant-card-body {
@@ -3618,16 +3632,16 @@
 
 .etax-query-panel-title--card {
   margin: 0;
-  padding-left: 10px;
-  border-left: 4px solid #1976ff;
+  padding-left: 0;
+  border-left: none;
   font-size: 15px;
   font-weight: 700;
-  color: #0c3766;
+  color: #111827;
   line-height: 1.35;
 }
 
 .etax-query-alert-warn.ant-alert {
-  margin: 0 0 12px;
+  margin: 0 22px 12px;
   border-radius: 4px;
 }
 
@@ -3657,9 +3671,9 @@
 }
 
 .etax-query-antd .ant-table-thead > tr > th {
-  background: linear-gradient(180deg, #f0f7ff 0%, #e3eefc 100%) !important;
-  color: #0b457a;
-  border-bottom: 1px solid #c5d9ec;
+  background: #fafbfe !important;
+  color: #1f2937;
+  border-bottom: 1px solid #edf1f6;
   font-weight: 600;
 }
 
@@ -3687,9 +3701,9 @@
 }
 
 .etax-query-antd-form--horizontal .etax-query-form-actions-row {
-  margin-top: 6px;
-  padding-top: 14px;
-  border-top: 1px solid #e8eef7;
+  margin-top: 2px;
+  padding-top: 12px;
+  border-top: none;
 }
 
 .etax-query-antd-form--horizontal .etax-query-form-actions-row .ant-col {
@@ -3722,12 +3736,19 @@
 }
 
 .etax-query-result-panel.etax-query-result-antd {
+  border: none;
+  border-top: none;
+  border-radius: 0;
+  box-shadow: none;
   padding-bottom: 4px;
 }
 
 .etax-query-result-antd .etax-query-panel-title {
   padding-left: 22px;
   padding-right: 22px;
+  border-left: none;
+  color: #111827;
+  border-bottom: 1px solid #edf1f6;
 }
 
 .etax-query-antd .etax-query-result-antd .ant-table-wrapper {

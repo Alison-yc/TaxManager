@@ -409,25 +409,14 @@ export function QueryPage() {
           </nav>
         </div>
 
-        <section className="etax-query-filters-wrap" aria-labelledby="etax-query-filter-heading">
+        <section className="etax-query-workbench-panel">
+          <div className="etax-query-filters-wrap" aria-labelledby="etax-query-filter-heading">
           <Card
             className="etax-query-filters-card"
             title={
               <h2 id="etax-query-filter-heading" className="etax-query-panel-title etax-query-panel-title--card">
                 查询条件
               </h2>
-            }
-            extra={
-              <span className="etax-query-card-extra-actions">
-                <button
-                  type="button"
-                  className="etax-query-collapse-toggle"
-                  onClick={() => setFiltersExpanded((v) => !v)}
-                  aria-expanded={filtersExpanded}
-                >
-                  {filtersExpanded ? '收起 ^' : '展开 v'}
-                </button>
-              </span>
             }
           >
             <Form<QueryFormShape>
@@ -572,17 +561,25 @@ export function QueryPage() {
                       <Button type="primary" htmlType="submit" loading={loading}>
                         查询
                       </Button>
+                      <button
+                        type="button"
+                        className="etax-query-collapse-toggle"
+                        onClick={() => setFiltersExpanded((v) => !v)}
+                        aria-expanded={filtersExpanded}
+                      >
+                        {filtersExpanded ? '收起 ^' : '展开 v'}
+                      </button>
                     </Space>
                   </Form.Item>
                 </Col>
               </Row>
             </Form>
           </Card>
-        </section>
+          </div>
 
-        {error ? <Alert className="etax-query-alert-warn" type="warning" showIcon message={error} /> : null}
+          {error ? <Alert className="etax-query-alert-warn" type="warning" showIcon message={error} /> : null}
 
-        <section className="etax-query-result-panel etax-query-result-antd" aria-labelledby="etax-query-result-title">
+          <section className="etax-query-result-panel etax-query-result-antd" aria-labelledby="etax-query-result-title">
           <h2 id="etax-query-result-title" className="etax-query-panel-title">
             查询结果
           </h2>
@@ -617,6 +614,7 @@ export function QueryPage() {
               </div>
             ) : null}
           </Spin>
+          </section>
         </section>
       </div>
     </ConfigProvider>
