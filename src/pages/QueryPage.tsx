@@ -180,8 +180,8 @@ function filterValsToFormShape(f: FilterVals): QueryFormShape {
     voidFlag: f.voidFlag,
     taxPeriodFrom: f.taxPeriodFrom ? dayjs(f.taxPeriodFrom) : undefined,
     taxPeriodTo: f.taxPeriodTo ? dayjs(f.taxPeriodTo) : undefined,
-    declFrom: dayjs(f.declFrom),
-    declTo: dayjs(f.declTo),
+    declFrom: f.declFrom ? dayjs(f.declFrom) : undefined,
+    declTo: f.declTo ? dayjs(f.declTo) : undefined,
   }
 }
 
@@ -192,8 +192,8 @@ function formShapeToFilterVals(v: QueryFormShape): FilterVals {
     voidFlag: v.voidFlag,
     taxPeriodFrom: v.taxPeriodFrom ? v.taxPeriodFrom.format('YYYY-MM-DD') : '',
     taxPeriodTo: v.taxPeriodTo ? v.taxPeriodTo.format('YYYY-MM-DD') : '',
-    declFrom: v.declFrom.format('YYYY-MM-DD'),
-    declTo: v.declTo.format('YYYY-MM-DD'),
+    declFrom: v.declFrom ? v.declFrom.format('YYYY-MM-DD') : '',
+    declTo: v.declTo ? v.declTo.format('YYYY-MM-DD') : '',
   }
 }
 
@@ -203,8 +203,8 @@ type QueryFormShape = {
   voidFlag: string
   taxPeriodFrom?: Dayjs
   taxPeriodTo?: Dayjs
-  declFrom: Dayjs
-  declTo: Dayjs
+  declFrom?: Dayjs
+  declTo?: Dayjs
 }
 
 type EmbeddedIndex = {
@@ -303,7 +303,7 @@ function getQueryPopupContainer(trigger: HTMLElement): HTMLElement {
 }
 
 /**
- * 申报信息查询列表：antd 表单 + 表格；折叠仅收起第 2、3 行条件；申报日期必填。
+ * 申报信息查询列表：antd 表单 + 表格；折叠仅收起第 2、3 行条件；申报日期起止非必选（未选则不按申报日过滤）。
  */
 export function QueryPage() {
   const navigate = useNavigate()
@@ -670,11 +670,7 @@ export function QueryPage() {
                     </Form.Item>
                   </Col>
                   <Col xs={24} md={12} xl={8}>
-                    <Form.Item
-                      name="declFrom"
-                      label="申报日期起"
-                      rules={[{ required: true, message: '请选择申报日期起' }]}
-                    >
+                    <Form.Item name="declFrom" label="申报日期起">
                       <DatePicker
                         style={{ width: '100%' }}
                         allowClear
@@ -692,7 +688,6 @@ export function QueryPage() {
                       label="申报日期止"
                       dependencies={['declFrom']}
                       rules={[
-                        { required: true, message: '请选择申报日期止' },
                         ({ getFieldValue }) => ({
                           validator(_, value) {
                             const from = getFieldValue('declFrom') as Dayjs | undefined

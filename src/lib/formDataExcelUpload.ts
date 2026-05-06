@@ -79,7 +79,7 @@ export async function uploadFormDataFromExcelFile(
     if (!parsed.declaration_index) {
       return {
         ok: false,
-        message: '无法从 Excel 提取申报检索字段（请使用标准模版：增值税及附加税费申报表）',
+        message: '无法从 Excel 提取申报检索字段（请使用支持的增值税一般纳税人申报表模版）',
       }
     }
     const row = flattenDeclarationForInsert(content, parsed.declaration_index)

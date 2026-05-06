@@ -1,6 +1,28 @@
 import type { CSSProperties } from 'react'
-import { useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { Dayjs } from 'dayjs'
+import {
+  ConfigProvider,
+  DatePicker,
+  Input,
+  Modal,
+  Select,
+  message,
+} from 'antd'
+import zhCN from 'antd/locale/zh_CN'
+import dayjs from 'dayjs'
+import 'dayjs/locale/zh-cn'
 import { ETAX_PUBLIC } from '../constants/assetBase'
+import {
+  HOME_TODO_STATUS_OPTIONS,
+  type TodoStatusTone,
+  defaultTodoStatusForTab,
+  todoActionsForStatus,
+  todoStatusToneForLabel,
+} from '../constants/homeTodo'
+import { supabase } from '../lib/supabase'
+
+dayjs.locale('zh-cn')
 
 const homeAsset = `${ETAX_PUBLIC}home/`
 
@@ -30,181 +52,67 @@ const recommendRight = [
   { t: '国家税务总局 最高人民法院关于企业破产程序中若干税费征管事...', d: '2025/11/27' },
 ]
 
-const homeReminders = [
-  { text: '出口应征税台账新增报关单提醒', date: '2026-04-25' },
-  { text: '增值税专用发票即将逾期认证提醒', date: '2026-04-23' },
-  { text: '残疾人就业保障金申报期临近提醒', date: '2026-04-22' },
-  { text: '更正申报后需重新打开税款缴纳界面', date: '2026-04-18' },
+/** 提醒文案固定，日期相对于「今天」回推，视觉上常新 */
+const reminderTextsFixed = [
+  '出口应征税台账新增报关单提醒',
+  '增值税专用发票即将逾期认证提醒',
+  '残疾人就业保障金申报期临近提醒',
+  '更正申报后需重新打开税款缴纳界面',
 ]
 
-type TodoTabId = 'declare' | 'doc' | 'risk' | 'other'
+/** 相对今天回推天数（可自行调整间隔） */
+const reminderDaysAgoPattern = [2, 4, 7, 11]
 
-const todoTabs: { id: TodoTabId; label: string; badge?: number }[] = [
-  { id: 'declare', label: '本期应申报', badge: 1 },
-  { id: 'doc', label: '待签收文书' },
-  { id: 'risk', label: '风险疑点' },
-  { id: 'other', label: '其它' },
-]
+function buildRollingReminders(): { text: string; date: string }[] {
+  const today = dayjs()
+  return reminderTextsFixed.map((text, i) => ({
+    text,
+    date: today
+      .subtract(reminderDaysAgoPattern[i % reminderDaysAgoPattern.length], 'day')
+      .format('YYYY-MM-DD'),
+  }))
+}
 
-type TodoStatusTone = 'pending' | 'done' | 'neutral' | 'warn' | 'muted'
+export type TodoTabId = 'declare' | 'doc' | 'risk' | 'other'
 
-type TodoRow = {
+/** 表头双击新增占位 id（不入库）；保存时执行 insert */
+const NEW_HOME_TODO_ID = '__home_todo_new__'
+
+function nextTodoSortOrder(rows: HomeTodoDb[]): number {
+  if (rows.length === 0) return 0
+  let max = rows[0].sort_order
+  for (let i = 1; i < rows.length; i += 1) {
+    max = Math.max(max, rows[i].sort_order)
+  }
+  return max + 1
+}
+
+type HomeTodoDb = {
+  id: string
+  tab: TodoTabId
+  sort_order: number
   matter: string
   deadline: string
   status: string
-  statusTone: TodoStatusTone
-  actions: { label: string }[]
+  /** ISO 时间戳，列表按此项倒序（最新在上） */
+  created_at: string
 }
 
-const todoRowsByTab: Record<TodoTabId, TodoRow[]> = {
-  declare: [
-    {
-      matter: '居民企业（查账征收）企业所得税月（季）度预缴纳税申报',
-      deadline: '2026-05-31',
-      status: '未申报',
-      statusTone: 'pending',
-      actions: [{ label: '填写申报表' }],
-    },
-    {
-      matter: '财务报表报送（年报）',
-      deadline: '2026-05-31',
-      status: '已申报',
-      statusTone: 'done',
-      actions: [{ label: '更正' }],
-    },
-    {
-      matter: '居民企业（查账征收）企业所得税月（季）度预缴纳税申报',
-      deadline: '2026-04-20',
-      status: '已申报',
-      statusTone: 'done',
-      actions: [{ label: '更正' }, { label: '作废' }],
-    },
-    {
-      matter: '通用申报（工会经费）',
-      deadline: '2026-04-20',
-      status: '已申报',
-      statusTone: 'done',
-      actions: [{ label: '更正' }, { label: '作废' }],
-    },
-    {
-      matter: '财务报表报送（季报）',
-      deadline: '2026-04-20',
-      status: '已申报',
-      statusTone: 'done',
-      actions: [{ label: '更正' }],
-    },
-  ],
-  doc: [
-    {
-      matter: '《税务事项通知书》（石高税通〔2026〕12号）',
-      deadline: '2026-04-28',
-      status: '待签收',
-      statusTone: 'neutral',
-      actions: [{ label: '签收' }],
-    },
-    {
-      matter: '《责令限期改正通知书》',
-      deadline: '2026-04-26',
-      status: '待签收',
-      statusTone: 'neutral',
-      actions: [{ label: '查看' }, { label: '签收' }],
-    },
-    {
-      matter: '《行政处罚事项告知书》送达回证',
-      deadline: '2026-04-22',
-      status: '已签收',
-      statusTone: 'done',
-      actions: [{ label: '下载' }],
-    },
-    {
-      matter: '《纳税评估约谈通知书》',
-      deadline: '2026-04-19',
-      status: '待签收',
-      statusTone: 'neutral',
-      actions: [{ label: '签收' }],
-    },
-    {
-      matter: '《风险提示函》',
-      deadline: '2026-04-15',
-      status: '已签收',
-      statusTone: 'done',
-      actions: [{ label: '查看' }],
-    },
-  ],
-  risk: [
-    {
-      matter: '进项税额转出比例与行业均值偏离疑点提示',
-      deadline: '2026-05-15',
-      status: '待核实',
-      statusTone: 'warn',
-      actions: [{ label: '去处理' }],
-    },
-    {
-      matter: '单月开票金额环比波动超阈值提醒',
-      deadline: '2026-04-30',
-      status: '待核实',
-      statusTone: 'warn',
-      actions: [{ label: '填说明' }],
-    },
-    {
-      matter: '跨省迁出涉税事项衔接提醒',
-      deadline: '2026-04-21',
-      status: '处理中',
-      statusTone: 'muted',
-      actions: [{ label: '进度' }],
-    },
-    {
-      matter: '关联交易同期资料报送期限提醒',
-      deadline: '2026-04-18',
-      status: '已反馈',
-      statusTone: 'done',
-      actions: [{ label: '查看' }],
-    },
-    {
-      matter: '企业所得税税前扣除凭证存疑提示',
-      deadline: '2026-04-10',
-      status: '已反馈',
-      statusTone: 'done',
-      actions: [{ label: '详情' }],
-    },
-  ],
-  other: [
-    {
-      matter: '增值税专用发票（中文三联无金额限制版）票种核定',
-      deadline: '2026-04-29',
-      status: '办理中',
-      statusTone: 'muted',
-      actions: [{ label: '进度查询' }],
-    },
-    {
-      matter: '增值税留抵退税申请（制造业）',
-      deadline: '2026-04-27',
-      status: '审核中',
-      statusTone: 'muted',
-      actions: [{ label: '详情' }],
-    },
-    {
-      matter: '办税人员实名信息变更',
-      deadline: '2026-04-24',
-      status: '补正中',
-      statusTone: 'pending',
-      actions: [{ label: '去补正' }],
-    },
-    {
-      matter: '三方协议账号验证失败',
-      deadline: '2026-04-20',
-      status: '待处理',
-      statusTone: 'neutral',
-      actions: [{ label: '重签' }],
-    },
-    {
-      matter: '历史申报表批量导出申请',
-      deadline: '2026-04-12',
-      status: '已完成',
-      statusTone: 'done',
-      actions: [{ label: '下载' }],
-    },
-  ],
+const TAB_ORDER: TodoTabId[] = ['declare', 'doc', 'risk', 'other']
+
+/** 同一标签内：创建时间新的在前；同一天再按办理期限倒序 */
+function todoDisplaySort(a: HomeTodoDb, b: HomeTodoDb): number {
+  const ta = Number.isFinite(Date.parse(a.created_at)) ? Date.parse(a.created_at) : 0
+  const tb = Number.isFinite(Date.parse(b.created_at)) ? Date.parse(b.created_at) : 0
+  if (ta !== tb) return tb - ta
+  const da = Number.isFinite(Date.parse(`${a.deadline}T00:00:00`))
+    ? Date.parse(`${a.deadline}T00:00:00`)
+    : 0
+  const db = Number.isFinite(Date.parse(`${b.deadline}T00:00:00`))
+    ? Date.parse(`${b.deadline}T00:00:00`)
+    : 0
+  if (da !== db) return db - da
+  return a.sort_order - b.sort_order
 }
 
 function todoStatusClass(tone: TodoStatusTone): string {
@@ -222,248 +130,637 @@ function todoStatusClass(tone: TodoStatusTone): string {
   }
 }
 
+function isTodoTab(v: string): v is TodoTabId {
+  return v === 'declare' || v === 'doc' || v === 'risk' || v === 'other'
+}
+
+function groupTodosByTab(rows: HomeTodoDb[]): Record<TodoTabId, HomeTodoDb[]> {
+  const next: Record<TodoTabId, HomeTodoDb[]> = {
+    declare: [],
+    doc: [],
+    risk: [],
+    other: [],
+  }
+  const sorted = [...rows].sort((a, b) => {
+    const tabDiff = TAB_ORDER.indexOf(a.tab) - TAB_ORDER.indexOf(b.tab)
+    if (tabDiff !== 0) return tabDiff
+    return todoDisplaySort(a, b)
+  })
+  for (const r of sorted) {
+    if (isTodoTab(r.tab)) next[r.tab].push(r)
+  }
+  return next
+}
+
 /**
- * 首页：按河北电子税务局门户结构做装饰性 1:1 版式（无业务接口，可滚动）。
+ * 首页：门户版式；待办取自 Supabase `home_todos`；双击数据行可编辑／删除；
+ * 双击列表表头在当前标签页新增一行；提醒日期按当天回推刷新。
  */
 export function HomePage() {
   const [favTab, setFavTab] = useState<'fav' | 'scene'>('fav')
   const [todoTab, setTodoTab] = useState<TodoTabId>('declare')
+  const [todosGrouped, setTodosGrouped] = useState<Record<TodoTabId, HomeTodoDb[]> | null>(
+    null,
+  )
+  const [loadingTodos, setLoadingTodos] = useState(true)
+
+  /** 编辑中行的草稿（双击整行进入） */
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [draft, setDraft] = useState<{
+    matter: string
+    deadline: Dayjs
+    status: string
+  } | null>(null)
+
+  const rollingReminders = buildRollingReminders()
+
+  const loadTodos = useCallback(async () => {
+    setLoadingTodos(true)
+    const { data, error } = await supabase
+      .from('home_todos')
+      .select('id, tab, sort_order, matter, deadline, status, created_at')
+      .order('created_at', { ascending: false })
+    setLoadingTodos(false)
+    if (error) {
+      message.error(`待办加载失败：${error.message}`)
+      setTodosGrouped({
+        declare: [],
+        doc: [],
+        risk: [],
+        other: [],
+      })
+      return
+    }
+    const rows =
+      (data ?? []) as {
+        id: string
+        tab: string
+        sort_order: number
+        matter: string
+        deadline: string
+        status: string
+        created_at: string
+      }[]
+    const normalized: HomeTodoDb[] = rows.map((r) => ({
+      id: r.id,
+      tab: isTodoTab(r.tab) ? r.tab : 'other',
+      sort_order: r.sort_order,
+      matter: r.matter,
+      deadline: typeof r.deadline === 'string' ? r.deadline : String(r.deadline).slice(0, 10),
+      status: r.status,
+      created_at:
+        typeof r.created_at === 'string' && r.created_at
+          ? r.created_at
+          : '1970-01-01T00:00:00.000Z',
+    }))
+    setTodosGrouped(groupTodosByTab(normalized))
+  }, [])
+
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      void loadTodos()
+    }, 0)
+    return () => window.clearTimeout(id)
+  }, [loadTodos])
+
+  const declareNotDeclaredCount = useMemo(() => {
+    if (!todosGrouped) return 0
+    return todosGrouped.declare.filter((r) => r.status === '未申报').length
+  }, [todosGrouped])
+
+  const todoTabs = useMemo(
+    (): { id: TodoTabId; label: string; badge?: number }[] => [
+      {
+        id: 'declare',
+        label: '本期应申报',
+        badge: declareNotDeclaredCount > 0 ? declareNotDeclaredCount : undefined,
+      },
+      { id: 'doc', label: '待签收文书' },
+      { id: 'risk', label: '风险疑点' },
+      { id: 'other', label: '其它' },
+    ],
+    [declareNotDeclaredCount],
+  )
+
+  const currentRows = todosGrouped?.[todoTab] ?? []
+
+  const newRowSkeleton: HomeTodoDb | null =
+    editingId === NEW_HOME_TODO_ID
+      ? {
+          id: NEW_HOME_TODO_ID,
+          tab: todoTab,
+          sort_order: nextTodoSortOrder(currentRows),
+          matter: '',
+          deadline: draft?.deadline.format('YYYY-MM-DD') ?? dayjs().format('YYYY-MM-DD'),
+          status: draft?.status ?? defaultTodoStatusForTab(todoTab),
+          /** 占位行始终手动置顶 */
+          created_at: new Date().toISOString(),
+        }
+      : null
+
+  const rowsForTable =
+    editingId === NEW_HOME_TODO_ID && newRowSkeleton ? [newRowSkeleton, ...currentRows] : currentRows
+
+  const showTodoEmptyHint =
+    !loadingTodos && currentRows.length === 0 && editingId !== NEW_HOME_TODO_ID
+
+  const beginEdit = useCallback((row: HomeTodoDb) => {
+    if (row.id === NEW_HOME_TODO_ID) return
+    setEditingId(row.id)
+    setDraft({
+      matter: row.matter,
+      deadline: dayjs(row.deadline),
+      status: row.status,
+    })
+  }, [])
+
+  const beginCreateRow = useCallback(() => {
+    if (loadingTodos) return
+    setEditingId(NEW_HOME_TODO_ID)
+    setDraft({
+      matter: '',
+      deadline: dayjs(),
+      status: defaultTodoStatusForTab(todoTab),
+    })
+  }, [loadingTodos, todoTab])
+
+  const cancelEdit = useCallback(() => {
+    setEditingId(null)
+    setDraft(null)
+  }, [])
+
+  const deleteTodo = useCallback(() => {
+    if (!editingId || editingId === NEW_HOME_TODO_ID) return
+    Modal.confirm({
+      title: '确认删除本条待办？',
+      content: '删除后无法恢复，可从表头双击再新增。',
+      okText: '删除',
+      okType: 'danger',
+      cancelText: '返回',
+      async onOk() {
+        const { error } = await supabase.from('home_todos').delete().eq('id', editingId)
+        if (error) {
+          message.error(error.message)
+          throw error
+        }
+        message.success('已删除')
+        setEditingId(null)
+        setDraft(null)
+        await loadTodos()
+      },
+    })
+  }, [editingId, loadTodos])
+
+  const saveEdit = useCallback(async () => {
+    if (!editingId || !draft) return
+    const matterTrim = draft.matter.trim()
+    if (!matterTrim) {
+      message.warning('请填写事项名称')
+      return
+    }
+    const deadlineStr = draft.deadline.format('YYYY-MM-DD')
+    const statusTrim = draft.status.trim()
+
+    if (editingId === NEW_HOME_TODO_ID) {
+      const tabRows = todosGrouped?.[todoTab] ?? []
+      const sortOrder = nextTodoSortOrder(tabRows)
+      const { error } = await supabase.from('home_todos').insert({
+        tab: todoTab,
+        sort_order: sortOrder,
+        matter: matterTrim,
+        deadline: deadlineStr,
+        status: statusTrim,
+      })
+      if (error) {
+        message.error(error.message)
+        return
+      }
+      message.success('已新增')
+    } else {
+      const { error } = await supabase
+        .from('home_todos')
+        .update({
+          matter: matterTrim,
+          deadline: deadlineStr,
+          status: statusTrim,
+        })
+        .eq('id', editingId)
+      if (error) {
+        message.error(error.message)
+        return
+      }
+      message.success('已保存')
+    }
+    setEditingId(null)
+    setDraft(null)
+    await loadTodos()
+  }, [draft, editingId, loadTodos, todosGrouped, todoTab])
+
+  useEffect(() => {
+    if (!editingId) return
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') cancelEdit()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [editingId, cancelEdit])
+
   const recommendBannerStyle = {
     '--etax-home-recommend-bg': `url(${ETAX_PUBLIC}home-recommend.optimized.jpg)`,
   } as CSSProperties
 
   return (
-    <div className="etax-portal-home">
-      <div className="etax-portal-home-inner">
-        {/* 用户信息 + 待办 */}
-        <section className="etax-ph-row etx-ph-top" aria-label="用户与待办">
-          <div className="etx-ph-col">
-            <div className="etx-ph-card etx-ph-usercard">
-              <div className="etx-ph-user-line1">
-                <span className="etx-ph-user-name">河北镁神科技股份有限公司</span>
-                <span className="etx-ph-user-badge">
-                  <span className="etx-ph-user-badge-ic" aria-hidden>
-                    A
-                  </span>
-                  <span className="etx-ph-user-badge-text">级纳税人</span>
-                </span>
-              </div>
-              <div className="etx-ph-user-line2">
-                <span className="etx-ph-user-id">911305316610547945</span>
-                <span className="etx-ph-user-period">本月征期已结束</span>
-              </div>
-            </div>
-            <div className="etx-ph-card etx-ph-subcard">
-              <div className="etx-ph-reminder-titlebar">
-                <span>我的提醒</span>
-                <button type="button" className="etx-ph-card-more fake" aria-label="更多">
-                  &gt;
-                </button>
-              </div>
-              <ul className="etx-ph-reminder-list">
-                {homeReminders.map((item, index) => (
-                  <li key={`reminder-${index}-${item.date}`} className="etx-ph-reminder-row">
-                    <span className="etx-ph-reminder-ic" aria-hidden>
-                      i
+    <ConfigProvider locale={zhCN}>
+      <div className="etax-portal-home">
+        <div className="etax-portal-home-inner">
+          <section className="etax-ph-row etx-ph-top" aria-label="用户与待办">
+            <div className="etx-ph-col">
+              <div className="etx-ph-card etx-ph-usercard">
+                <div className="etx-ph-user-line1">
+                  <span className="etx-ph-user-name">河北镁神科技股份有限公司</span>
+                  <span className="etx-ph-user-badge">
+                    <span className="etx-ph-user-badge-ic" aria-hidden>
+                      A
                     </span>
-                    <span className="etx-ph-reminder-text">{item.text}</span>
-                    <span className="etx-ph-reminder-date">{item.date}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-          <div className="etx-ph-col etx-ph-col-wide">
-            <div className="etx-ph-card etx-ph-todo">
-              <div className="etx-ph-todo-head">
-                <div className="etx-ph-todo-titlebar">
-                  <span>我的待办</span>
+                    <span className="etx-ph-user-badge-text">级纳税人</span>
+                  </span>
+                </div>
+                <div className="etx-ph-user-line2">
+                  <span className="etx-ph-user-id">911305316610547945</span>
+                  <span className="etx-ph-user-period">本月征期已结束</span>
+                </div>
+              </div>
+              <div className="etx-ph-card etx-ph-subcard">
+                <div className="etx-ph-reminder-titlebar">
+                  <span>我的提醒</span>
                   <button type="button" className="etx-ph-card-more fake" aria-label="更多">
                     &gt;
                   </button>
                 </div>
-                <div className="etx-ph-todo-tabs" role="tablist" aria-label="待办分类">
-                  {todoTabs.map((tab) => (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={todoTab === tab.id}
-                      className={`etx-ph-todo-tab${todoTab === tab.id ? ' active' : ''}${
-                        tab.badge != null ? ' has-badge' : ''
-                      }`}
-                      onClick={() => setTodoTab(tab.id)}
+                <ul className="etx-ph-reminder-list">
+                  {rollingReminders.map((item, index) => (
+                    <li
+                      key={`reminder-${index}-${item.date}`}
+                      className="etx-ph-reminder-row"
                     >
-                      <span className="etx-ph-todo-tab-label">{tab.label}</span>
-                      {tab.badge != null ? (
-                        <span className="etx-ph-todo-tab-badge" aria-label={`${tab.badge} 条`}>
-                          {tab.badge}
-                        </span>
-                      ) : null}
+                      <span className="etx-ph-reminder-ic" aria-hidden>
+                        i
+                      </span>
+                      <span className="etx-ph-reminder-text">{item.text}</span>
+                      <span className="etx-ph-reminder-date">{item.date}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+            <div className="etx-ph-col etx-ph-col-wide">
+              <div className="etx-ph-card etx-ph-todo">
+                <div className="etx-ph-todo-head">
+                  <div className="etx-ph-todo-titlebar">
+                    <span>我的待办</span>
+                    <button type="button" className="etx-ph-card-more fake" aria-label="更多">
+                      &gt;
                     </button>
-                  ))}
-                </div>
-              </div>
-              <div className="etx-ph-todo-panel">
-                <div className="etx-ph-todo-colhead" role="row">
-                  <span className="etx-ph-todo-th etx-ph-todo-th-matter" role="columnheader">
-                    事项名称
-                  </span>
-                  <span className="etx-ph-todo-th etx-ph-todo-th-deadline" role="columnheader">
-                    办理期限
-                  </span>
-                  <span className="etx-ph-todo-th etx-ph-todo-th-status" role="columnheader">
-                    标签状态
-                  </span>
-                  <span className="etx-ph-todo-th etx-ph-todo-th-op" role="columnheader">
-                    操作
-                  </span>
-                </div>
-                <div className="etx-ph-todo-table">
-                  {todoRowsByTab[todoTab].map((row, index) => (
-                    <div
-                      key={`${todoTab}-${index}-${row.deadline}`}
-                      className="etx-ph-todo-row"
-                      role="row"
-                    >
-                      <span className="etx-ph-todo-td etx-ph-todo-td-matter" role="cell" title={row.matter}>
-                        {row.matter}
-                      </span>
-                      <span className="etx-ph-todo-td etx-ph-todo-td-deadline" role="cell">
-                        {row.deadline}
-                      </span>
-                      <span className="etx-ph-todo-td etx-ph-todo-td-status" role="cell">
-                        <span className={todoStatusClass(row.statusTone)}>{row.status}</span>
-                      </span>
-                      <span className="etx-ph-todo-td etx-ph-todo-td-op" role="cell">
-                        {row.actions.map((a, i) => (
-                          <span key={`${a.label}-${i}`}>
-                            {i > 0 ? <span className="etx-ph-op-sep">|</span> : null}
-                            <button type="button" className="etx-ph-op-link fake">
-                              {a.label}
-                            </button>
+                  </div>
+                  <div className="etx-ph-todo-tabs" role="tablist" aria-label="待办分类">
+                    {todoTabs.map((tab) => (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={todoTab === tab.id}
+                        className={`etx-ph-todo-tab${todoTab === tab.id ? ' active' : ''}${
+                          tab.badge != null ? ' has-badge' : ''
+                        }`}
+                        onClick={() => {
+                          setTodoTab(tab.id)
+                          cancelEdit()
+                        }}
+                      >
+                        <span className="etx-ph-todo-tab-label">{tab.label}</span>
+                        {tab.badge != null ? (
+                          <span className="etx-ph-todo-tab-badge" aria-label={`${tab.badge} 条`}>
+                            {tab.badge}
                           </span>
-                        ))}
-                      </span>
-                    </div>
-                  ))}
+                        ) : null}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="etx-ph-todo-panel">
+                  <div
+                    className="etx-ph-todo-colhead etx-ph-todo-colhead--newable"
+                    role="row"
+                    onDoubleClick={() => beginCreateRow()}
+                    title={
+                      loadingTodos
+                        ? '待办加载中…'
+                        : '双击此处为当前标签页新增一行待办（与双击数据行修改相同字段）'
+                    }
+                  >
+                    <span className="etx-ph-todo-th etx-ph-todo-th-matter" role="columnheader">
+                      事项名称
+                    </span>
+                    <span className="etx-ph-todo-th etx-ph-todo-th-deadline" role="columnheader">
+                      办理期限
+                    </span>
+                    <span className="etx-ph-todo-th etx-ph-todo-th-status" role="columnheader">
+                      标签状态
+                    </span>
+                    <span className="etx-ph-todo-th etx-ph-todo-th-op" role="columnheader">
+                      操作
+                    </span>
+                  </div>
+                  <div className="etx-ph-todo-table">
+                    {loadingTodos ? (
+                      <div className="etx-ph-todo-loading" role="status">
+                        加载待办…
+                      </div>
+                    ) : showTodoEmptyHint ? (
+                      <div className="etx-ph-todo-empty" role="status">
+                        <p>
+                          暂无待办；可<strong>双击表头</strong>新增一行。
+                        </p>
+                        <p className="etx-ph-todo-empty-tip">
+                          若已执行迁移仍无数据，请检查 RLS 与表 home_todos。
+                        </p>
+                      </div>
+                    ) : null}
+                    {rowsForTable.map((row) => {
+                      const editing = editingId === row.id
+                      const displayStatus = editing ? (draft?.status ?? row.status) : row.status
+                      const tone = todoStatusToneForLabel(displayStatus)
+                      const actions = todoActionsForStatus(displayStatus)
+
+                      return (
+                        <div
+                          key={row.id}
+                          className={`etx-ph-todo-row${editing ? ' etx-ph-todo-row--editing' : ''}`}
+                          role="row"
+                          onDoubleClick={(ev) => {
+                            const el = ev.target
+                            if (
+                              !(el instanceof Element)
+                            )
+                              return
+                            if (
+                              el instanceof HTMLInputElement ||
+                              el instanceof HTMLTextAreaElement ||
+                              el instanceof HTMLSelectElement ||
+                              el instanceof HTMLButtonElement
+                            )
+                              return
+                            if (el.closest('.ant-picker, .ant-select, .ant-input')) return
+                            beginEdit(row)
+                          }}
+                          title={
+                            editing
+                              ? undefined
+                              : row.id === NEW_HOME_TODO_ID
+                                ? '填写后点「保存」写入当前标签页'
+                                : '双击本行修改事项名称、办理期限与标签状态'
+                          }
+                        >
+                          <span className="etx-ph-todo-td etx-ph-todo-td-matter" role="cell">
+                            {editing && draft ? (
+                              <Input
+                                size="small"
+                                className="etx-ph-todo-field"
+                                value={draft.matter}
+                                onChange={(e) => setDraft({ ...draft, matter: e.target.value })}
+                              />
+                            ) : (
+                              <span title={row.matter}>{row.matter}</span>
+                            )}
+                          </span>
+                          <span className="etx-ph-todo-td etx-ph-todo-td-deadline" role="cell">
+                            {editing && draft ? (
+                              <DatePicker
+                                size="small"
+                                className="etx-ph-todo-field"
+                                style={{ width: '100%', minWidth: 0 }}
+                                value={draft.deadline}
+                                onChange={(d) =>
+                                  setDraft({
+                                    ...draft,
+                                    deadline: d ?? dayjs(),
+                                  })
+                                }
+                                format="YYYY-MM-DD"
+                                allowClear={false}
+                              />
+                            ) : (
+                              row.deadline
+                            )}
+                          </span>
+                          <span className="etx-ph-todo-td etx-ph-todo-td-status" role="cell">
+                            {editing && draft ? (
+                              <Select
+                                size="small"
+                                className="etx-ph-todo-field"
+                                style={{ width: '100%', minWidth: 0 }}
+                                value={draft.status}
+                                onChange={(v) => setDraft({ ...draft, status: v })}
+                                options={HOME_TODO_STATUS_OPTIONS.map((s) => ({
+                                  label: s,
+                                  value: s,
+                                }))}
+                                showSearch
+                                optionFilterProp="label"
+                              />
+                            ) : (
+                              <span className={todoStatusClass(tone)}>{row.status}</span>
+                            )}
+                          </span>
+                          <span className="etx-ph-todo-td etx-ph-todo-td-op" role="cell">
+                            {editing ? (
+                              <span className="etx-ph-todo-edit-actions">
+                                <button
+                                  type="button"
+                                  className="etx-ph-op-link fake"
+                                  onClick={() => void saveEdit()}
+                                >
+                                  保存
+                                </button>
+                                <span className="etx-ph-op-sep">|</span>
+                                <button
+                                  type="button"
+                                  className="etx-ph-op-link fake"
+                                  onClick={cancelEdit}
+                                >
+                                  取消
+                                </button>
+                                {editingId !== NEW_HOME_TODO_ID ? (
+                                  <>
+                                    <span className="etx-ph-op-sep">|</span>
+                                    <button
+                                      type="button"
+                                      className="etx-ph-op-link etx-ph-op-link--danger fake"
+                                      onClick={deleteTodo}
+                                    >
+                                      删除
+                                    </button>
+                                  </>
+                                ) : null}
+                              </span>
+                            ) : (
+                              actions.map((a, i) => (
+                                <span key={`${a.label}-${i}`}>
+                                  {i > 0 ? <span className="etx-ph-op-sep">|</span> : null}
+                                  <button type="button" className="etx-ph-op-link fake">
+                                    {a.label}
+                                  </button>
+                                </span>
+                              ))
+                            )}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        {/* 热门服务 */}
-        <section className="etx-ph-card etx-ph-hot" aria-label="热门服务">
-          <div className="etx-ph-card-head etx-ph-card-head-plain">
-            <span>热门服务</span>
-          </div>
-          <div className="etx-ph-carousel">
-            <button type="button" className="etx-ph-carousel-btn fake" aria-label="上一屏">
-              ‹
-            </button>
-            <div className="etx-ph-carousel-track">
-              {hotServiceItems.map((item) => (
-                <div key={item.label} className="etx-ph-hot-item">
-                  <img className="etx-ph-hot-icon" src={`${homeAsset}${item.icon}`} alt="" aria-hidden />
-                  <span>{item.label}</span>
-                </div>
-              ))}
+          <section className="etx-ph-card etx-ph-hot" aria-label="热门服务">
+            <div className="etx-ph-card-head etx-ph-card-head-plain">
+              <span>热门服务</span>
             </div>
-            <button type="button" className="etx-ph-carousel-btn fake" aria-label="下一屏">
-              ›
-            </button>
-          </div>
-        </section>
-
-        {/* 我的收藏 | 场景办税 */}
-        <section className="etx-ph-card etx-ph-fav" aria-label="收藏与场景办税">
-          <div className="etx-ph-fav-tabs">
-            <button
-              type="button"
-              className={`etx-ph-fav-tab${favTab === 'fav' ? ' active' : ''}`}
-              onClick={() => setFavTab('fav')}
-            >
-              我的收藏
-            </button>
-            <span className="etx-ph-fav-sep" aria-hidden>
-              |
-            </span>
-            <button
-              type="button"
-              className={`etx-ph-fav-tab${favTab === 'scene' ? ' active' : ''}`}
-              onClick={() => setFavTab('scene')}
-            >
-              场景办税
-            </button>
-          </div>
-          <div className="etx-ph-fav-body">
-            <button type="button" className="etx-ph-fav-arrow etx-ph-fav-arrow-left fake" aria-label="上一屏">
-              ‹
-            </button>
-            <button type="button" className="etx-ph-add-fav fake">
-              <span className="etx-ph-add-plus" aria-hidden />
-              <span>添加收藏</span>
-            </button>
-            <button type="button" className="etx-ph-fav-arrow etx-ph-fav-arrow-right fake" aria-label="下一屏">
-              ›
-            </button>
-          </div>
-        </section>
-
-        {/* 为你推荐 */}
-        <section className="etx-ph-recommend" aria-label="为你推荐">
-          <div className="etx-ph-rec-banner" style={recommendBannerStyle}>
-            <div className="etx-ph-rec-banner-overlay">
-              <span className="etx-ph-rec-banner-title">为你推荐</span>
+            <div className="etx-ph-carousel">
+              <button type="button" className="etx-ph-carousel-btn fake" aria-label="上一屏">
+                ‹
+              </button>
+              <div className="etx-ph-carousel-track">
+                {hotServiceItems.map((item) => (
+                  <div key={item.label} className="etx-ph-hot-item">
+                    <img
+                      className="etx-ph-hot-icon"
+                      src={`${homeAsset}${item.icon}`}
+                      alt=""
+                      aria-hidden
+                    />
+                    <span>{item.label}</span>
+                  </div>
+                ))}
+              </div>
+              <button type="button" className="etx-ph-carousel-btn fake" aria-label="下一屏">
+                ›
+              </button>
             </div>
-          </div>
-          <div className="etx-ph-rec-list">
-            <ul className="etx-ph-rec-col">
-              {recommendLeft.map((item) => (
-                <li key={item.t}>
-                  <a className="etx-ph-rec-link fake" href="#n" onClick={(e) => e.preventDefault()}>
-                    <span className="etx-ph-rec-dot" aria-hidden />
-                    <span className="etx-ph-rec-text">{item.t}</span>
-                    <span className="etx-ph-rec-date">{item.d}</span>
-                  </a>
-                </li>
-              ))}
-            </ul>
-            <ul className="etx-ph-rec-col">
-              {recommendRight.map((item) => (
-                <li key={item.t}>
-                  <a className="etx-ph-rec-link fake" href="#n" onClick={(e) => e.preventDefault()}>
-                    <span className="etx-ph-rec-dot" aria-hidden />
-                    <span className="etx-ph-rec-text">{item.t}</span>
-                    <span className="etx-ph-rec-date">{item.d}</span>
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
+          </section>
 
-        {/* 页脚 */}
-        <footer className="etx-ph-footer" aria-label="页面页脚">
-          <div className="etx-ph-footer-main">
-            <div className="etx-ph-footer-left">
-              <p>主办单位：国家税务总局河北省税务局</p>
-              <p>版权所有：国家税务总局</p>
-              <p>地址：石家庄市平安南大街35号</p>
+          <section className="etx-ph-card etx-ph-fav" aria-label="收藏与场景办税">
+            <div className="etx-ph-fav-tabs">
+              <button
+                type="button"
+                className={`etx-ph-fav-tab${favTab === 'fav' ? ' active' : ''}`}
+                onClick={() => setFavTab('fav')}
+              >
+                我的收藏
+              </button>
+              <span className="etx-ph-fav-sep" aria-hidden>
+                |
+              </span>
+              <button
+                type="button"
+                className={`etx-ph-fav-tab${favTab === 'scene' ? ' active' : ''}`}
+                onClick={() => setFavTab('scene')}
+              >
+                场景办税
+              </button>
             </div>
-            <img className="etx-ph-footer-seal" src={`${ETAX_PUBLIC}gov-badge.png`} alt="政府网站找错" />
-          </div>
-          <div className="etx-ph-footer-bottom">
-            <span>网站标识码：bm29030010</span>
-            <span>冀ICP备13002433号-1</span>
-            <span className="etx-ph-footer-police">
-              <img className="etx-ph-police-ic" src={`${ETAX_PUBLIC}beian-badge.png`} alt="" aria-hidden />
-              冀公网安备 13010402001756号
-            </span>
-          </div>
-        </footer>
+            <div className="etx-ph-fav-body">
+              <button
+                type="button"
+                className="etx-ph-fav-arrow etx-ph-fav-arrow-left fake"
+                aria-label="上一屏"
+              >
+                ‹
+              </button>
+              <button type="button" className="etx-ph-add-fav fake">
+                <span className="etx-ph-add-plus" aria-hidden />
+                <span>添加收藏</span>
+              </button>
+              <button
+                type="button"
+                className="etx-ph-fav-arrow etx-ph-fav-arrow-right fake"
+                aria-label="下一屏"
+              >
+                ›
+              </button>
+            </div>
+          </section>
+
+          <section className="etx-ph-recommend" aria-label="为你推荐">
+            <div className="etx-ph-rec-banner" style={recommendBannerStyle}>
+              <div className="etx-ph-rec-banner-overlay">
+                <span className="etx-ph-rec-banner-title">为你推荐</span>
+              </div>
+            </div>
+            <div className="etx-ph-rec-list">
+              <ul className="etx-ph-rec-col">
+                {recommendLeft.map((item) => (
+                  <li key={item.t}>
+                    <a
+                      className="etx-ph-rec-link fake"
+                      href="#n"
+                      onClick={(e) => e.preventDefault()}
+                    >
+                      <span className="etx-ph-rec-dot" aria-hidden />
+                      <span className="etx-ph-rec-text">{item.t}</span>
+                      <span className="etx-ph-rec-date">{item.d}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+              <ul className="etx-ph-rec-col">
+                {recommendRight.map((item) => (
+                  <li key={item.t}>
+                    <a
+                      className="etx-ph-rec-link fake"
+                      href="#n"
+                      onClick={(e) => e.preventDefault()}
+                    >
+                      <span className="etx-ph-rec-dot" aria-hidden />
+                      <span className="etx-ph-rec-text">{item.t}</span>
+                      <span className="etx-ph-rec-date">{item.d}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
+
+          <footer className="etx-ph-footer" aria-label="页面页脚">
+            <div className="etx-ph-footer-main">
+              <div className="etx-ph-footer-left">
+                <p>主办单位：国家税务总局河北省税务局</p>
+                <p>版权所有：国家税务总局</p>
+                <p>地址：石家庄市平安南大街35号</p>
+              </div>
+              <img
+                className="etx-ph-footer-seal"
+                src={`${ETAX_PUBLIC}gov-badge.png`}
+                alt="政府网站找错"
+              />
+            </div>
+            <div className="etx-ph-footer-bottom">
+              <span>网站标识码：bm29030010</span>
+              <span>冀ICP备13002433号-1</span>
+              <span className="etx-ph-footer-police">
+                <img
+                  className="etx-ph-police-ic"
+                  src={`${ETAX_PUBLIC}beian-badge.png`}
+                  alt=""
+                  aria-hidden
+                />
+                冀公网安备 13010402001756号
+              </span>
+            </div>
+          </footer>
+        </div>
       </div>
-    </div>
+    </ConfigProvider>
   )
 }

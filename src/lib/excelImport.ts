@@ -30,6 +30,7 @@ export type ImportedExcelContent = {
     tax_period_end: string | null
     declaration_date: string | null
     tax_amount_due: number | null
+    template_kind?: 'official_split_cells' | 'combined_period_in_cell'
   }
 }
 
