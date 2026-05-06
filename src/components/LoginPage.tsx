@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ETAX_PUBLIC } from '../constants/assetBase'
 import { loginAccountToAuthEmail } from '../lib/authAccount'
 import { supabase } from '../lib/supabase'
@@ -13,6 +13,8 @@ const loginTabs: Array<{ id: LoginTab; label: string }> = [
 ]
 
 const loginAsset = `${ETAX_PUBLIC}login/`
+const HOME_PROFILE_ID = 'default'
+const DEFAULT_DECOR_TAX_ID = '911305316610547945'
 
 type LoginField = {
   id: 'taxId' | 'account' | 'password'
@@ -94,12 +96,31 @@ const loginFieldsByTab: Record<LoginTab, LoginField[]> = {
 /** 第一项为版式占位，不参与登录、不下发接口 */
 export function LoginPage() {
   const [activeTab, setActiveTab] = useState<LoginTab>('enterprise')
-  const [decorTaxId, setDecorTaxId] = useState('911305316610547945')
+  const [decorTaxId, setDecorTaxId] = useState(DEFAULT_DECOR_TAX_ID)
   const [loginAccount, setLoginAccount] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const activeFields = loginFieldsByTab[activeTab]
+
+  useEffect(() => {
+    let alive = true
+    async function loadDecorTaxId() {
+      const { data, error } = await supabase
+        .from('home_user_profile')
+        .select('tax_id')
+        .eq('id', HOME_PROFILE_ID)
+        .maybeSingle()
+      if (!alive || error) return
+      if (typeof data?.tax_id === 'string' && data.tax_id) {
+        setDecorTaxId(data.tax_id)
+      }
+    }
+    void loadDecorTaxId()
+    return () => {
+      alive = false
+    }
+  }, [])
 
   const loginWrapStyle = {
     '--etax-login-bg': `url(${ETAX_PUBLIC}login-bg.optimized.jpg)`,

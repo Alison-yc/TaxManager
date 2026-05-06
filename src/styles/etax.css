@@ -1176,8 +1176,8 @@
   align-items: center;
   justify-content: center;
   border-radius: 0;
-  background: #20a455;
-  color: #fff;
+  background: var(--etx-ph-user-grade-bg, #20a455);
+  color: var(--etx-ph-user-grade-text, #fff);
   font-size: 16px;
   font-weight: 700;
   line-height: 1;
@@ -1190,10 +1190,92 @@
   height: 100%;
   padding: 0 12px;
   box-sizing: border-box;
-  background: #e8f7f1;
-  color: #16a464;
+  background: var(--etx-ph-user-grade-label-bg, #e8f7f1);
+  color: var(--etx-ph-user-grade-label-text, #16a464);
   font-size: 13px;
   font-weight: 500;
+}
+
+.etx-ph-user-editable {
+  cursor: pointer;
+}
+
+.etx-ph-user-inline-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.etx-ph-user-name.etx-ph-user-inline-edit {
+  flex-wrap: wrap;
+}
+
+.etx-ph-user-badge-ic.etx-ph-user-inline-edit {
+  width: auto;
+  min-width: 148px;
+  padding: 0 4px;
+}
+
+.etx-ph-user-badge-text.etx-ph-user-inline-edit {
+  min-width: 190px;
+  padding: 0 6px;
+}
+
+.etx-ph-user-period.etx-ph-user-inline-edit {
+  white-space: normal;
+}
+
+.etx-ph-user-edit-input {
+  width: 150px;
+  min-width: 52px;
+}
+
+.etx-ph-user-name .etx-ph-user-edit-input {
+  width: min(220px, 100%);
+}
+
+.etx-ph-user-badge-ic .etx-ph-user-edit-input {
+  width: 34px;
+}
+
+.etx-ph-user-color-fields {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.etx-ph-user-color-fields label {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+.etx-ph-user-color-fields input {
+  width: 22px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.etx-ph-user-edit-action {
+  border: 0;
+  padding: 0 2px;
+  background: transparent;
+  color: #2563eb;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.etx-ph-user-badge-ic .etx-ph-user-edit-action {
+  color: #fff;
 }
 
 .etx-ph-subcard {

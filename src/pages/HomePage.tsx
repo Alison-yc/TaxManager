@@ -100,6 +100,45 @@ type HomeTodoDb = {
 
 const TAB_ORDER: TodoTabId[] = ['declare', 'doc', 'risk', 'other']
 
+const HOME_PROFILE_ID = 'default'
+
+type HomeProfileField =
+  | 'company_name'
+  | 'tax_id'
+  | 'taxpayer_grade'
+  | 'taxpayer_grade_label'
+  | 'tax_period_status'
+
+type HomeProfileDb = {
+  id: string
+  company_name: string
+  tax_id: string
+  taxpayer_grade: string
+  taxpayer_grade_label: string
+  tax_period_status: string
+  taxpayer_grade_bg_color: string
+  taxpayer_grade_text_color: string
+  taxpayer_grade_label_bg_color: string
+  taxpayer_grade_label_text_color: string
+}
+
+const DEFAULT_HOME_PROFILE: HomeProfileDb = {
+  id: HOME_PROFILE_ID,
+  company_name: '河北镁神科技股份有限公司',
+  tax_id: '911305316610547945',
+  taxpayer_grade: 'A',
+  taxpayer_grade_label: '级纳税人',
+  tax_period_status: '本月征期已结束',
+  taxpayer_grade_bg_color: '#20a455',
+  taxpayer_grade_text_color: '#ffffff',
+  taxpayer_grade_label_bg_color: '#e8f7f1',
+  taxpayer_grade_label_text_color: '#16a464',
+}
+
+function normalizeHexColor(value: unknown, fallback: string): string {
+  return typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value) ? value : fallback
+}
+
 /** 同一标签内：创建时间新的在前；同一天再按办理期限倒序 */
 function todoDisplaySort(a: HomeTodoDb, b: HomeTodoDb): number {
   const ta = Number.isFinite(Date.parse(a.created_at)) ? Date.parse(a.created_at) : 0
@@ -163,6 +202,17 @@ export function HomePage() {
     null,
   )
   const [loadingTodos, setLoadingTodos] = useState(true)
+  const [homeProfile, setHomeProfile] = useState<HomeProfileDb>(DEFAULT_HOME_PROFILE)
+  const [loadingHomeProfile, setLoadingHomeProfile] = useState(true)
+  const [editingHomeProfileField, setEditingHomeProfileField] =
+    useState<HomeProfileField | null>(null)
+  const [homeProfileDraft, setHomeProfileDraft] = useState('')
+  const [homeProfileColorDraft, setHomeProfileColorDraft] = useState({
+    taxpayer_grade_bg_color: DEFAULT_HOME_PROFILE.taxpayer_grade_bg_color,
+    taxpayer_grade_text_color: DEFAULT_HOME_PROFILE.taxpayer_grade_text_color,
+    taxpayer_grade_label_bg_color: DEFAULT_HOME_PROFILE.taxpayer_grade_label_bg_color,
+    taxpayer_grade_label_text_color: DEFAULT_HOME_PROFILE.taxpayer_grade_label_text_color,
+  })
 
   /** 编辑中行的草稿（双击整行进入） */
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -173,6 +223,76 @@ export function HomePage() {
   } | null>(null)
 
   const rollingReminders = buildRollingReminders()
+
+  const loadHomeProfile = useCallback(async () => {
+    setLoadingHomeProfile(true)
+    const { data, error } = await supabase
+      .from('home_user_profile')
+      .select(
+        [
+          'id',
+          'company_name',
+          'tax_id',
+          'taxpayer_grade',
+          'taxpayer_grade_label',
+          'tax_period_status',
+          'taxpayer_grade_bg_color',
+          'taxpayer_grade_text_color',
+          'taxpayer_grade_label_bg_color',
+          'taxpayer_grade_label_text_color',
+        ].join(', '),
+      )
+      .eq('id', HOME_PROFILE_ID)
+      .maybeSingle()
+    setLoadingHomeProfile(false)
+    if (error) {
+      message.error(`用户信息加载失败：${error.message}`)
+      setHomeProfile(DEFAULT_HOME_PROFILE)
+      return
+    }
+    if (!data) {
+      setHomeProfile(DEFAULT_HOME_PROFILE)
+      return
+    }
+    const row = data as Partial<Record<keyof HomeProfileDb, unknown>>
+    setHomeProfile({
+      id: typeof row.id === 'string' && row.id ? row.id : HOME_PROFILE_ID,
+      company_name:
+        typeof row.company_name === 'string' && row.company_name
+          ? row.company_name
+          : DEFAULT_HOME_PROFILE.company_name,
+      tax_id:
+        typeof row.tax_id === 'string' && row.tax_id ? row.tax_id : DEFAULT_HOME_PROFILE.tax_id,
+      taxpayer_grade:
+        typeof row.taxpayer_grade === 'string' && row.taxpayer_grade
+          ? row.taxpayer_grade
+          : DEFAULT_HOME_PROFILE.taxpayer_grade,
+      taxpayer_grade_label:
+        typeof row.taxpayer_grade_label === 'string' && row.taxpayer_grade_label
+          ? row.taxpayer_grade_label
+          : DEFAULT_HOME_PROFILE.taxpayer_grade_label,
+      tax_period_status:
+        typeof row.tax_period_status === 'string' && row.tax_period_status
+          ? row.tax_period_status
+          : DEFAULT_HOME_PROFILE.tax_period_status,
+      taxpayer_grade_bg_color: normalizeHexColor(
+        row.taxpayer_grade_bg_color,
+        DEFAULT_HOME_PROFILE.taxpayer_grade_bg_color,
+      ),
+      taxpayer_grade_text_color: normalizeHexColor(
+        row.taxpayer_grade_text_color,
+        DEFAULT_HOME_PROFILE.taxpayer_grade_text_color,
+      ),
+      taxpayer_grade_label_bg_color: normalizeHexColor(
+        row.taxpayer_grade_label_bg_color,
+        DEFAULT_HOME_PROFILE.taxpayer_grade_label_bg_color,
+      ),
+      taxpayer_grade_label_text_color: normalizeHexColor(
+        row.taxpayer_grade_label_text_color,
+        DEFAULT_HOME_PROFILE.taxpayer_grade_label_text_color,
+      ),
+    })
+  }, [])
 
   const loadTodos = useCallback(async () => {
     setLoadingTodos(true)
@@ -222,6 +342,13 @@ export function HomePage() {
     }, 0)
     return () => window.clearTimeout(id)
   }, [loadTodos])
+
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      void loadHomeProfile()
+    }, 0)
+    return () => window.clearTimeout(id)
+  }, [loadHomeProfile])
 
   const declareNotDeclaredCount = useMemo(() => {
     if (!todosGrouped) return 0
@@ -288,6 +415,178 @@ export function HomePage() {
     setEditingId(null)
     setDraft(null)
   }, [])
+
+  const beginEditHomeProfileField = useCallback(
+    (field: HomeProfileField) => {
+      if (loadingHomeProfile) return
+      setEditingHomeProfileField(field)
+      setHomeProfileDraft(homeProfile[field])
+      setHomeProfileColorDraft({
+        taxpayer_grade_bg_color: homeProfile.taxpayer_grade_bg_color,
+        taxpayer_grade_text_color: homeProfile.taxpayer_grade_text_color,
+        taxpayer_grade_label_bg_color: homeProfile.taxpayer_grade_label_bg_color,
+        taxpayer_grade_label_text_color: homeProfile.taxpayer_grade_label_text_color,
+      })
+    },
+    [homeProfile, loadingHomeProfile],
+  )
+
+  const cancelHomeProfileEdit = useCallback(() => {
+    setEditingHomeProfileField(null)
+    setHomeProfileDraft('')
+    setHomeProfileColorDraft({
+      taxpayer_grade_bg_color: DEFAULT_HOME_PROFILE.taxpayer_grade_bg_color,
+      taxpayer_grade_text_color: DEFAULT_HOME_PROFILE.taxpayer_grade_text_color,
+      taxpayer_grade_label_bg_color: DEFAULT_HOME_PROFILE.taxpayer_grade_label_bg_color,
+      taxpayer_grade_label_text_color: DEFAULT_HOME_PROFILE.taxpayer_grade_label_text_color,
+    })
+  }, [])
+
+  const saveHomeProfileField = useCallback(async () => {
+    if (!editingHomeProfileField) return
+    const valueTrim = homeProfileDraft.trim()
+    if (!valueTrim) {
+      message.warning('请填写内容')
+      return
+    }
+    const nextProfile = {
+      ...homeProfile,
+      id: HOME_PROFILE_ID,
+      [editingHomeProfileField]: valueTrim,
+    }
+    if (editingHomeProfileField === 'taxpayer_grade') {
+      nextProfile.taxpayer_grade_bg_color = homeProfileColorDraft.taxpayer_grade_bg_color
+      nextProfile.taxpayer_grade_text_color = homeProfileColorDraft.taxpayer_grade_text_color
+    }
+    if (editingHomeProfileField === 'taxpayer_grade_label') {
+      nextProfile.taxpayer_grade_label_bg_color =
+        homeProfileColorDraft.taxpayer_grade_label_bg_color
+      nextProfile.taxpayer_grade_label_text_color =
+        homeProfileColorDraft.taxpayer_grade_label_text_color
+    }
+    const { error } = await supabase.from('home_user_profile').upsert(nextProfile, {
+      onConflict: 'id',
+    })
+    if (error) {
+      message.error(error.message)
+      return
+    }
+    setHomeProfile(nextProfile)
+    setEditingHomeProfileField(null)
+    setHomeProfileDraft('')
+    message.success('已保存')
+  }, [editingHomeProfileField, homeProfile, homeProfileColorDraft, homeProfileDraft])
+
+  const renderHomeProfileColorFields = useCallback(
+    (field: HomeProfileField) => {
+      if (field !== 'taxpayer_grade' && field !== 'taxpayer_grade_label') return null
+      const bgKey =
+        field === 'taxpayer_grade' ? 'taxpayer_grade_bg_color' : 'taxpayer_grade_label_bg_color'
+      const textKey =
+        field === 'taxpayer_grade'
+          ? 'taxpayer_grade_text_color'
+          : 'taxpayer_grade_label_text_color'
+      return (
+        <span className="etx-ph-user-color-fields">
+          <label>
+            背景
+            <input
+              type="color"
+              value={homeProfileColorDraft[bgKey]}
+              onChange={(e) =>
+                setHomeProfileColorDraft((prev) => ({
+                  ...prev,
+                  [bgKey]: e.target.value,
+                }))
+              }
+              onClick={(e) => e.stopPropagation()}
+            />
+          </label>
+          <label>
+            文字
+            <input
+              type="color"
+              value={homeProfileColorDraft[textKey]}
+              onChange={(e) =>
+                setHomeProfileColorDraft((prev) => ({
+                  ...prev,
+                  [textKey]: e.target.value,
+                }))
+              }
+              onClick={(e) => e.stopPropagation()}
+            />
+          </label>
+        </span>
+      )
+    },
+    [homeProfileColorDraft],
+  )
+
+  const renderHomeProfileField = useCallback(
+    (
+      field: HomeProfileField,
+      value: string,
+      className: string,
+      title: string,
+    ) => {
+      const editing = editingHomeProfileField === field
+      return (
+        <span
+          className={`${className} etx-ph-user-editable${
+            editing ? ' etx-ph-user-inline-edit' : ''
+          }`}
+          onDoubleClick={() => beginEditHomeProfileField(field)}
+          title={loadingHomeProfile ? '用户信息加载中…' : title}
+        >
+          {editing ? (
+            <>
+              <Input
+                size="small"
+                className="etx-ph-user-edit-input"
+                value={homeProfileDraft}
+                autoFocus
+                onChange={(e) => setHomeProfileDraft(e.target.value)}
+                onPressEnter={() => void saveHomeProfileField()}
+                onClick={(e) => e.stopPropagation()}
+              />
+              {renderHomeProfileColorFields(field)}
+              <button
+                type="button"
+                className="etx-ph-user-edit-action fake"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  void saveHomeProfileField()
+                }}
+              >
+                保存
+              </button>
+              <button
+                type="button"
+                className="etx-ph-user-edit-action fake"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  cancelHomeProfileEdit()
+                }}
+              >
+                取消
+              </button>
+            </>
+          ) : (
+            value
+          )}
+        </span>
+      )
+    },
+    [
+      beginEditHomeProfileField,
+      cancelHomeProfileEdit,
+      editingHomeProfileField,
+      homeProfileDraft,
+      loadingHomeProfile,
+      renderHomeProfileColorFields,
+      saveHomeProfileField,
+    ],
+  )
 
   const deleteTodo = useCallback(() => {
     if (!editingId || editingId === NEW_HOME_TODO_ID) return
@@ -357,16 +656,36 @@ export function HomePage() {
   }, [draft, editingId, loadTodos, todosGrouped, todoTab])
 
   useEffect(() => {
-    if (!editingId) return
+    if (!editingId && !editingHomeProfileField) return
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') cancelEdit()
+      if (e.key === 'Escape') cancelHomeProfileEdit()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [editingId, cancelEdit])
+  }, [editingId, editingHomeProfileField, cancelEdit, cancelHomeProfileEdit])
 
   const recommendBannerStyle = {
     '--etax-home-recommend-bg': `url(${ETAX_PUBLIC}home-recommend.optimized.jpg)`,
+  } as CSSProperties
+
+  const userBadgeStyle = {
+    '--etx-ph-user-grade-bg':
+      editingHomeProfileField === 'taxpayer_grade'
+        ? homeProfileColorDraft.taxpayer_grade_bg_color
+        : homeProfile.taxpayer_grade_bg_color,
+    '--etx-ph-user-grade-text':
+      editingHomeProfileField === 'taxpayer_grade'
+        ? homeProfileColorDraft.taxpayer_grade_text_color
+        : homeProfile.taxpayer_grade_text_color,
+    '--etx-ph-user-grade-label-bg':
+      editingHomeProfileField === 'taxpayer_grade_label'
+        ? homeProfileColorDraft.taxpayer_grade_label_bg_color
+        : homeProfile.taxpayer_grade_label_bg_color,
+    '--etx-ph-user-grade-label-text':
+      editingHomeProfileField === 'taxpayer_grade_label'
+        ? homeProfileColorDraft.taxpayer_grade_label_text_color
+        : homeProfile.taxpayer_grade_label_text_color,
   } as CSSProperties
 
   return (
@@ -377,17 +696,40 @@ export function HomePage() {
             <div className="etx-ph-col">
               <div className="etx-ph-card etx-ph-usercard">
                 <div className="etx-ph-user-line1">
-                  <span className="etx-ph-user-name">河北镁神科技股份有限公司</span>
-                  <span className="etx-ph-user-badge">
-                    <span className="etx-ph-user-badge-ic" aria-hidden>
-                      A
-                    </span>
-                    <span className="etx-ph-user-badge-text">级纳税人</span>
+                  {renderHomeProfileField(
+                    'company_name',
+                    homeProfile.company_name,
+                    'etx-ph-user-name',
+                    '双击修改企业名称',
+                  )}
+                  <span className="etx-ph-user-badge" style={userBadgeStyle}>
+                    {renderHomeProfileField(
+                      'taxpayer_grade',
+                      homeProfile.taxpayer_grade,
+                      'etx-ph-user-badge-ic',
+                      '双击修改纳税人评级字母',
+                    )}
+                    {renderHomeProfileField(
+                      'taxpayer_grade_label',
+                      homeProfile.taxpayer_grade_label,
+                      'etx-ph-user-badge-text',
+                      '双击修改纳税人评级文案',
+                    )}
                   </span>
                 </div>
                 <div className="etx-ph-user-line2">
-                  <span className="etx-ph-user-id">911305316610547945</span>
-                  <span className="etx-ph-user-period">本月征期已结束</span>
+                  {renderHomeProfileField(
+                    'tax_id',
+                    homeProfile.tax_id,
+                    'etx-ph-user-id',
+                    '双击修改统一社会信用代码',
+                  )}
+                  {renderHomeProfileField(
+                    'tax_period_status',
+                    homeProfile.tax_period_status,
+                    'etx-ph-user-period',
+                    '双击修改征期状态',
+                  )}
                 </div>
               </div>
               <div className="etx-ph-card etx-ph-subcard">
