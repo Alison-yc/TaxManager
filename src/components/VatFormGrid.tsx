@@ -9,13 +9,23 @@ type Props = {
 }
 
 const UNBORDERED_HEADER_ROWS = 4
-const TEN_COL_PREVIEW_WIDTHS = [7, 13, 13, 11, 6, 8, 10.5, 10.5, 10.5, 10.5]
+const TEN_COL_PREVIEW_WIDTHS = [6.5, 12.5, 12.5, 10, 5.5, 6.5, 11.625, 11.625, 11.625, 11.625]
 const FOURTEEN_COL_TEMPLATE_WIDTHS = [50, 63, 32, 44, 56, 85, 108, 53, 50, 47, 70, 37, 30, 50]
 
 function cellText(v: GridCell): string {
   if (v === null || v === undefined) return ''
   if (typeof v === 'number' && Number.isFinite(v)) return String(v)
   return String(v)
+}
+
+function normalizeNumericText(v: GridCell): string | null {
+  const text = cellText(v).trim().replace(/,/g, '')
+  if (!/^-?\d+(\.\d+)?$/.test(text)) return null
+  const n = Number(text)
+  return Number.isFinite(n) ? n.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }) : null
 }
 
 function clampMerge(m: Range, maxRow: number, maxCol: number): Range | null {
@@ -50,18 +60,34 @@ function looksLikeEmptyDash(s: string): boolean {
   return /^[—–-]+$/.test(s.trim())
 }
 
-function cellAlignClass(colIndex: number, rowIndex: number, raw: GridCell): string {
+function amountColumnIndexes(cols: number): Set<number> {
+  if (cols === 10) return new Set([6, 7, 8, 9])
+  if (cols === 14) return new Set([6, 7, 8, 9, 10, 11, 12, 13])
+  return new Set()
+}
+
+function isAmountCell(colIndex: number, rowIndex: number, cols: number, raw: GridCell): boolean {
+  if (rowIndex <= 9) return false
+  if (!amountColumnIndexes(cols).has(colIndex)) return false
+  return normalizeNumericText(raw) !== null
+}
+
+function cellAlignClass(colIndex: number, rowIndex: number, raw: GridCell, cols: number): string {
   if (rowIndex <= 7) return ''
   if (colIndex === 0) return 'vat-center'
   if (colIndex === 4) return 'vat-center'
   if (typeof raw === 'string' && looksLikeEmptyDash(raw)) return 'vat-center'
+  if (isAmountCell(colIndex, rowIndex, cols, raw)) return 'vat-num'
   if (typeof raw === 'number' && Number.isFinite(raw)) return 'vat-num'
   if (typeof raw === 'string' && raw && looksLikeAmount(raw)) return 'vat-num'
   return ''
 }
 
-function cellContent(raw: GridCell): JSX.Element {
-  return <span className="vat-cell-content">{cellText(raw) || '\u00a0'}</span>
+function cellContent(raw: GridCell, colIndex: number, rowIndex: number, cols: number): JSX.Element {
+  const text = isAmountCell(colIndex, rowIndex, cols, raw)
+    ? normalizeNumericText(raw)
+    : cellText(raw)
+  return <span className="vat-cell-content">{text || '\u00a0'}</span>
 }
 
 function rowClassTd(rowIndex: number): string {
@@ -97,17 +123,38 @@ function estimatedColumnWeights(grid: GridCell[][], cols: number): number[] {
 function columnPercentages(grid: GridCell[][], cols: number, colWidths?: number[]): number[] {
   const explicit = colWidths?.slice(0, cols) ?? []
   const hasExplicit = explicit.length === cols && explicit.some((w) => w > 0)
-  const weights = hasExplicit
+  const baseWeights = hasExplicit
     ? explicit.map((w) => (Number.isFinite(w) && w > 0 ? w : 6))
     : cols === 10
       ? TEN_COL_PREVIEW_WIDTHS
       : cols === 14
         ? FOURTEEN_COL_TEMPLATE_WIDTHS
         : estimatedColumnWeights(grid, cols)
+  const weights = widenAmountColumns(baseWeights, cols)
 
   const total = weights.reduce((sum, w) => sum + w, 0)
   if (total <= 0) return Array(cols).fill(100 / Math.max(1, cols))
   return weights.map((w) => (w / total) * 100)
+}
+
+function widenAmountColumns(weights: number[], cols: number): number[] {
+  const amountCols = amountColumnIndexes(cols)
+  if (amountCols.size === 0) return weights
+
+  const amountBoost = cols === 10 ? 1.12 : 1.08
+  const widened = weights.map((w, i) => (amountCols.has(i) ? w * amountBoost : w))
+  const originalTotal = weights.reduce((sum, w) => sum + w, 0)
+  const widenedTotal = widened.reduce((sum, w) => sum + w, 0)
+  const extra = widenedTotal - originalTotal
+  const shrinkableTotal = weights.reduce((sum, w, i) => (amountCols.has(i) ? sum : sum + w), 0)
+
+  if (extra <= 0 || shrinkableTotal <= 0) return widened
+
+  return widened.map((w, i) => {
+    if (amountCols.has(i)) return w
+    const reduced = w - (extra * weights[i]) / shrinkableTotal
+    return Math.max(reduced, w * 0.82)
+  })
 }
 
 /**
@@ -177,9 +224,9 @@ export const VatFormGrid = forwardRef<HTMLDivElement, Props>(function VatFormGri
             key={`${r}-${c}`}
             rowSpan={rs}
             colSpan={cs}
-            className={`${rowClassTd(originalRowIndex)} ${cellAlignClass(c, originalRowIndex, raw)}`.trim()}
+            className={`${rowClassTd(originalRowIndex)} ${cellAlignClass(c, originalRowIndex, raw, cols)}`.trim()}
           >
-            {cellContent(raw)}
+            {cellContent(raw, c, originalRowIndex, cols)}
           </td>,
         )
       } else {
@@ -187,9 +234,9 @@ export const VatFormGrid = forwardRef<HTMLDivElement, Props>(function VatFormGri
         cells.push(
           <td
             key={`${r}-${c}`}
-            className={`${rowClassTd(originalRowIndex)} ${cellAlignClass(c, originalRowIndex, raw)}`.trim()}
+            className={`${rowClassTd(originalRowIndex)} ${cellAlignClass(c, originalRowIndex, raw, cols)}`.trim()}
           >
-            {cellContent(raw)}
+            {cellContent(raw, c, originalRowIndex, cols)}
           </td>,
         )
       }
