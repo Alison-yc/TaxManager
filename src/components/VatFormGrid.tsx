@@ -9,7 +9,7 @@ type Props = {
 }
 
 const UNBORDERED_HEADER_ROWS = 4
-const TEN_COL_PREVIEW_WIDTHS = [7, 13.2, 13.2, 10.6, 5.5, 6.3, 11.05, 11.05, 11.05, 11.05]
+const TEN_COL_PREVIEW_WIDTHS = [7, 12.5, 12.5, 10.2, 5.5, 7.5, 11.05, 11.05, 11.05, 11.65]
 const FOURTEEN_COL_TEMPLATE_WIDTHS = [50, 63, 32, 44, 56, 85, 108, 53, 50, 47, 70, 37, 30, 50]
 
 function cellText(v: GridCell): string {
