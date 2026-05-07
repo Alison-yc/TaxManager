@@ -9,7 +9,7 @@ type Props = {
 }
 
 const UNBORDERED_HEADER_ROWS = 4
-const TEN_COL_PREVIEW_WIDTHS = [6.5, 12.5, 12.5, 10, 5.5, 6.5, 11.625, 11.625, 11.625, 11.625]
+const TEN_COL_PREVIEW_WIDTHS = [7, 13.2, 13.2, 10.6, 5.5, 6.3, 11.05, 11.05, 11.05, 11.05]
 const FOURTEEN_COL_TEMPLATE_WIDTHS = [50, 63, 32, 44, 56, 85, 108, 53, 50, 47, 70, 37, 30, 50]
 
 function cellText(v: GridCell): string {
@@ -141,7 +141,7 @@ function widenAmountColumns(weights: number[], cols: number): number[] {
   const amountCols = amountColumnIndexes(cols)
   if (amountCols.size === 0) return weights
 
-  const amountBoost = cols === 10 ? 1.12 : 1.08
+  const amountBoost = cols === 10 ? 1.06 : 1.04
   const widened = weights.map((w, i) => (amountCols.has(i) ? w * amountBoost : w))
   const originalTotal = weights.reduce((sum, w) => sum + w, 0)
   const widenedTotal = widened.reduce((sum, w) => sum + w, 0)
