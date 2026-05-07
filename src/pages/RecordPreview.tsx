@@ -165,7 +165,12 @@ export function RecordPreview() {
           </div>
 
           <div className="vat-preview-frame etax-record-preview-frame">
-            <VatFormGrid ref={captureRef} grid={content.grid} merges={content.merges} />
+            <VatFormGrid
+              ref={captureRef}
+              grid={content.grid}
+              merges={content.merges}
+              colWidths={content.colWidths}
+            />
           </div>
         </section>
       )}

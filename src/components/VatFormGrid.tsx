@@ -1,13 +1,16 @@
-import { forwardRef } from 'react'
+import { forwardRef, type CSSProperties } from 'react'
 import type { Range } from 'xlsx'
 import type { GridCell } from '../lib/excelImport'
 
 type Props = {
   grid: GridCell[][]
   merges: Range[]
+  colWidths?: number[]
 }
 
 const UNBORDERED_HEADER_ROWS = 4
+const TEN_COL_PREVIEW_WIDTHS = [7, 13, 13, 11, 6, 8, 10.5, 10.5, 10.5, 10.5]
+const FOURTEEN_COL_TEMPLATE_WIDTHS = [50, 63, 32, 44, 56, 85, 108, 53, 50, 47, 70, 37, 30, 50]
 
 function cellText(v: GridCell): string {
   if (v === null || v === undefined) return ''
@@ -74,12 +77,45 @@ function rowText(row: GridCell[] | undefined): string {
     .join(' ')
 }
 
+function textWeight(cell: GridCell): number {
+  const text = cellText(cell).trim()
+  if (!text) return 0
+  if (looksLikeAmount(text)) return Math.min(16, Math.max(8, text.length))
+  return Math.min(24, Math.max(4, text.length * 1.1))
+}
+
+function estimatedColumnWeights(grid: GridCell[][], cols: number): number[] {
+  const weights = Array(cols).fill(6) as number[]
+  for (const row of grid) {
+    for (let c = 0; c < cols; c++) {
+      weights[c] = Math.max(weights[c], textWeight(row[c] ?? ''))
+    }
+  }
+  return weights
+}
+
+function columnPercentages(grid: GridCell[][], cols: number, colWidths?: number[]): number[] {
+  const explicit = colWidths?.slice(0, cols) ?? []
+  const hasExplicit = explicit.length === cols && explicit.some((w) => w > 0)
+  const weights = hasExplicit
+    ? explicit.map((w) => (Number.isFinite(w) && w > 0 ? w : 6))
+    : cols === 10
+      ? TEN_COL_PREVIEW_WIDTHS
+      : cols === 14
+        ? FOURTEEN_COL_TEMPLATE_WIDTHS
+        : estimatedColumnWeights(grid, cols)
+
+  const total = weights.reduce((sum, w) => sum + w, 0)
+  if (total <= 0) return Array(cols).fill(100 / Math.max(1, cols))
+  return weights.map((w) => (w / total) * 100)
+}
+
 /**
  * 使用 Excel merges 合并单元格，版式更接近税局 PDF。
  * ref 落在版心根节点，供导出 PDF 完整截图（勿包在 overflow 滚动容器内）。
  */
 export const VatFormGrid = forwardRef<HTMLDivElement, Props>(function VatFormGrid(
-  { grid, merges },
+  { grid, merges, colWidths },
   ref,
 ) {
   if (!grid.length) {
@@ -97,6 +133,7 @@ export const VatFormGrid = forwardRef<HTMLDivElement, Props>(function VatFormGri
   const cols = normalized[0]?.length ?? 0
   const maxRow = rows - 1
   const maxCol = cols - 1
+  const colPercents = columnPercentages(normalized, cols, colWidths)
 
   const covered: boolean[][] = Array.from({ length: rows }, () =>
     Array(cols).fill(false),
@@ -168,7 +205,11 @@ export const VatFormGrid = forwardRef<HTMLDivElement, Props>(function VatFormGri
     colgroupCount > 0 ? (
       <colgroup>
         {Array.from({ length: colgroupCount }).map((_, i) => (
-          <col key={i} className={`vat-dyn-col col-i-${i}`} />
+          <col
+            key={i}
+            className={`vat-dyn-col col-i-${i}`}
+            style={{ width: `${colPercents[i] ?? 100 / colgroupCount}%` } as CSSProperties}
+          />
         ))}
       </colgroup>
     ) : null

@@ -302,6 +302,18 @@ function getQueryPopupContainer(trigger: HTMLElement): HTMLElement {
   return page instanceof HTMLElement ? page : document.body
 }
 
+const QUERY_DATE_PICKER_PROPS = {
+  style: { width: '100%' },
+  allowClear: true,
+  format: 'YYYY-MM-DD',
+  placeholder: '请选择',
+  placement: 'bottomLeft' as const,
+  popupAlign: {
+    overflow: { adjustY: false },
+  },
+  getPopupContainer: getQueryPopupContainer,
+}
+
 /**
  * 申报信息查询列表：antd 表单 + 表格；折叠仅收起第 2、3 行条件；申报日期起止非必选（未选则不按申报日过滤）。
  */
@@ -649,35 +661,17 @@ export function QueryPage() {
                 <Row gutter={QUERY_FILTER_ROW_GUTTER}>
                   <Col xs={24} md={12} xl={8}>
                     <Form.Item name="taxPeriodFrom" label="税款所属期起">
-                      <DatePicker
-                        style={{ width: '100%' }}
-                        allowClear
-                        format="YYYY-MM-DD"
-                        placeholder="请选择"
-                        getPopupContainer={getQueryPopupContainer}
-                      />
+                      <DatePicker {...QUERY_DATE_PICKER_PROPS} />
                     </Form.Item>
                   </Col>
                   <Col xs={24} md={12} xl={8}>
                     <Form.Item name="taxPeriodTo" label="税款所属期止">
-                      <DatePicker
-                        style={{ width: '100%' }}
-                        allowClear
-                        format="YYYY-MM-DD"
-                        placeholder="请选择"
-                        getPopupContainer={getQueryPopupContainer}
-                      />
+                      <DatePicker {...QUERY_DATE_PICKER_PROPS} />
                     </Form.Item>
                   </Col>
                   <Col xs={24} md={12} xl={8}>
                     <Form.Item name="declFrom" label="申报日期起">
-                      <DatePicker
-                        style={{ width: '100%' }}
-                        allowClear
-                        format="YYYY-MM-DD"
-                        placeholder="请选择"
-                        getPopupContainer={getQueryPopupContainer}
-                      />
+                      <DatePicker {...QUERY_DATE_PICKER_PROPS} />
                     </Form.Item>
                   </Col>
                 </Row>
@@ -700,13 +694,7 @@ export function QueryPage() {
                         }),
                       ]}
                     >
-                      <DatePicker
-                        style={{ width: '100%' }}
-                        allowClear
-                        format="YYYY-MM-DD"
-                        placeholder="请选择"
-                        getPopupContainer={getQueryPopupContainer}
-                      />
+                      <DatePicker {...QUERY_DATE_PICKER_PROPS} />
                     </Form.Item>
                   </Col>
                 </Row>

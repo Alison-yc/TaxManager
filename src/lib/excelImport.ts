@@ -15,6 +15,8 @@ export type ImportedExcelContent = {
   }
   /** 与模版版式对齐的整块网格，用于回填导出 */
   grid: GridCell[][]
+  /** Excel 可见列宽，用于不同列数模板导出时保持右侧字段可见 */
+  colWidths?: number[]
   /** 合并单元格信息（与原表一致时再导出） */
   merges: XLSX.Range[]
   summary: string
@@ -55,6 +57,7 @@ function pickDisplaySummary(firstRow: Record<string, unknown>): string {
 
 function sheetToGrid(sheet: XLSX.WorkSheet): {
   grid: GridCell[][]
+  colWidths: number[]
   merges: XLSX.Range[]
 } {
   const merges = sheet['!merges']
@@ -67,10 +70,11 @@ function sheetToGrid(sheet: XLSX.WorkSheet): {
       defval: '',
       raw: true,
     }) as GridCell[][]
-    return { grid: aoa, merges }
+    return { grid: aoa, colWidths: sheetColumnWidths(sheet, aoa[0]?.length ?? 0), merges }
   }
 
   const range = XLSX.utils.decode_range(sheet['!ref'])
+  const colCount = range.e.c - range.s.c + 1
   const grid: GridCell[][] = []
   for (let r = range.s.r; r <= range.e.r; r++) {
     const row: GridCell[] = []
@@ -94,17 +98,35 @@ function sheetToGrid(sheet: XLSX.WorkSheet): {
     }
     grid.push(row)
   }
-  return { grid, merges }
+  return { grid, colWidths: sheetColumnWidths(sheet, colCount), merges }
+}
+
+function sheetColumnWidths(sheet: XLSX.WorkSheet, colCount: number): number[] {
+  const cols = sheet['!cols'] ?? []
+  const widths: number[] = []
+  for (let i = 0; i < colCount; i++) {
+    const col = cols[i]
+    const raw =
+      typeof col?.wpx === 'number'
+        ? col.wpx
+        : typeof col?.wch === 'number'
+          ? col.wch
+          : typeof col?.width === 'number'
+            ? col.width
+            : 0
+    widths.push(Number.isFinite(raw) && raw > 0 && !col?.hidden ? raw : 0)
+  }
+  return widths.some((w) => w > 0) ? widths : []
 }
 
 /**
  * 将 Excel 首表解析为可逆网格 + 摘要，写入 form_data.content
  */
 export function parseExcelFile(buffer: ArrayBuffer, fileName: string): Json {
-  const workbook = XLSX.read(buffer, { type: 'array', cellDates: true })
+  const workbook = XLSX.read(buffer, { type: 'array', cellDates: true, cellStyles: true })
   const firstName = workbook.SheetNames[0]
   const sheet = workbook.Sheets[firstName]
-  const { grid, merges } = sheetToGrid(sheet)
+  const { grid, colWidths, merges } = sheetToGrid(sheet)
 
   const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
     defval: '',
@@ -125,6 +147,7 @@ export function parseExcelFile(buffer: ArrayBuffer, fileName: string): Json {
       rows,
     },
     grid,
+    colWidths,
     merges,
     summary: displaySummary,
     declaration_index,
