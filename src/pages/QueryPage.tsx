@@ -8,6 +8,8 @@ import {
   ConfigProvider,
   DatePicker,
   Form,
+  message,
+  Modal,
   Pagination,
   Row,
   Select,
@@ -467,6 +469,34 @@ export function QueryPage() {
     setAppliedFilters(next)
   }
 
+  const handleDeleteRecord = useCallback(
+    (row: FormDataRow) => {
+      Modal.confirm({
+        title: '确认删除这条申报数据？',
+        content: `删除后可重新上传修正。当前记录：${formLinkLabel(row)}`,
+        okText: '删除',
+        okButtonProps: { danger: true },
+        cancelText: '取消',
+        async onOk() {
+          const { error } = await supabase.from('form_data').delete().eq('id', row.id)
+          if (error) {
+            message.error(error.message)
+            throw error
+          }
+
+          message.success('已删除')
+          if (rows.length === 1 && page > 1) {
+            setPage((p) => Math.max(1, p - 1))
+            return
+          }
+          await loadRef.current()
+          void loadFormKindOptions()
+        },
+      })
+    },
+    [loadFormKindOptions, page, rows.length],
+  )
+
   const columns: ColumnsType<FormDataRow> = useMemo(
     () => [
       {
@@ -527,7 +557,16 @@ export function QueryPage() {
         title: '作废标志',
         key: 'vf',
         width: 100,
-        render: (_v, row) => voidLabel(row),
+        render: (_v, row) => (
+          <button
+            type="button"
+            className="etax-q-void-delete-trigger"
+            title="双击删除该条申报数据"
+            onDoubleClick={() => handleDeleteRecord(row)}
+          >
+            {voidLabel(row)}
+          </button>
+        ),
       },
       {
         title: '操作',
@@ -545,7 +584,7 @@ export function QueryPage() {
         ),
       },
     ],
-    [appliedFilters, page, pageSize],
+    [appliedFilters, handleDeleteRecord, page, pageSize],
   )
 
   return (

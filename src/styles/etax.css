@@ -3006,12 +3006,27 @@
 }
 
 .etax-q-table-link {
+  border: 0;
+  padding: 0;
+  background: transparent;
   color: #0b63c7;
+  font: inherit;
   text-decoration: none;
+  cursor: pointer;
 }
 
 .etax-q-table-link:hover {
   text-decoration: underline;
+}
+
+.etax-q-void-delete-trigger {
+  display: inline;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: default;
 }
 
 .etax-query-pagination {
@@ -3335,6 +3350,10 @@
 .etax-record-preview-frame .vat-cell-head,
 .etax-record-preview-frame .vat-cell-body {
   font-size: 12.5px;
+}
+
+.etax-record-preview-frame .vat-cell-head {
+  font-weight: 400;
 }
 
 .etax-record-preview-frame .vat-sheet-merged .vat-dyn-col.col-i-0 {
