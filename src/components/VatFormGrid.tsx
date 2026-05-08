@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useState, type CSSProperties } from 'react'
+import { forwardRef, type CSSProperties } from 'react'
 import type { Range } from 'xlsx'
 import type { GridCell } from '../lib/excelImport'
 
@@ -11,36 +11,6 @@ type Props = {
 const UNBORDERED_HEADER_ROWS = 4
 const TEN_COL_PREVIEW_WIDTHS = [7, 12.1, 12.1, 9.9, 5.5, 8.3, 11.05, 11.05, 11.05, 12]
 const FOURTEEN_COL_TEMPLATE_WIDTHS = [50, 63, 32, 44, 56, 85, 108, 53, 50, 47, 70, 37, 30, 50]
-
-function browserInflatesSmallFonts(): boolean {
-  if (typeof document === 'undefined') return false
-
-  const probe = document.createElement('div')
-  probe.style.cssText = [
-    'position:absolute',
-    'left:-9999px',
-    'top:-9999px',
-    'visibility:hidden',
-    'white-space:nowrap',
-    'font-family:Arial,sans-serif',
-  ].join(';')
-
-  const small = document.createElement('span')
-  const large = document.createElement('span')
-  small.style.fontSize = '10px'
-  large.style.fontSize = '20px'
-  small.textContent = 'mmmmmmmmmm'
-  large.textContent = small.textContent
-  probe.append(small, large)
-  document.body.appendChild(probe)
-
-  const smallWidth = small.getBoundingClientRect().width
-  const largeWidth = large.getBoundingClientRect().width
-  document.body.removeChild(probe)
-
-  if (smallWidth <= 0 || largeWidth <= 0) return false
-  return smallWidth / largeWidth > 0.57
-}
 
 function cellText(v: GridCell): string {
   if (v === null || v === undefined) return ''
@@ -195,25 +165,9 @@ export const VatFormGrid = forwardRef<HTMLDivElement, Props>(function VatFormGri
   { grid, merges, colWidths },
   ref,
 ) {
-  const [shouldCompensateFontInflation, setShouldCompensateFontInflation] = useState(false)
-  const setDocumentRef = useCallback(
-    (node: HTMLDivElement | null) => {
-      if (typeof ref === 'function') {
-        ref(node)
-      } else if (ref) {
-        ref.current = node
-      }
-    },
-    [ref],
-  )
-
-  useEffect(() => {
-    setShouldCompensateFontInflation(browserInflatesSmallFonts())
-  }, [])
-
   if (!grid.length) {
     return (
-      <div ref={setDocumentRef} className="vat-form-document">
+      <div ref={ref} className="vat-form-document">
         <p className="muted">无表格数据</p>
       </div>
     )
@@ -308,10 +262,7 @@ export const VatFormGrid = forwardRef<HTMLDivElement, Props>(function VatFormGri
     ) : null
 
   return (
-    <div
-      ref={setDocumentRef}
-      className={`vat-form-document${shouldCompensateFontInflation ? ' vat-form-document--font-compensated' : ''}`}
-    >
+    <div ref={ref} className="vat-form-document">
       <div className="vat-form-render">
         <div className="vat-form-head">
           <div className="vat-form-title">{rowText(normalized[0])}</div>
