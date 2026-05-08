@@ -1026,6 +1026,30 @@
   font-weight: 400;
 }
 
+.etax-portal-user-name-editable {
+  cursor: text;
+}
+
+.etax-portal-user-name-input {
+  width: 64px;
+  max-width: 90px;
+  height: 22px;
+  padding: 1px 4px;
+  border: 1px solid rgba(11, 100, 177, 0.45);
+  border-radius: 3px;
+  background: #fff;
+  color: #1f2933;
+  font: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  outline: none;
+}
+
+.etax-portal-user-name-input:focus {
+  border-color: #0b64b1;
+  box-shadow: 0 0 0 2px rgba(11, 100, 177, 0.12);
+}
+
 .etax-portal-user-trigger {
   display: inline-flex;
   align-items: center;

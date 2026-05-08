@@ -1,5 +1,8 @@
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { message } from 'antd'
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import { ETAX_PUBLIC } from '../constants/assetBase'
+import { supabase } from '../lib/supabase'
 import { PortalNavMegaMenus } from './PortalNavMegaMenus'
 import { UserExcelImportMenuItem } from './UserExcelImportMenuItem'
 
@@ -8,16 +11,116 @@ type Props = {
   onSignOut: () => void
 }
 
+const HOME_PROFILE_ID = 'default'
+const DEFAULT_PORTAL_USER_NAME = '**燕'
+
+function normalizePortalUserName(value: unknown): string {
+  return typeof value === 'string' && value.trim() ? value.trim() : DEFAULT_PORTAL_USER_NAME
+}
+
 /**
  * 门户顶栏：「首页」回根路径；「我要办税 / 我要查询」为悬浮大菜单；Excel 导入在用户菜单「账户中心」；
  * 「申报信息查询」列表页和详情页收敛为示意税局明细页——隐藏中间菜单与示意搜索框，仅保留品牌与用户区。
  */
 export function AppShell({ userEmail, onSignOut }: Props) {
   const location = useLocation()
+  const [portalUserName, setPortalUserName] = useState(DEFAULT_PORTAL_USER_NAME)
+  const [editingPortalUserName, setEditingPortalUserName] = useState(false)
+  const [portalUserNameDraft, setPortalUserNameDraft] = useState(DEFAULT_PORTAL_USER_NAME)
+  const [savingPortalUserName, setSavingPortalUserName] = useState(false)
+  const portalUserNameInputRef = useRef<HTMLInputElement>(null)
   const queryListCompactHeader =
     location.pathname === '/query' ||
     location.pathname.endsWith('/query') ||
     location.pathname.startsWith('/record/')
+
+  useEffect(() => {
+    let alive = true
+
+    async function loadPortalUserName() {
+      const { data, error } = await supabase
+        .from('home_user_profile')
+        .select('portal_user_name')
+        .eq('id', HOME_PROFILE_ID)
+        .maybeSingle()
+      if (!alive || error) return
+      setPortalUserName(normalizePortalUserName(data?.portal_user_name))
+    }
+
+    void loadPortalUserName()
+
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!editingPortalUserName) return
+    portalUserNameInputRef.current?.focus()
+    portalUserNameInputRef.current?.select()
+  }, [editingPortalUserName])
+
+  function beginEditPortalUserName() {
+    setPortalUserNameDraft(portalUserName)
+    setEditingPortalUserName(true)
+  }
+
+  function cancelEditPortalUserName() {
+    setPortalUserNameDraft(portalUserName)
+    setEditingPortalUserName(false)
+  }
+
+  async function savePortalUserName() {
+    if (savingPortalUserName) return
+    const nextName = normalizePortalUserName(portalUserNameDraft)
+    setSavingPortalUserName(true)
+    const { error } = await supabase
+      .from('home_user_profile')
+      .update({ portal_user_name: nextName })
+      .eq('id', HOME_PROFILE_ID)
+    setSavingPortalUserName(false)
+    if (error) {
+      message.error(`用户名称保存失败：${error.message}`)
+      return
+    }
+    setPortalUserName(nextName)
+    setPortalUserNameDraft(nextName)
+    setEditingPortalUserName(false)
+  }
+
+  function handlePortalUserNameKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      void savePortalUserName()
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      cancelEditPortalUserName()
+    }
+  }
+
+  const portalUserNameText = (
+    <span
+      className="etax-portal-user-name-editable"
+      title="双击修改用户名称"
+      onDoubleClick={beginEditPortalUserName}
+    >
+      {portalUserName}
+    </span>
+  )
+
+  const portalUserNameInput = (
+    <input
+      ref={portalUserNameInputRef}
+      className="etax-portal-user-name-input"
+      value={portalUserNameDraft}
+      disabled={savingPortalUserName}
+      aria-label="顶部用户名称"
+      onChange={(e) => setPortalUserNameDraft(e.target.value)}
+      onBlur={() => void savePortalUserName()}
+      onKeyDown={handlePortalUserNameKeyDown}
+    />
+  )
 
   return (
     <div className="app-layout etax-portal-layout">
@@ -78,7 +181,7 @@ export function AppShell({ userEmail, onSignOut }: Props) {
               />
             </span>
             <div className="etax-portal-user-trigger">
-              <span className="etax-portal-user-name">**燕</span>
+              <span className="etax-portal-user-name">{portalUserNameText}</span>
               <span className="etax-portal-caret" aria-hidden>
                 <img
                   className="etax-portal-caret-img"
@@ -90,7 +193,9 @@ export function AppShell({ userEmail, onSignOut }: Props) {
             </div>
             {userEmail ? <span className="sr-only">{userEmail}</span> : null}
             <div className="etax-portal-user-menu" role="menu" aria-label="用户菜单">
-              <p className="etax-portal-user-menu-greet">欢迎您，**燕</p>
+              <p className="etax-portal-user-menu-greet" onDoubleClick={beginEditPortalUserName}>
+                欢迎您，{editingPortalUserName ? portalUserNameInput : portalUserNameText}
+              </p>
               <div className="etax-portal-user-menu-sep" role="separator" />
               <div className="etax-portal-user-menu-actions">
                 <UserExcelImportMenuItem />
