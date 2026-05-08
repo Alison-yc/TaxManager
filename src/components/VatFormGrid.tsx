@@ -141,7 +141,7 @@ function widenAmountColumns(weights: number[], cols: number): number[] {
   const amountCols = amountColumnIndexes(cols)
   if (amountCols.size === 0) return weights
 
-  const amountBoost = cols === 10 ? 1.06 : 1.04
+  const amountBoost = cols === 10 ? 1.075 : 1.055
   const widened = weights.map((w, i) => (amountCols.has(i) ? w * amountBoost : w))
   const originalTotal = weights.reduce((sum, w) => sum + w, 0)
   const widenedTotal = widened.reduce((sum, w) => sum + w, 0)
