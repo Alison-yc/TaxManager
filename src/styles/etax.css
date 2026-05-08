@@ -3305,6 +3305,18 @@
 .etax-record-preview-frame .vat-form-document {
   width: 780px;
   margin: 0 auto;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+.etax-record-preview-frame .vat-form-render {
+  width: 100%;
+}
+
+.etax-record-preview-frame .vat-form-document--font-compensated .vat-form-render {
+  width: calc(100% / 0.94);
+  margin: 0 auto;
+  zoom: 0.94;
 }
 
 .etax-record-preview-frame .vat-sheet-merged {
