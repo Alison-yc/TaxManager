@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button, Select } from 'antd'
 import { VatFormGrid } from '../components/VatFormGrid'
+import { recordExportClick } from '../lib/exportClickLog'
 import { exportPreviewDomToPdf } from '../lib/excelExport'
 import { isImportedContent } from '../lib/excelImport'
 import { supabase } from '../lib/supabase'
@@ -62,6 +63,7 @@ export function RecordPreview() {
       navigate(shouldReturnQuery ? queryReturnUrl : `/record/${id}`, { replace: true })
       return
     }
+    const importedContent = content
 
     const runToken = ++autoPdfRunRef.current
 
@@ -75,6 +77,12 @@ export function RecordPreview() {
         setError(null)
         try {
           await exportPreviewDomToPdf(captureRef.current!, pdfFileName)
+          void recordExportClick({
+            row,
+            content: importedContent,
+            pdfFileName,
+            trigger: 'query_auto',
+          })
         } catch (e: unknown) {
           setError(e instanceof Error ? e.message : String(e))
         } finally {
@@ -93,11 +101,17 @@ export function RecordPreview() {
   }, [id, row, content, searchParams, navigate, pdfFileName])
 
   async function handleExportPdf() {
-    if (!captureRef.current || !content) return
+    if (!captureRef.current || !row || !content || !isImportedContent(content)) return
     setBusy(true)
     setError(null)
     try {
       await exportPreviewDomToPdf(captureRef.current, pdfFileName)
+      void recordExportClick({
+        row,
+        content,
+        pdfFileName,
+        trigger: 'preview_button',
+      })
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
