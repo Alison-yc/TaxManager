@@ -36,6 +36,7 @@ import {
   DEFAULT_VOID_FLAG,
 } from '../lib/declarationIndex'
 import { FORM_DATA_EXCEL_IMPORTED_EVENT } from '../lib/formDataExcelUpload'
+import { FORM_DATA_PDF_IMPORTED_EVENT, FINANCIAL_FORM_KIND_OPTIONS } from '../constants/financialFormKinds'
 import { supabase } from '../lib/supabase'
 import type { FormDataRow } from '../types/database'
 
@@ -71,6 +72,9 @@ const FORM_DATA_LIST_SELECT_COLUMNS = [
   'id',
   'user_id',
   'created_at',
+  'source_type',
+  'import_category',
+  'storage_path',
   'form_code',
   'form_type_label',
   'correction_type',
@@ -86,6 +90,10 @@ const FORM_DATA_LIST_SELECT_COLUMNS = [
 const FORM_DATA_LEGACY_SELECT_COLUMNS = `${FORM_DATA_LIST_SELECT_COLUMNS},content`
 
 const STATIC_FORM_KIND_OPTIONS = QUERY_PAGE_FORM_KIND_OPTIONS
+
+function staticFormKindOptionsForVariant(variant: 'declaration' | 'financial') {
+  return variant === 'financial' ? FINANCIAL_FORM_KIND_OPTIONS : STATIC_FORM_KIND_OPTIONS
+}
 
 const VOID_OPTIONS = [
   { value: VOID_FLAG_ALL_LABEL, label: VOID_FLAG_ALL_LABEL },
@@ -317,13 +325,17 @@ const QUERY_DATE_PICKER_PROPS = {
 }
 
 /**
- * 申报信息查询列表：antd 表单 + 表格；折叠仅收起第 2、3 行条件；申报日期起止非必选（未选则不按申报日过滤）。
+ * 申报信息查询 / 财务报表申报信息查询列表。
  */
-export function QueryPage() {
+export function QueryPage({ variant = 'declaration' }: { variant?: 'declaration' | 'financial' }) {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [form] = Form.useForm<QueryFormShape>()
   const [restoredExportFilters] = useState<FilterVals | null>(() => readExportQuerySnapshot())
+
+  const staticFormKinds = useMemo(() => staticFormKindOptionsForVariant(variant), [variant])
+  const listLabel =
+    variant === 'financial' ? '财务报表申报信息查询' : '申报信息查询'
 
   const defaultFilters = useMemo(() => restoredExportFilters ?? buildDefaultFilters(), [restoredExportFilters])
   const [appliedFilters, setAppliedFilters] = useState<FilterVals>(() => ({ ...defaultFilters }))
@@ -331,7 +343,9 @@ export function QueryPage() {
   const [totalRows, setTotalRows] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [formKindOptions, setFormKindOptions] = useState<SelectOption[]>(STATIC_FORM_KIND_OPTIONS)
+  const [formKindOptions, setFormKindOptions] = useState<SelectOption[]>(() =>
+    staticFormKindOptionsForVariant(variant),
+  )
 
   /** true = 展开第 2、3 行；false = 仅展示第一行（种类 / 更正 / 作废） */
   const [filtersExpanded, setFiltersExpanded] = useState(true)
@@ -351,6 +365,7 @@ export function QueryPage() {
     const { data, error: qErr } = await supabase
       .from('form_data')
       .select('form_code, form_type_label')
+      .eq('import_category', variant)
       .not('form_code', 'is', null)
       .order('form_code', { ascending: true })
       .limit(FORM_KIND_OPTION_FETCH_LIMIT)
@@ -368,8 +383,8 @@ export function QueryPage() {
       })
       .filter((x): x is SelectOption => x !== null)
 
-    setFormKindOptions(mergeFormKindOptions(STATIC_FORM_KIND_OPTIONS, dbOptions))
-  }, [])
+    setFormKindOptions(mergeFormKindOptions(staticFormKinds, dbOptions))
+  }, [staticFormKinds, variant])
 
   const loadInner = useCallback(async () => {
     setLoading(true)
@@ -381,6 +396,7 @@ export function QueryPage() {
       let q = supabase
         .from('form_data')
         .select(FORM_DATA_LIST_SELECT_COLUMNS, { count: 'exact' })
+        .eq('import_category', variant)
         .order('declaration_date', { ascending: false })
         .order('created_at', { ascending: false })
         .range(from, to)
@@ -436,7 +452,7 @@ export function QueryPage() {
       setTotalRows(0)
     }
     setLoading(false)
-  }, [appliedFilters, page, pageSize])
+  }, [appliedFilters, page, pageSize, variant])
 
   const loadRef = useRef(loadInner)
   useEffect(() => {
@@ -457,7 +473,11 @@ export function QueryPage() {
       void loadFormKindOptions()
     }
     window.addEventListener(FORM_DATA_EXCEL_IMPORTED_EVENT, onImported)
-    return () => window.removeEventListener(FORM_DATA_EXCEL_IMPORTED_EVENT, onImported)
+    window.addEventListener(FORM_DATA_PDF_IMPORTED_EVENT, onImported)
+    return () => {
+      window.removeEventListener(FORM_DATA_EXCEL_IMPORTED_EVENT, onImported)
+      window.removeEventListener(FORM_DATA_PDF_IMPORTED_EVENT, onImported)
+    }
   }, [loadFormKindOptions])
 
   const initialFormValues = useMemo(() => filterValsToFormShape(defaultFilters), [defaultFilters])
@@ -510,15 +530,18 @@ export function QueryPage() {
         title: '申报表种类',
         dataIndex: 'id',
         ellipsis: true,
-        render: (_id, row) => (
-          <Link
-            className="etax-q-table-link"
-            to={`/record/${row.id}?return=query&restoreQuery=preview`}
-            onClick={() => writeQueryReturnSnapshot(appliedFilters, 'record-preview-return')}
-          >
-            {formLinkLabel(row)}
-          </Link>
-        ),
+        render: (_id, row) => {
+          const recordPath = variant === 'financial' ? `/financial-record/${row.id}` : `/record/${row.id}`
+          return (
+            <Link
+              className="etax-q-table-link"
+              to={`${recordPath}?return=query&restoreQuery=preview`}
+              onClick={() => writeQueryReturnSnapshot(appliedFilters, 'record-preview-return')}
+            >
+              {formLinkLabel(row)}
+            </Link>
+          )
+        },
       },
       {
         title: '申报日期',
@@ -538,14 +561,18 @@ export function QueryPage() {
         width: 130,
         render: (_v, row) => fmtPeriodEnd(row),
       },
-      {
-        title: '应补退税额',
-        key: 'amt',
-        width: 120,
-        align: 'right',
-        className: 'etax-td-money',
-        render: (_v, row) => fmtAmount(row),
-      },
+      ...(variant !== 'financial'
+        ? [
+            {
+              title: '应补退税额',
+              key: 'amt',
+              width: 120,
+              align: 'right' as const,
+              className: 'etax-td-money',
+              render: (_v: unknown, row: FormDataRow) => fmtAmount(row),
+            },
+          ]
+        : []),
       {
         title: '更正类型',
         key: 'corr',
@@ -573,18 +600,26 @@ export function QueryPage() {
         key: 'act',
         width: 88,
         fixed: 'right',
-        render: (_v, row) => (
-          <Link
-            className="etax-q-table-link"
-            to={`/record/${row.id}?pdf=1&return=query&restoreQuery=export`}
-            onClick={() => writeQueryReturnSnapshot(appliedFilters, 'record-export-return')}
-          >
-            导出
-          </Link>
-        ),
+        render: (_v, row) => {
+          const isPdf = row.source_type === 'pdf'
+          const recordPath = variant === 'financial' ? `/financial-record/${row.id}` : `/record/${row.id}`
+          return (
+            <Link
+              className="etax-q-table-link"
+              to={
+                isPdf
+                  ? `${recordPath}?download=1&return=query&restoreQuery=export`
+                  : `${recordPath}?pdf=1&return=query&restoreQuery=export`
+              }
+              onClick={() => writeQueryReturnSnapshot(appliedFilters, 'record-export-return')}
+            >
+              导出
+            </Link>
+          )
+        },
       },
     ],
-    [appliedFilters, handleDeleteRecord, page, pageSize],
+    [appliedFilters, handleDeleteRecord, page, pageSize, variant],
   )
 
   return (
@@ -611,9 +646,9 @@ export function QueryPage() {
             <span className="etax-bc-sep">&gt;</span>
             <span className="etax-bc-plain">账户查询</span>
             <span className="etax-bc-sep">&gt;</span>
-            <span className="etax-bc-plain">申报信息查询</span>
+            <span className="etax-bc-plain">{listLabel}</span>
             <span className="etax-bc-sep">&gt;</span>
-            <span className="etax-bc-plain etax-bc-current">申报信息查询</span>
+            <span className="etax-bc-plain etax-bc-current">{listLabel}</span>
           </nav>
         </div>
 

@@ -4,7 +4,7 @@ import { Link, Outlet, useLocation } from 'react-router-dom'
 import { ETAX_PUBLIC } from '../constants/assetBase'
 import { supabase } from '../lib/supabase'
 import { PortalNavMegaMenus } from './PortalNavMegaMenus'
-import { UserExcelImportMenuItem } from './UserExcelImportMenuItem'
+import { UserImportMenuItem } from './UserImportMenuItem'
 
 type Props = {
   userEmail: string | null
@@ -198,7 +198,7 @@ export function AppShell({ userEmail, onSignOut }: Props) {
               </p>
               <div className="etax-portal-user-menu-sep" role="separator" />
               <div className="etax-portal-user-menu-actions">
-                <UserExcelImportMenuItem />
+                <UserImportMenuItem />
                 <button type="button" className="etax-portal-user-menu-action" role="menuitem" onClick={onSignOut}>
                   <span className="etax-portal-user-menu-action-ic" aria-hidden>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>

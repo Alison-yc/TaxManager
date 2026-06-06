@@ -3426,3 +3426,369 @@
   text-align: center;
 }
 
+/* ── 发票查询统计卡片 ── */
+.etax-invoice-stats-page {
+  padding: 0 24px 32px;
+}
+
+.etax-invoice-stats-panel {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-top: 8px;
+}
+
+.etax-invoice-stats-title {
+  margin: 0 0 20px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.etax-invoice-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.etax-invoice-stats-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px 16px;
+  border: 1px solid #dbeafe;
+  border-radius: 6px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.etax-invoice-stats-card:hover {
+  border-color: #93c5fd;
+  box-shadow: 0 2px 8px rgba(25, 118, 255, 0.08);
+}
+
+.etax-invoice-stats-card-icon img {
+  display: block;
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.etax-invoice-stats-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.etax-invoice-stats-card-body strong {
+  font-size: 15px;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.etax-invoice-stats-card-body span:last-child {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+/* ── 全量发票查询页 ── */
+.etax-invoice-query-page {
+  padding: 0 24px 32px;
+}
+
+.etax-invoice-query-page .etax-query-workbench-panel {
+  max-width: none;
+}
+
+.etax-invoice-query-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+/* ── PDF 嵌入预览 ── */
+.etax-pdf-preview-wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 640px;
+}
+
+.etax-pdf-preview-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.etax-pdf-preview-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 480px;
+}
+
+.etax-pdf-preview-frame {
+  flex: 1;
+  width: 100%;
+  min-height: 600px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #f8fafc;
+}
+
+.etax-pdf-preview-shell {
+  min-height: 680px;
+}
+
+/** Excel 预览：网格叠在底层参与绘制，上层 iframe 展示生成的 PDF */
+.etax-excel-pdf-preview {
+  position: relative;
+  overflow: visible;
+}
+
+.etax-excel-pdf-preview .etax-pdf-capture-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.etax-excel-pdf-preview .etax-pdf-view-layer {
+  position: relative;
+  z-index: 1;
+  min-height: 640px;
+  background: #fff;
+}
+
+.etax-invoice-risk-tag {
+  display: inline-block;
+  min-width: 44px;
+  padding: 2px 10px;
+  border-radius: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.etax-invoice-risk-tag--normal {
+  background: #ecfdf3;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+.etax-invoice-risk-tag--warn {
+  background: #fff7ed;
+  color: #ea580c;
+  border: 1px solid #fed7aa;
+}
+
+.etax-invoice-risk-tag--muted {
+  background: #f8fafc;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+@media (max-width: 960px) {
+  .etax-invoice-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .etax-invoice-stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 开具税收完税证明查询页 */
+.etax-tax-payment-cert-page .etax-query-workbench-panel {
+  padding-top: 0;
+}
+
+.etax-tax-payment-cert-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  margin-bottom: 0;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-bottom: none;
+}
+
+.etax-tax-payment-cert-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 22px;
+  font-size: 14px;
+  color: #595959;
+  border-bottom: 2px solid transparent;
+  cursor: default;
+  user-select: none;
+}
+
+.etax-tax-payment-cert-tab--active {
+  color: #1677ff;
+  font-weight: 600;
+  border-bottom-color: #1677ff;
+}
+
+.etax-tax-payment-cert-tab--disabled {
+  color: #8c8c8c;
+}
+
+.etax-tax-payment-cert-tab-info {
+  font-size: 14px;
+  color: #bfbfbf;
+}
+
+.etax-tax-payment-cert-page .etax-query-filters-card {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.etax-query-filter-actions--inline {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  min-height: 32px;
+  padding-top: 4px;
+}
+
+.etx-ph-hot-item--action {
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.etx-ph-hot-item--action .etx-ph-hot-icon {
+  transition: opacity 0.15s ease;
+}
+
+.etx-ph-hot-item--action:hover,
+.etx-ph-hot-item--action:focus-visible {
+  color: #1677ff;
+  outline: none;
+}
+
+.etx-ph-hot-item--action:hover .etx-ph-hot-icon,
+.etx-ph-hot-item--action:focus-visible .etx-ph-hot-icon {
+  opacity: 0.88;
+}
+
+/* 表格式税收完税证明 PDF 排版 */
+.tax-payment-cert-preview-shell {
+  background: #f0f2f5;
+  padding: 24px;
+  overflow: auto;
+}
+
+.tax-payment-cert-preview-scroll {
+  display: flex;
+  justify-content: center;
+  min-height: 100%;
+}
+
+.tax-payment-cert-pdf-layout {
+  width: 794px;
+  min-height: 1123px;
+  padding: 48px 56px 56px;
+  background: #fff;
+  color: #111;
+  font-family: 'SimSun', 'Songti SC', 'STSong', serif;
+  font-size: 14px;
+  line-height: 1.5;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  box-sizing: border-box;
+}
+
+.tax-payment-cert-pdf-title-block {
+  text-align: center;
+  margin-bottom: 18px;
+}
+
+.tax-payment-cert-pdf-country {
+  font-size: 22px;
+  letter-spacing: 4px;
+  margin-bottom: 8px;
+}
+
+.tax-payment-cert-pdf-title {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 6px;
+}
+
+.tax-payment-cert-pdf-meta {
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.tax-payment-cert-pdf-meta--row {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.tax-payment-cert-pdf-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+  table-layout: fixed;
+  font-size: 13px;
+}
+
+.tax-payment-cert-pdf-table th,
+.tax-payment-cert-pdf-table td {
+  border: 1px solid #333;
+  padding: 8px 6px;
+  text-align: center;
+  vertical-align: middle;
+  word-break: break-all;
+}
+
+.tax-payment-cert-pdf-table th {
+  font-weight: 600;
+  background: #fff;
+}
+
+.tax-payment-cert-pdf-num {
+  text-align: right !important;
+  white-space: nowrap;
+}
+
+.tax-payment-cert-pdf-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+  padding: 8px 4px;
+  font-size: 14px;
+}
+
+.tax-payment-cert-pdf-total-num {
+  font-weight: 700;
+}
+
+.tax-payment-cert-pdf-remark {
+  margin-top: 12px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.tax-payment-cert-pdf-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 48px;
+  margin-top: 36px;
+  font-size: 14px;
+}
+

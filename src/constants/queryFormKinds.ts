@@ -11,7 +11,7 @@ export const QUERY_FORM_KIND_OPTIONS: { value: string; label: string }[] = [
   { value: 'BDA0610606', label: 'BDA0610606 《增值税及附加税费申报表（一般纳税人适用）》' },
   { value: 'BDA0610610', label: 'BDA0610610 《增值税及附加税费申报表（小规模纳税人适用）》' },
   { value: 'BDA0610630', label: 'BDA0610630 《增值税及附加税费申报表（预缴）》' },
-  { value: 'BDA0640110', label: 'BDA0640110 《企业所得税预缴申报表（A类）》' },
+  { value: 'BDA0640110', label: 'BDA0640110 《居民企业（查账征收）企业所得税月（季）度申报》' },
   { value: 'BDA0640220', label: 'BDA0640220 《企业所得税预缴申报表（B类）》' },
   { value: 'BDA0640530', label: 'BDA0640530 《企业所得税年度纳税申报表（A类）》' },
   { value: 'BDA0661110', label: 'BDA0661110 《财产和行为税纳税申报表》（合并）》' },

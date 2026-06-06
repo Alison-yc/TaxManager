@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { Dayjs } from 'dayjs'
+import { useNavigate } from 'react-router-dom'
 import {
   ConfigProvider,
   DatePicker,
@@ -10,7 +10,7 @@ import {
   message,
 } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
-import dayjs from 'dayjs'
+import dayjs, { type Dayjs } from 'dayjs'
 import 'dayjs/locale/zh-cn'
 import { ETAX_PUBLIC } from '../constants/assetBase'
 import {
@@ -27,13 +27,13 @@ dayjs.locale('zh-cn')
 const homeAsset = `${ETAX_PUBLIC}home/`
 
 const hotServiceItems = [
-  { label: '新办纳税人开业', icon: 'service-new-taxpayer.png' },
-  { label: '代开增值税发票', icon: 'service-invoice.png' },
-  { label: '印花税申报', icon: 'service-stamp-tax.png' },
-  { label: '车船税申报', icon: 'service-vehicle-tax.png' },
-  { label: '开具税收完税证明', icon: 'service-tax-proof.png' },
-  { label: '开具无欠税证明', icon: 'service-no-arrears.png' },
-  { label: '跨境相关人员关联关系', icon: 'service-cross-border.png' },
+  { label: '新办纳税人开业', icon: 'service-new-taxpayer.png', route: null as string | null },
+  { label: '代开增值税发票', icon: 'service-invoice.png', route: null },
+  { label: '印花税申报', icon: 'service-stamp-tax.png', route: null },
+  { label: '车船税申报', icon: 'service-vehicle-tax.png', route: null },
+  { label: '开具税收完税证明', icon: 'service-tax-proof.png', route: '/tax-payment-cert/query' },
+  { label: '开具无欠税证明', icon: 'service-no-arrears.png', route: null },
+  { label: '跨境相关人员关联关系', icon: 'service-cross-border.png', route: null },
 ]
 
 const recommendLeft = [
@@ -196,6 +196,7 @@ function groupTodosByTab(rows: HomeTodoDb[]): Record<TodoTabId, HomeTodoDb[]> {
  * 双击列表表头在当前标签页新增一行；提醒日期按当天回推刷新。
  */
 export function HomePage() {
+  const navigate = useNavigate()
   const [favTab, setFavTab] = useState<'fav' | 'scene'>('fav')
   const [todoTab, setTodoTab] = useState<TodoTabId>('declare')
   const [todosGrouped, setTodosGrouped] = useState<Record<TodoTabId, HomeTodoDb[]> | null>(
@@ -975,7 +976,21 @@ export function HomePage() {
               </button>
               <div className="etx-ph-carousel-track">
                 {hotServiceItems.map((item) => (
-                  <div key={item.label} className="etx-ph-hot-item">
+                  <div
+                    key={item.label}
+                    className="etx-ph-hot-item etx-ph-hot-item--action"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => {
+                      if (item.route) navigate(item.route)
+                    }}
+                    onKeyDown={(e) => {
+                      if (item.route && (e.key === 'Enter' || e.key === ' ')) {
+                        e.preventDefault()
+                        navigate(item.route)
+                      }
+                    }}
+                  >
                     <img
                       className="etx-ph-hot-icon"
                       src={`${homeAsset}${item.icon}`}
