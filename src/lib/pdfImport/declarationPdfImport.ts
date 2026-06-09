@@ -5,8 +5,7 @@ import { supabase } from '../supabase'
 import {
   clampMoneyForDb,
   extractDeclarationFieldsFromText,
-  extractPdfText,
-  getPdfPageCount,
+  extractPdfTextAndPageCount,
 } from './extractPdfText'
 
 export const FINANCIAL_FORM_CODE = 'CWBB001'
@@ -49,6 +48,25 @@ function detectDeclarationPdf(
       form_code: FINANCIAL_FORM_CODE,
       form_type_label: FINANCIAL_FORM_TYPE_LABEL,
       import_category: 'financial',
+      taxpayer_name: null,
+      credit_code: null,
+      tax_period_start: null,
+      tax_period_end: null,
+      declaration_date: null,
+      tax_amount_due: null,
+      summary: fileName.replace(/\.pdf$/i, ''),
+      ...base,
+    }
+  }
+
+  const isQuarterly =
+    /月[（(]?季[）)]?度|A200000/i.test(fileName) || /A200000|月（季）度预缴/.test(text)
+
+  if (isQuarterly) {
+    return {
+      form_code: CORP_INCOME_TAX_FORM_CODE,
+      form_type_label: CORP_INCOME_TAX_FORM_TYPE_LABEL,
+      import_category: 'declaration',
       taxpayer_name: null,
       credit_code: null,
       tax_period_start: null,
@@ -109,10 +127,9 @@ export async function uploadDeclarationPdfFile(
   }
 
   try {
-    const text = await extractPdfText(file)
+    const { text, pageCount } = await extractPdfTextAndPageCount(file)
     const detected = detectDeclarationPdf(file.name, category, text)
     const extracted = extractDeclarationFieldsFromText(text)
-    const pageCount = await getPdfPageCount(file)
 
     const recordId = crypto.randomUUID()
     const { storagePath } = await uploadPdfFile(

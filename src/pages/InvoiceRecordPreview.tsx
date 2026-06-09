@@ -96,6 +96,7 @@ export function InvoiceRecordPreview() {
               storagePath={row.storage_path}
               fileName={row.source_file_name}
               showDownload={false}
+              chromeless={false}
             />
           </div>
         </section>

@@ -42,6 +42,55 @@ function parseIsoDate(text: string | null): string | null {
   return parseCnDateToIso(text)
 }
 
+function sliceCertBody(normalized: string): string {
+  const bodyStart = normalized.search(/实缴\s*[(（]\s*退\s*[)）]\s*金额/)
+  return bodyStart >= 0 ? normalized.slice(bodyStart) : normalized
+}
+
+function parseCertLines(normalized: string, certificateNo: string): TaxPaymentCertLine[] {
+  const body = sliceCertBody(normalized)
+  const lineRe =
+    /(\d{15,20})\s+([\u4e00-\u9fa5]+(?:税|附加|收入|所得))\s+([\u4e00-\u9fa5]+?)\s+(\d{4}-\d{2}-\d{2})\s*至\s*(\d{4}-\d{2}-\d{2})\s+(\d{4}-\d{2}-\d{2})\s+([\d,.]+)/g
+
+  const lines: TaxPaymentCertLine[] = []
+  let match: RegExpExecArray | null
+  while ((match = lineRe.exec(body)) !== null) {
+    const voucher = match[1]
+    if (voucher === certificateNo) continue
+    lines.push({
+      original_voucher_no: voucher,
+      tax_type: match[2]?.trim() || null,
+      item_name: match[3]?.replace(/\s+/g, '').trim() || null,
+      tax_period_start: parseIsoDate(match[4]),
+      tax_period_end: parseIsoDate(match[5]),
+      payment_date: parseIsoDate(match[6]),
+      actual_amount: clampMoneyForDb(parseMoney(match[7])),
+    })
+  }
+  return lines
+}
+
+function buildFallbackLine(
+  normalized: string,
+  certificateNo: string,
+  totalAmount: number | null,
+): TaxPaymentCertLine | null {
+  const body = sliceCertBody(normalized)
+  const fallbackRe =
+    /(\d{15,20})\s+([\u4e00-\u9fa5]+(?:税|附加|收入|所得))\s+([\u4e00-\u9fa5]+?)\s+(\d{4}-\d{2}-\d{2})\s*至\s*(\d{4}-\d{2}-\d{2})\s+(\d{4}-\d{2}-\d{2})\s+([\d,.]+)/
+  const match = body.match(fallbackRe)
+  if (!match || match[1] === certificateNo) return null
+  return {
+    original_voucher_no: match[1],
+    tax_type: match[2]?.trim() || null,
+    item_name: match[3]?.replace(/\s+/g, '').trim() || null,
+    tax_period_start: parseIsoDate(match[4]),
+    tax_period_end: parseIsoDate(match[5]),
+    payment_date: parseIsoDate(match[6]),
+    actual_amount: clampMoneyForDb(parseMoney(match[7]) ?? totalAmount),
+  }
+}
+
 export function parseTaxPaymentCertText(text: string): ParsedTaxPaymentCertPdf {
   const normalized = text.replace(/\s+/g, ' ')
 
@@ -65,26 +114,10 @@ export function parseTaxPaymentCertText(text: string): ParsedTaxPaymentCertPdf {
 
   const remark = pick(normalized, [/备注[：:\s]*([^\n\r]{2,200})/])
 
-  const bodyStart = normalized.search(/实缴\s*[(（]\s*退\s*[)）]\s*金额/)
-  const body = bodyStart >= 0 ? normalized.slice(bodyStart) : normalized
-
-  const lineRe =
-    /(\d{15,20})\s+(\S+?)\s+(.+?)\s+(\d{4}-\d{2}-\d{2})\s*至\s*(\d{4}-\d{2}-\d{2})\s+(\d{4}-\d{2}-\d{2})\s+([\d,.]+)/g
-
-  const lines: TaxPaymentCertLine[] = []
-  let match: RegExpExecArray | null
-  while ((match = lineRe.exec(body)) !== null) {
-    const voucher = match[1]
-    if (voucher === certificate_no) continue
-    lines.push({
-      original_voucher_no: voucher,
-      tax_type: match[2]?.trim() || null,
-      item_name: match[3]?.replace(/\s+/g, '').trim() || null,
-      tax_period_start: parseIsoDate(match[4]),
-      tax_period_end: parseIsoDate(match[5]),
-      payment_date: parseIsoDate(match[6]),
-      actual_amount: clampMoneyForDb(parseMoney(match[7])),
-    })
+  let lines = parseCertLines(normalized, certificate_no)
+  if (lines.length === 0) {
+    const fallback = buildFallbackLine(normalized, certificate_no, total_amount)
+    if (fallback) lines = [fallback]
   }
 
   if (lines.length === 0) {
@@ -144,7 +177,7 @@ export async function uploadTaxPaymentCertPdfFile(
 
     const firstLine = parsed.lines[0]
     const importId = crypto.randomUUID()
-    const actualAmount = clampMoneyForDb(parsed.total_amount)
+    const actualAmount = clampMoneyForDb(parsed.total_amount ?? firstLine.actual_amount)
 
     const row = {
       import_id: importId,
