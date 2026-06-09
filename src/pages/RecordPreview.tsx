@@ -1,16 +1,25 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Button } from 'antd'
+import { Button, Select } from 'antd'
 import { PdfEmbedViewer } from '../components/PdfEmbedViewer'
 import { VatFormGrid } from '../components/VatFormGrid'
 import { recordExportClick } from '../lib/exportClickLog'
-import { exportPreviewDomToPdf, downloadPdfBlob, renderPreviewDomToPdfBlob, waitForCaptureLayout } from '../lib/excelExport'
+import { exportPreviewDomToPdf, waitForCaptureLayout } from '../lib/excelExport'
 import { isImportedContent } from '../lib/excelImport'
 import { downloadPdfFile } from '../lib/pdfStorage'
 import { supabase } from '../lib/supabase'
 import { isImportedPdfContent, type FormDataRow } from '../types/database'
 
 type PreviewVariant = 'declaration' | 'financial'
+
+function buildMainFormLabel(row: FormDataRow | null, fallback: string): string {
+  const code = row?.form_code?.trim()
+  const label = row?.form_type_label?.trim()
+  if (code && label) {
+    return label.startsWith(code) ? label : `${code} ${label}`
+  }
+  return label || fallback
+}
 
 export function RecordPreview({ variant = 'declaration' }: { variant?: PreviewVariant }) {
   const { id } = useParams<{ id: string }>()
@@ -19,10 +28,7 @@ export function RecordPreview({ variant = 'declaration' }: { variant?: PreviewVa
   const [row, setRow] = useState<FormDataRow | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [excelPreviewUrl, setExcelPreviewUrl] = useState<string | null>(null)
-  const [generatingExcelPdf, setGeneratingExcelPdf] = useState(false)
   const captureRef = useRef<HTMLDivElement>(null)
-  const excelBlobRef = useRef<Blob | null>(null)
   const autoPdfRunRef = useRef(0)
   const autoDownloadRunRef = useRef(0)
 
@@ -76,51 +82,12 @@ export function RecordPreview({ variant = 'declaration' }: { variant?: PreviewVa
     return '申报表.pdf'
   }, [content])
 
-  /** Excel 导入：由网格生成 PDF 后嵌入 iframe 预览（与 PDF 导入体验一致） */
-  useEffect(() => {
-    if (!isExcelRecord || !content || !isImportedContent(content)) return
+  const mainFormLabel = useMemo(
+    () => buildMainFormLabel(row, pdfFileName),
+    [row, pdfFileName],
+  )
 
-    let cancelled = false
-    queueMicrotask(() => {
-      if (!cancelled) {
-        setGeneratingExcelPdf(true)
-        setExcelPreviewUrl(null)
-        excelBlobRef.current = null
-      }
-    })
-
-    const t = window.setTimeout(() => {
-      void (async () => {
-        if (cancelled || !captureRef.current) {
-          if (!cancelled) setGeneratingExcelPdf(false)
-          return
-        }
-
-        try {
-          await waitForCaptureLayout(captureRef.current)
-          if (cancelled || !captureRef.current) return
-          const blob = await renderPreviewDomToPdfBlob(captureRef.current)
-          if (cancelled) return
-          excelBlobRef.current = blob
-          setExcelPreviewUrl(URL.createObjectURL(blob))
-        } catch (e: unknown) {
-          if (!cancelled) setError(e instanceof Error ? e.message : String(e))
-        } finally {
-          if (!cancelled) setGeneratingExcelPdf(false)
-        }
-      })()
-    }, 120)
-
-    return () => {
-      cancelled = true
-      window.clearTimeout(t)
-      setExcelPreviewUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev)
-        return null
-      })
-      excelBlobRef.current = null
-    }
-  }, [isExcelRecord, content, row?.id])
+  const mainFormSelectValue = row?.form_code?.trim() || 'main'
 
   const restoreQueryMode = searchParams.get('restoreQuery')
   const queryBackUrl =
@@ -250,11 +217,7 @@ export function RecordPreview({ variant = 'declaration' }: { variant?: PreviewVa
     setBusy(true)
     setError(null)
     try {
-      if (excelBlobRef.current) {
-        downloadPdfBlob(excelBlobRef.current, pdfFileName)
-      } else if (captureRef.current) {
-        await exportPreviewDomToPdf(captureRef.current, pdfFileName)
-      }
+      await exportPreviewDomToPdf(captureRef.current, pdfFileName)
       void recordExportClick({
         row,
         content,
@@ -295,59 +258,57 @@ export function RecordPreview({ variant = 'declaration' }: { variant?: PreviewVa
 
       {!row && !error && <p className="muted">加载中…</p>}
 
-      {row && isPdfRecord && pdfStoragePath && (
+      {row && isExcelRecord && content && isImportedContent(content) && (
         <section className="etax-record-workbench">
           <div className="no-print etax-record-toolbar">
-            <div className="etax-record-main-form">
-              <span>{row.form_type_label ?? pdfFileName}</span>
-            </div>
+            <label className="etax-record-main-form">
+              <span>主列表单：</span>
+              <Select
+                size="small"
+                value={mainFormSelectValue}
+                options={[{ value: mainFormSelectValue, label: mainFormLabel }]}
+                style={{ minWidth: 320, maxWidth: 520 }}
+                popupMatchSelectWidth={false}
+              />
+            </label>
             <Button size="small" onClick={() => void handleExportPdf()} loading={busy}>
               导出
             </Button>
           </div>
-          <div className="vat-preview-frame etax-record-preview-frame etax-pdf-preview-shell">
-            <PdfEmbedViewer
-              storagePath={pdfStoragePath}
-              fileName={pdfFileName}
-              showDownload={false}
+          <div className="vat-preview-frame etax-record-preview-frame">
+            <VatFormGrid
+              ref={captureRef}
+              grid={content.grid}
+              merges={content.merges}
+              colWidths={content.colWidths}
             />
           </div>
         </section>
       )}
 
-      {row && isExcelRecord && content && isImportedContent(content) && (
+      {row && isPdfRecord && pdfStoragePath && (
         <section className="etax-record-workbench">
           <div className="no-print etax-record-toolbar">
-            <div className="etax-record-main-form">
-              <span>{row.form_type_label ?? pdfFileName}</span>
-            </div>
-            <Button
-              size="small"
-              onClick={() => void handleExportPdf()}
-              disabled={generatingExcelPdf || busy}
-              loading={busy}
-            >
+            <label className="etax-record-main-form">
+              <span>主列表单：</span>
+              <Select
+                size="small"
+                value={mainFormSelectValue}
+                options={[{ value: mainFormSelectValue, label: mainFormLabel }]}
+                style={{ minWidth: 320, maxWidth: 520 }}
+                popupMatchSelectWidth={false}
+              />
+            </label>
+            <Button size="small" onClick={() => void handleExportPdf()} loading={busy}>
               导出
             </Button>
           </div>
-
-          <div className="vat-preview-frame etax-record-preview-frame etax-pdf-preview-shell etax-excel-pdf-preview">
-            <div className="etax-pdf-capture-layer" aria-hidden>
-              <VatFormGrid
-                ref={captureRef}
-                grid={content.grid}
-                merges={content.merges}
-                colWidths={content.colWidths}
-              />
-            </div>
-            <div className="etax-pdf-view-layer">
-              <PdfEmbedViewer
-                iframeUrl={excelPreviewUrl}
-                loading={generatingExcelPdf}
-                fileName={pdfFileName}
-                showDownload={false}
-              />
-            </div>
+          <div className="vat-preview-frame etax-record-preview-frame etax-declaration-pdf-preview">
+            <PdfEmbedViewer
+              storagePath={pdfStoragePath}
+              fileName={pdfFileName}
+              showDownload={false}
+            />
           </div>
         </section>
       )}
@@ -366,8 +327,8 @@ export function RecordPreview({ variant = 'declaration' }: { variant?: PreviewVa
         <p>主管税务机关：国家税务总局河北省电子税务局</p>
         <p>
           {isPdfRecord
-            ? '本页面为申报信息查询详情预览，导出为原始 PDF 文件。'
-            : '本页面为申报信息查询详情预览，由申报表版式生成 PDF 后嵌入查看。'}
+            ? '本页面为申报信息查询详情预览，上方为主表类型，下方为导入的原始 PDF；导出为原 PDF 文件。'
+            : '本页面为申报信息查询详情预览，由 Excel 申报表版式组装展示；导出为 PDF 文件。'}
         </p>
       </footer>
     </div>

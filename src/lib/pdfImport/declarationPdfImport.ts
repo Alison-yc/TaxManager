@@ -17,6 +17,10 @@ export const CORP_INCOME_TAX_FORM_CODE = 'BDA0640110'
 export const CORP_INCOME_TAX_FORM_TYPE_LABEL =
   '《居民企业（查账征收）企业所得税月（季）度申报表》'
 
+export const CORP_INCOME_TAX_ANNUAL_FORM_CODE = 'BDA0640530'
+export const CORP_INCOME_TAX_ANNUAL_FORM_TYPE_LABEL =
+  '《企业所得税年度纳税申报表（A类）》'
+
 type ParsedDeclarationPdf = {
   form_code: string
   form_type_label: string
@@ -30,7 +34,11 @@ type ParsedDeclarationPdf = {
   summary: string
 }
 
-function detectDeclarationPdf(fileName: string, category: ImportCategory): ParsedDeclarationPdf {
+function detectDeclarationPdf(
+  fileName: string,
+  category: ImportCategory,
+  text = '',
+): ParsedDeclarationPdf {
   const base = {
     correction_type: DEFAULT_CORRECTION,
     void_flag: DEFAULT_VOID_FLAG,
@@ -52,7 +60,27 @@ function detectDeclarationPdf(fileName: string, category: ImportCategory): Parse
     }
   }
 
-  if (fileName.includes('企业所得税')) {
+  const isAnnual =
+    /企业所得税.*年度|年度纳税申报|A100000/i.test(fileName) ||
+    /企业所得税年度纳税申报表/.test(text)
+
+  if (isAnnual) {
+    return {
+      form_code: CORP_INCOME_TAX_ANNUAL_FORM_CODE,
+      form_type_label: CORP_INCOME_TAX_ANNUAL_FORM_TYPE_LABEL,
+      import_category: 'declaration',
+      taxpayer_name: null,
+      credit_code: null,
+      tax_period_start: null,
+      tax_period_end: null,
+      declaration_date: null,
+      tax_amount_due: null,
+      summary: fileName.replace(/\.pdf$/i, ''),
+      ...base,
+    }
+  }
+
+  if (fileName.includes('企业所得税') || /居民企业.*企业所得税/.test(text)) {
     return {
       form_code: CORP_INCOME_TAX_FORM_CODE,
       form_type_label: CORP_INCOME_TAX_FORM_TYPE_LABEL,
@@ -81,8 +109,8 @@ export async function uploadDeclarationPdfFile(
   }
 
   try {
-    const detected = detectDeclarationPdf(file.name, category)
     const text = await extractPdfText(file)
+    const detected = detectDeclarationPdf(file.name, category, text)
     const extracted = extractDeclarationFieldsFromText(text)
     const pageCount = await getPdfPageCount(file)
 

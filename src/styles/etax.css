@@ -3545,26 +3545,21 @@
   min-height: 680px;
 }
 
-/** Excel 预览：网格叠在底层参与绘制，上层 iframe 展示生成的 PDF */
-.etax-excel-pdf-preview {
-  position: relative;
-  overflow: visible;
+.etax-declaration-pdf-preview {
+  padding: 0;
+  background: #f5f5f5;
 }
 
-.etax-excel-pdf-preview .etax-pdf-capture-layer {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  opacity: 0;
-  pointer-events: none;
-  overflow: visible;
+.etax-declaration-pdf-preview .etax-pdf-preview-wrap {
+  min-height: 720px;
 }
 
-.etax-excel-pdf-preview .etax-pdf-view-layer {
-  position: relative;
-  z-index: 1;
-  min-height: 640px;
-  background: #fff;
+.etax-declaration-pdf-preview .etax-pdf-preview-frame {
+  min-height: 720px;
+}
+
+.etax-record-main-form .ant-select {
+  max-width: 100%;
 }
 
 .etax-invoice-risk-tag {
