@@ -123,16 +123,14 @@ function dbFormKindLabel(code: string, label?: string | null): string {
 }
 
 function buildDefaultFilters(): FilterVals {
-  const start = dayjs().startOf('month')
-  const end = dayjs().endOf('month')
   return {
     formKind: QUERY_FORM_KIND_ALL_VALUE,
     correctionTypes: defaultCorrectionTypesAll(),
     voidFlag: VOID_FLAG_ALL_LABEL,
     taxPeriodFrom: '',
     taxPeriodTo: '',
-    declFrom: start.format('YYYY-MM-DD'),
-    declTo: end.format('YYYY-MM-DD'),
+    declFrom: '',
+    declTo: '',
   }
 }
 

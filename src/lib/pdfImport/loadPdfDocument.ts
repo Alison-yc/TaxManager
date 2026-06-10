@@ -11,7 +11,7 @@ type LoadOptions = {
 
 function buildDocumentInit(data: ArrayBuffer, options: LoadOptions = {}) {
   return {
-    data: new Uint8Array(data),
+    data: new Uint8Array(data.slice(0)),
     isEvalSupported: false,
     useSystemFonts: true,
     disableFontFace: options.disableFontFace ?? false,

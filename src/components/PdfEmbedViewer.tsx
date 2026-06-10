@@ -50,7 +50,7 @@ function ChromelessPdfCanvas({ data }: { data: ArrayBuffer }) {
 
     async function renderPages() {
       try {
-        const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(data) }).promise
+        const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(data.slice(0)) }).promise
 
         for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
           if (!alive || !pagesHostRef.current) return
@@ -217,7 +217,7 @@ export function PdfEmbedViewer({
         <iframe
           title={fileName}
           className="etax-pdf-preview-frame"
-          src={`${displayUrl}#toolbar=0&navpanes=0&scrollbar=0&statusbar=0&view=FitH`}
+          src={`${displayUrl}#toolbar=1&navpanes=0`}
         />
       )}
     </div>
