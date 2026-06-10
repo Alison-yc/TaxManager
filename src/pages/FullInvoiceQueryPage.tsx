@@ -120,8 +120,10 @@ export function FullInvoiceQueryPage() {
       )
     }
     if (applied.invoiceSource !== '全部') q = q.eq('invoice_source', applied.invoiceSource)
-    if (applied.invoiceStatus !== '全部') q = q.eq('invoice_status', applied.invoiceStatus)
-    if (applied.isPositive !== '全部') q = q.eq('is_positive', applied.isPositive)
+    const invoiceStatus = applied.invoiceStatus?.trim()
+    if (invoiceStatus && invoiceStatus !== '全部') q = q.eq('invoice_status', invoiceStatus)
+    const isPositive = applied.isPositive?.trim()
+    if (isPositive && isPositive !== '全部') q = q.eq('is_positive', isPositive)
     if (applied.invoiceType !== '全部') q = q.eq('invoice_type', applied.invoiceType)
     if (applied.amountFrom != null) q = q.gte('total_amount', applied.amountFrom)
     if (applied.amountTo != null) q = q.lte('total_amount', applied.amountTo)
@@ -355,11 +357,11 @@ export function FullInvoiceQueryPage() {
               onFinish={(v) => {
                 setPage(1)
                 setApplied({
-                  queryType: v.queryType,
-                  invoiceSource: v.invoiceSource,
-                  invoiceType: v.invoiceType,
-                  invoiceStatus: v.invoiceStatus,
-                  isPositive: v.isPositive,
+                  queryType: v.queryType ?? '开具发票',
+                  invoiceSource: v.invoiceSource ?? '全部',
+                  invoiceType: v.invoiceType ?? '全部',
+                  invoiceStatus: v.invoiceStatus ?? '全部',
+                  isPositive: v.isPositive ?? '全部',
                   digitalNo: v.digitalNo ?? '',
                   invoiceCode: v.invoiceCode ?? '',
                   invoiceNumber: v.invoiceNumber ?? '',
@@ -389,73 +391,71 @@ export function FullInvoiceQueryPage() {
                   </Form.Item>
                 </Col>
               </Row>
-              {filtersExpanded && (
-                <>
-                  <Row gutter={[28, 18]}>
-                    <Col xs={24} lg={8}>
-                      <Form.Item name="invoiceStatus" label="发票状态">
-                        <Select options={INVOICE_STATUS_OPTIONS} />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} lg={8}>
-                      <Form.Item name="isPositive" label="是否正数发票">
-                        <Select options={INVOICE_POSITIVE_OPTIONS} />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} lg={8}>
-                      <Form.Item name="digitalNo" label="数电发票号码">
-                        <Input allowClear />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-                  <Row gutter={[28, 18]}>
-                    <Col xs={24} lg={8}>
-                      <Form.Item name="invoiceCode" label="发票代码">
-                        <Input allowClear />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} lg={8}>
-                      <Form.Item name="invoiceNumber" label="发票号码">
-                        <Input allowClear />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} lg={8}>
-                      <Form.Item name="counterpartyTaxId" label="对方纳税人识别号">
-                        <Input allowClear />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-                  <Row gutter={[28, 18]}>
-                    <Col xs={24} lg={8}>
-                      <Form.Item name="counterpartyName" label="对方纳税人名称">
-                        <Input allowClear />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} lg={8}>
-                      <Form.Item label="发票金额（起）" name="amountFrom">
-                        <InputNumber style={{ width: '100%' }} min={0} />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} lg={8}>
-                      <Form.Item label="发票金额（止）" name="amountTo">
-                        <InputNumber style={{ width: '100%' }} min={0} />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-                  <Row gutter={[28, 18]}>
-                    <Col xs={24} lg={8}>
-                      <Form.Item name="issueFrom" label="开票日期（起）">
-                        <DatePicker style={{ width: '100%' }} />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} lg={8}>
-                      <Form.Item name="issueTo" label="开票日期（止）">
-                        <DatePicker style={{ width: '100%' }} />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-                </>
-              )}
+              <div className={filtersExpanded ? undefined : 'etax-query-filters-extra--collapsed'}>
+                <Row gutter={[28, 18]}>
+                  <Col xs={24} lg={8}>
+                    <Form.Item name="invoiceStatus" label="发票状态">
+                      <Select options={INVOICE_STATUS_OPTIONS} />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} lg={8}>
+                    <Form.Item name="isPositive" label="是否正数发票">
+                      <Select options={INVOICE_POSITIVE_OPTIONS} />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} lg={8}>
+                    <Form.Item name="digitalNo" label="数电发票号码">
+                      <Input allowClear />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Row gutter={[28, 18]}>
+                  <Col xs={24} lg={8}>
+                    <Form.Item name="invoiceCode" label="发票代码">
+                      <Input allowClear />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} lg={8}>
+                    <Form.Item name="invoiceNumber" label="发票号码">
+                      <Input allowClear />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} lg={8}>
+                    <Form.Item name="counterpartyTaxId" label="对方纳税人识别号">
+                      <Input allowClear />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Row gutter={[28, 18]}>
+                  <Col xs={24} lg={8}>
+                    <Form.Item name="counterpartyName" label="对方纳税人名称">
+                      <Input allowClear />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} lg={8}>
+                    <Form.Item label="发票金额（起）" name="amountFrom">
+                      <InputNumber style={{ width: '100%' }} min={0} />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} lg={8}>
+                    <Form.Item label="发票金额（止）" name="amountTo">
+                      <InputNumber style={{ width: '100%' }} min={0} />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Row gutter={[28, 18]}>
+                  <Col xs={24} lg={8}>
+                    <Form.Item name="issueFrom" label="开票日期（起）">
+                      <DatePicker style={{ width: '100%' }} />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} lg={8}>
+                    <Form.Item name="issueTo" label="开票日期（止）">
+                      <DatePicker style={{ width: '100%' }} />
+                    </Form.Item>
+                  </Col>
+                </Row>
+              </div>
               <div className="etax-query-filter-actions">
                 <Space>
                   <Button onClick={() => form.resetFields()}>重置</Button>

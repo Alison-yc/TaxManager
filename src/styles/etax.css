@@ -1863,9 +1863,59 @@
   min-width: 0;
 }
 
+.etax-import-folder-label {
+  display: block;
+  margin: 0;
+  cursor: pointer;
+  user-select: none;
+}
+
 .etax-portal-user-menu-action--busy {
   opacity: 0.85;
   cursor: wait;
+}
+
+.invoice-import-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.invoice-import-overlay-card {
+  min-width: 280px;
+  max-width: 90vw;
+  padding: 28px 32px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.18);
+  text-align: center;
+}
+
+.invoice-import-overlay-title {
+  margin: 16px 0 6px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.invoice-import-overlay-progress {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: #1677ff;
+  font-variant-numeric: tabular-nums;
+}
+
+.invoice-import-overlay-hint {
+  margin: 12px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #6b7280;
 }
 
 .etax-portal-user-menu-err {
@@ -3121,6 +3171,10 @@
 .etax-query-antd .etax-query-filters-card .ant-card-body {
   padding: 18px 22px 18px;
   overflow: visible;
+}
+
+.etax-query-filters-extra--collapsed {
+  display: none;
 }
 
 .etax-query-antd .etax-query-filters-card--collapsed .ant-card-body {

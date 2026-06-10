@@ -62,11 +62,18 @@
 }
 
 .hidden-file-input {
-  position: absolute;
-  width: 0;
-  height: 0;
+  position: fixed;
+  top: -10000px;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
   opacity: 0;
   overflow: hidden;
+  pointer-events: none;
+}
+
+.hidden-file-input--pickable {
+  pointer-events: auto;
 }
 
 .preview-card {
