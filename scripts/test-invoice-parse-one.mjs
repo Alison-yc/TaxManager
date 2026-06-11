@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises'
+import path from 'node:path'
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
@@ -8,6 +9,10 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 
 function compactDigitRun(value) {
   return value.replace(/[\s\u00a0]/g, '')
+}
+
+function compactTaxId(value) {
+  return value.replace(/[\s\u00a0]/g, '').toUpperCase()
 }
 
 function parseCnDateToIso(text) {
@@ -30,7 +35,8 @@ const ISSUER_INVOICE_NO =
 const SPACED_CN_DATE =
   '(?:\\d[\\s\\u00a0]?){4}\\s*年(?:\\d[\\s\\u00a0]?){1,2}\\s*月(?:\\d[\\s\\u00a0]?){1,2}\\s*日'
 const PARTY_NAME = '[\\u4e00-\\u9fa5A-Za-z0-9（）()·\\s]{2,80}?'
-
+const ISSUER_LABEL = '开\\s*票\\s*人[：:\\s]*'
+const SPACED_TAX_ID = '((?:[0-9A-Z][\\s\\u00a0]?){15,22})'
 const YEN_MONEY_VALUE =
   '(?:[-+]?(?:\\d(?:[\\s\\u00a0]?\\d)*)[\\s\\u00a0]*(?:\\.[\\s\\u00a0]*\\d(?:[\\s\\u00a0]?\\d)*)?)'
 const YEN_MONEY_PATTERN = new RegExp(`[¥￥]\\s*(${YEN_MONEY_VALUE})`, 'g')
@@ -43,18 +49,18 @@ function extractYenAmounts(text) {
 
 function parseDigitalInvoiceBlock(text) {
   const headerMatch = text.match(
-    new RegExp(`开票人[：:\\s]*(${ISSUER_INVOICE_NO})\\s+(${SPACED_CN_DATE})\\s+(.*)`, 's'),
+    new RegExp(`${ISSUER_LABEL}(${ISSUER_INVOICE_NO})\\s+(${SPACED_CN_DATE})\\s+(.*)`, 's'),
   )
   if (!headerMatch) return null
 
   const rest = headerMatch[3]
   const parties = rest.match(
-    new RegExp(
-      `^(${PARTY_NAME})\\s+([0-9A-Z]{15,20})\\s+(${PARTY_NAME})\\s+([0-9A-Z]{15,20})`,
-    ),
+    new RegExp(`^(${PARTY_NAME})\\s+${SPACED_TAX_ID}\\s+(${PARTY_NAME})\\s+${SPACED_TAX_ID}`),
   )
   if (!parties) return null
 
+  const sellerTaxId = compactTaxId(parties[2])
+  const buyerTaxId = compactTaxId(parties[4])
   const afterParties = rest.slice(parties[0].length)
   const yenAmounts = extractYenAmounts(afterParties)
   if (yenAmounts.length < 3) return null
@@ -68,9 +74,9 @@ function parseDigitalInvoiceBlock(text) {
     digital_invoice_no: compactDigitRun(headerMatch[1]),
     issue_date: parseCnDateToIso(headerMatch[2]),
     seller_name: parties[1].replace(/\s+/g, ' ').trim(),
-    seller_tax_id: parties[2],
+    seller_tax_id: sellerTaxId,
     buyer_name: parties[3].replace(/\s+/g, ' ').trim(),
-    buyer_tax_id: parties[4],
+    buyer_tax_id: buyerTaxId,
     amount: yenAmounts[0],
     tax_amount: yenAmounts[1],
     total_amount: yenAmounts[2],

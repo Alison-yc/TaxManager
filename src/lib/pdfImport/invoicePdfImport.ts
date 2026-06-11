@@ -52,7 +52,22 @@ const INVOICE_FILE_RE =
   /^dzfp_(\d{10,30})_(.+?)_(?:[\d,.]+_)?(\d{4}-\d{2}-\d{2}|\d{14})(?:\[单一发票\])?(?:\s*\(\d+\))?\.pdf$/i
 
 const ALT_INVOICE_FILE_RE =
-  /^(.+?)_数电票[（(]([^）)]+)[）)]_(\d{20})\.pdf$/i
+  /^(.+?)_数电(?:发票|票)[（(]([^）)]+)[）)]_(\d{20})\.pdf$/i
+
+/** PDF 中「开票人」标签可能被拆成「开 票 人」 */
+const ISSUER_LABEL = '开\\s*票\\s*人[：:\\s]*'
+
+/** 税号/识别号可能被拆成逐字符空格 */
+const SPACED_TAX_ID = '((?:[0-9A-Z][\\s\\u00a0]?){15,22})'
+
+function compactTaxId(value: string): string {
+  return value.replace(/[\s\u00a0]/g, '').toUpperCase()
+}
+
+function isValidTaxId(value: string | null | undefined): boolean {
+  const compact = compactTaxId(value ?? '')
+  return compact.length >= 15 && compact.length <= 20
+}
 
 /** 数电发票号码标准长度（如 25132000000155822857） */
 export const STANDARD_DIGITAL_INVOICE_NO_LENGTH = 20
@@ -163,7 +178,10 @@ export function parseInvoiceFileNameHints(fileName: string): InvoiceFileNameHint
 
 function coalesceOptionalText(...values: (string | null | undefined)[]): string | null {
   for (const value of values) {
-    if (typeof value === 'string' && value.trim()) return value.trim()
+    if (typeof value !== 'string') continue
+    const trimmed = value.trim()
+    if (!trimmed || /^[—–\-－]+$/.test(trimmed)) continue
+    return trimmed
   }
   return null
 }
@@ -220,17 +238,21 @@ function parseDigitalInvoiceBlock(text: string): {
   issuer: string
 } | null {
   const headerMatch = text.match(
-    new RegExp(`开票人[：:\\s]*(${ISSUER_INVOICE_NO})\\s+(${SPACED_CN_DATE})\\s+(.*)`, 's'),
+    new RegExp(`${ISSUER_LABEL}(${ISSUER_INVOICE_NO})\\s+(${SPACED_CN_DATE})\\s+(.*)`, 's'),
   )
   if (!headerMatch) return null
 
   const rest = headerMatch[3]
   const parties = rest.match(
     new RegExp(
-      `^(${PARTY_NAME})\\s+([0-9A-Z]{15,20})\\s+(${PARTY_NAME})\\s+([0-9A-Z]{15,20})`,
+      `^(${PARTY_NAME})\\s+${SPACED_TAX_ID}\\s+(${PARTY_NAME})\\s+${SPACED_TAX_ID}`,
     ),
   )
   if (!parties) return null
+
+  const sellerTaxId = compactTaxId(parties[2])
+  const buyerTaxId = compactTaxId(parties[4])
+  if (!isValidTaxId(sellerTaxId) || !isValidTaxId(buyerTaxId)) return null
 
   const afterParties = rest.slice(parties[0].length)
   const yenAmounts = extractYenAmounts(afterParties)
@@ -245,9 +267,9 @@ function parseDigitalInvoiceBlock(text: string): {
     digital_invoice_no: compactDigitRun(headerMatch[1]),
     issue_date: parseCnDateToIso(headerMatch[2]),
     seller_name: parties[1].replace(/\s+/g, ' ').trim(),
-    seller_tax_id: parties[2],
+    seller_tax_id: sellerTaxId,
     buyer_name: parties[3].replace(/\s+/g, ' ').trim(),
-    buyer_tax_id: parties[4],
+    buyer_tax_id: buyerTaxId,
     amount: yenAmounts[0],
     tax_amount: yenAmounts[1],
     total_amount: yenAmounts[2],
@@ -257,9 +279,25 @@ function parseDigitalInvoiceBlock(text: string): {
 
 function extractIssueDateFromIssuerBlock(text: string): string | null {
   const m = text.match(
-    new RegExp(`开票人[：:\\s]*${ISSUER_INVOICE_NO}\\s+(${SPACED_CN_DATE})`),
+    new RegExp(`${ISSUER_LABEL}${ISSUER_INVOICE_NO}\\s+(${SPACED_CN_DATE})`),
   )
   return m ? parseCnDateToIso(m[1]) : null
+}
+
+function extractInvoiceTypeFromText(text: string): string | null {
+  const fromPick = pick(text, [
+    /(数电发票（[^）]+）)/,
+    /(电子发票（[^）]+）)/,
+    /(增值税专用发票)/,
+  ])
+  if (fromPick) return fromPick
+
+  const compactTitle = text.slice(0, 160).replace(/\s+/g, '')
+  const bracket = compactTitle.match(/(?:电子|数电)发票[（(]([^）)]+)[）)]/)
+  if (bracket) {
+    return compactTitle.match(/(?:电子|数电)发票[（(][^）)]+[）)]/)?.[0] ?? null
+  }
+  return null
 }
 
 function extractYenAmounts(text: string): number[] {
@@ -286,7 +324,7 @@ function collectDigitalInvoiceNoCandidates(
   if (blockNo) candidates.push(compactDigitRun(blockNo))
 
   const fromIssuerBlock = text.match(
-    new RegExp(`开票人[：:\\s]*(${ISSUER_INVOICE_NO})\\s+(${SPACED_CN_DATE})`),
+    new RegExp(`${ISSUER_LABEL}(${ISSUER_INVOICE_NO})\\s+(${SPACED_CN_DATE})`),
   )?.[1]
   if (fromIssuerBlock) candidates.push(compactDigitRun(fromIssuerBlock))
 
@@ -443,7 +481,7 @@ function parseDigitalLineItem(text: string, header: ParsedInvoicePdf): InvoiceLi
 }
 
 function parseLineItems(text: string, header: ParsedInvoicePdf): InvoiceLineItem[] {
-  if (new RegExp(`开票人[：:\\s]*${ISSUER_INVOICE_NO}`).test(text)) {
+  if (new RegExp(`${ISSUER_LABEL}${ISSUER_INVOICE_NO}`).test(text)) {
     return parseDigitalLineItem(text, header)
   }
 
@@ -502,7 +540,9 @@ export async function parseInvoicePdfBytes(
 export function parseInvoicePdfText(text: string, fileName: string): ParsedInvoicePdf {
   const hints = parseInvoiceFileNameHints(fileName)
   const looksLikeInvoice =
-    /电子发票|数电发票|发票号码|开票日期|购\s*买\s*方|销\s*售\s*方/.test(text) || hints != null
+    /电\s*子\s*发\s*票|电子发票|数电\s*发\s*票|数电发票|发\s*票\s*号\s*码|发票号码|开\s*票\s*日\s*期|开票日期|购\s*买\s*方|销\s*售\s*方/.test(
+      text,
+    ) || hints != null
   if (!looksLikeInvoice) {
     throw new Error('文件内容不像电子/数电发票 PDF')
   }
@@ -511,9 +551,7 @@ export function parseInvoicePdfText(text: string, fileName: string): ParsedInvoi
   const amountTriplet = extractAmountTriplet(text)
 
   const rawInvoiceType =
-    pick(text, [/(数电发票（[^）]+）)/, /(电子发票（[^）]+）)/, /(增值税专用发票)/]) ??
-    hints?.invoice_type ??
-    null
+    extractInvoiceTypeFromText(text) ?? hints?.invoice_type ?? null
   const invoice_type = normalizeInvoiceType(rawInvoiceType)
 
   const digitalNo =
@@ -541,7 +579,7 @@ export function parseInvoicePdfText(text: string, fileName: string): ParsedInvoi
   const pdfIssuer =
     digitalBlock?.issuer ??
     extractIssuerAfterTotals(text) ??
-    pick(text, [/开票人[：:\s]*([\u4e00-\u9fa5·]{2,20})/])
+    pick(text, [/开\s*票\s*人[：:\s]*([\u4e00-\u9fa5·]{2,20})/])
 
   const header: ParsedInvoicePdf = {
     digital_invoice_no: digitalNo,

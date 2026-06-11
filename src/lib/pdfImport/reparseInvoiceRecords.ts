@@ -57,8 +57,16 @@ type InvoiceRecordForReparse = Pick<
 const REPARSE_SELECT =
   'id, storage_path, source_file_name, digital_invoice_no, invoice_number, invoice_source, invoice_type, invoice_status, is_positive, risk_level, seller_name, seller_tax_id, buyer_name, buyer_tax_id, issue_date, amount, tax_amount, total_amount, business_type, issuer, remark, content'
 
+function isPlaceholderFieldValue(value: string): boolean {
+  const trimmed = value.trim()
+  if (!trimmed) return true
+  if (/^[—–\-－]+$/.test(trimmed)) return true
+  if (trimmed === 'null' || trimmed === 'undefined') return true
+  return false
+}
+
 function hasFilledText(value: string | null | undefined): boolean {
-  return typeof value === 'string' && value.trim().length > 0
+  return typeof value === 'string' && !isPlaceholderFieldValue(value)
 }
 
 function hasMoney(value: number | null | undefined): boolean {
@@ -76,19 +84,24 @@ export function hasValidDigitalInvoiceNo(value: string | null | undefined): bool
 
 /** 缺字段模式：任一关键字段缺失或票号不足 20 位则需重解析 */
 export function invoiceRecordHasMissingFields(row: InvoiceRecordForReparse): boolean {
-  return !(
-    hasValidDigitalInvoiceNo(row.digital_invoice_no) &&
-    hasFilledText(row.invoice_type) &&
-    hasFilledText(row.seller_name) &&
-    hasFilledText(row.seller_tax_id) &&
-    hasFilledText(row.buyer_name) &&
-    hasFilledText(row.buyer_tax_id) &&
-    hasFilledText(row.issue_date) &&
-    hasFilledText(row.issuer) &&
-    hasMoney(row.amount) &&
-    hasMoney(row.tax_amount) &&
-    hasMoney(row.total_amount)
-  )
+  return listMissingInvoiceFieldLabels(row).length > 0
+}
+
+/** 返回仍缺失的关键字段名称（用于提示） */
+export function listMissingInvoiceFieldLabels(row: InvoiceRecordForReparse): string[] {
+  const missing: string[] = []
+  if (!hasValidDigitalInvoiceNo(row.digital_invoice_no)) missing.push('数电发票号码')
+  if (!hasFilledText(row.invoice_type)) missing.push('票种')
+  if (!hasFilledText(row.seller_name)) missing.push('销方名称')
+  if (!hasFilledText(row.seller_tax_id)) missing.push('销方识别号')
+  if (!hasFilledText(row.buyer_name)) missing.push('购方名称')
+  if (!hasFilledText(row.buyer_tax_id)) missing.push('购方识别号')
+  if (!hasFilledText(row.issue_date)) missing.push('开票日期')
+  if (!hasFilledText(row.issuer)) missing.push('开票人')
+  if (!hasMoney(row.amount)) missing.push('金额')
+  if (!hasMoney(row.tax_amount)) missing.push('税额')
+  if (!hasMoney(row.total_amount)) missing.push('价税合计')
+  return missing
 }
 
 /** @deprecated 使用 invoiceRecordHasMissingFields */
@@ -252,14 +265,13 @@ async function fetchAllInvoiceRecordsForReparse(): Promise<InvoiceRecordForRepar
 
 export async function reparseInvoiceRecord(
   row: InvoiceRecordForReparse,
+  options?: { requireComplete?: boolean },
 ): Promise<ReparseInvoiceResult> {
   try {
     const blob = await downloadPdfBlob(row.storage_path)
     const parsed = await parseInvoicePdfBytes(await blob.arrayBuffer(), row.source_file_name)
-    const { error } = await supabase
-      .from('invoice_records')
-      .update(mergeParsedInvoiceRecord(row, parsed))
-      .eq('id', row.id)
+    const merged = mergeParsedInvoiceRecord(row, parsed)
+    const { error } = await supabase.from('invoice_records').update(merged).eq('id', row.id)
     if (error) {
       return {
         id: row.id,
@@ -268,7 +280,19 @@ export async function reparseInvoiceRecord(
         message: error.message,
       }
     }
-    return { id: row.id, digital_invoice_no: row.digital_invoice_no, status: 'success' }
+
+    const mergedRow: InvoiceRecordForReparse = { ...row, ...merged }
+    const stillMissing = listMissingInvoiceFieldLabels(mergedRow)
+    if (options?.requireComplete && stillMissing.length > 0) {
+      return {
+        id: row.id,
+        digital_invoice_no: mergedRow.digital_invoice_no,
+        status: 'failed',
+        message: `解析后仍缺：${stillMissing.join('、')}`,
+      }
+    }
+
+    return { id: row.id, digital_invoice_no: mergedRow.digital_invoice_no, status: 'success' }
   } catch (e: unknown) {
     return {
       id: row.id,
@@ -318,7 +342,9 @@ export async function reparseAllInvoiceRecords(options?: {
     toReparse,
     options?.concurrency ?? DEFAULT_REPARSE_CONCURRENCY,
     async ({ row, index }) => {
-      items[index] = await reparseInvoiceRecord(row)
+      items[index] = await reparseInvoiceRecord(row, {
+        requireComplete: mode === 'missing',
+      })
       done += 1
       reportProgress()
     },
