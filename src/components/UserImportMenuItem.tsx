@@ -7,6 +7,7 @@ import type { MessageType } from "antd/es/message/interface";
 import { INVOICE_IMPORTED_EVENT } from "../constants/invoiceQuery";
 import { TAX_PAYMENT_CERT_IMPORTED_EVENT } from "../constants/taxPaymentCertQuery";
 import type { InvoiceBatchImportResult } from "../lib/pdfImport/invoicePdfBatchImport";
+import { InvoiceNumbersMaintainModal } from "./InvoiceNumbersMaintainModal";
 
 const FOLDER_INPUT_ID = "invoice-folder-import-input";
 
@@ -37,6 +38,7 @@ export function UserImportMenuItem() {
     null,
   );
   const [pendingKind, setPendingKind] = useState<ImportKind>("excel");
+  const [numbersMaintainOpen, setNumbersMaintainOpen] = useState(false);
 
   const acceptByKind: Record<
     Exclude<ImportKind, "invoice-pdf-folder">,
@@ -386,6 +388,11 @@ export function UserImportMenuItem() {
       onClick: () => void runReparseAllInvoices("full"),
     },
     {
+      key: "invoice-numbers-maintain",
+      label: "指定票号批量维护",
+      onClick: () => setNumbersMaintainOpen(true),
+    },
+    {
       key: "tax-payment-cert-pdf",
       label: "导入 PDF 税收完税证明",
       onClick: () => openPicker("tax-payment-cert-pdf"),
@@ -487,6 +494,10 @@ export function UserImportMenuItem() {
           onChange={(e) => void handleFile(e)}
         />
       </div>
+      <InvoiceNumbersMaintainModal
+        open={numbersMaintainOpen}
+        onClose={() => setNumbersMaintainOpen(false)}
+      />
     </>
   );
 }

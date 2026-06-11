@@ -344,6 +344,18 @@ async function countInvoiceRecordsForReparse(): Promise<number> {
   return count ?? 0
 }
 
+export async function fetchInvoiceRecordsForReparseByNumbers(
+  digitalInvoiceNos: string[],
+): Promise<InvoiceRecordForReparse[]> {
+  if (digitalInvoiceNos.length === 0) return []
+  const { data, error } = await supabase
+    .from('invoice_records')
+    .select(REPARSE_SELECT)
+    .in('digital_invoice_no', digitalInvoiceNos)
+  if (error) throw new Error(error.message)
+  return (data ?? []) as InvoiceRecordForReparse[]
+}
+
 export async function reparseInvoiceRecord(
   row: InvoiceRecordForReparse,
   options?: { requireComplete?: boolean },
