@@ -363,13 +363,13 @@ function shouldUseDigitalLineItemParser(text) {
   return /\*[^*]+\*[^*\n]{2,200}?\s+\d{1,2}%/.test(text)
 }
 const DIGITAL_LINE_ITEM_WITH_SPEC =
-  /\*\s*([^*]+?)\s*\*\s*([\u4e00-\u9fa5A-Za-z0-9（）()·\s]+?)\s+([A-Z0-9][A-Za-z0-9-]{1,30})\s+(\d{1,2}%|\*)\s+(\S+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)/
+  /\*\s*([^*]+?)\s*\*\s*([\u4e00-\u9fa5A-Za-z0-9（）()·\s]+?)\s+([A-Z0-9][A-Za-z0-9-]{1,30})\s+(\d{1,2}%|\*)\s+(\S+)\s+(-?[\d,.]+)\s+(-?[\d,.]+)\s+(-?[\d,.]+)\s+(-?[\d,.]+)/
 const DIGITAL_LINE_ITEM_NO_SPEC =
-  /\*\s*([^*]+?)\s*\*\s*([\u4e00-\u9fa5A-Za-z0-9（）()·\s]+?)\s+(\d{1,2}%|\*)\s+(\S+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)/
+  /\*\s*([^*]+?)\s*\*\s*([\u4e00-\u9fa5A-Za-z0-9（）()·\s]+?)\s+(\d{1,2}%|\*)\s+(\S+)\s+(-?[\d,.]+)\s+(-?[\d,.]+)\s+(-?[\d,.]+)\s+(-?[\d,.]+)/
 
 function resolveQuantityAndUnitPrice(amount, first, second) {
   if (first == null || second == null) return { quantity: first, unit_price: second }
-  if (amount != null && amount > 0) {
+  if (amount != null && amount !== 0) {
     const err1 =
       first !== 0 ? Math.abs(amount / first - second) / Math.max(Math.abs(second), 1e-9) : Infinity
     const err2 =
@@ -438,11 +438,23 @@ function coalesceMoney(...vals) {
   }
   return null
 }
+function resolveIsPositiveInvoice(text, amounts = {}) {
+  if (/是否正数发票[：:\s]*否/.test(text)) return '否'
+  if (/红字发票|被红冲|负数发票|（负数）|\(负数\)/.test(text)) return '否'
+  if (amounts.total_amount != null && amounts.total_amount < 0) return '否'
+  if (amounts.amount != null && amounts.amount < 0) return '否'
+  if (amounts.tax_amount != null && amounts.tax_amount < 0) return '否'
+  if (/是否正数发票[：:\s]*是/.test(text)) return '是'
+  return '是'
+}
 function parseInvoice(text, fileName) {
   const hints = parseInvoiceFileNameHints(fileName)
   const block = parseDigitalInvoiceBlock(text, fileName) ?? parsePrefaceInvoiceBlock(text)
   const invoice_type = coalesceText(extractInvoiceTypeFromText(text), hints?.invoice_type)
   const digitalNo = coalesceText(block?.digital_invoice_no, hints?.digital_invoice_no)
+  const amount = coalesceMoney(block?.amount)
+  const tax_amount = coalesceMoney(block?.tax_amount)
+  const total_amount = coalesceMoney(block?.total_amount)
   return {
     digital_invoice_no: digitalNo,
     invoice_number: digitalNo,
@@ -453,9 +465,10 @@ function parseInvoice(text, fileName) {
     issue_date: coalesceText(block?.issue_date, hints?.issue_date),
     invoice_type,
     issuer: block?.issuer ?? null,
-    amount: coalesceMoney(block?.amount),
-    tax_amount: coalesceMoney(block?.tax_amount),
-    total_amount: coalesceMoney(block?.total_amount),
+    amount,
+    tax_amount,
+    total_amount,
+    is_positive: resolveIsPositiveInvoice(text, { amount, tax_amount, total_amount }),
   }
 }
 function expectedNoFromFileName(fileName) {
@@ -634,6 +647,17 @@ function assertLayoutRegression() {
   if (!klainBlock?.seller_name?.includes('镁神') || !klainBlock?.buyer_name?.includes('可莱恩')) {
     throw new Error(`可莱恩购销方方向错误: ${JSON.stringify(klainBlock)}`)
   }
+
+  const redText =
+    '开票人：  25132000000004482819 2025 年 01 月 08 日 江苏嘉耐高温材料股份有限公司  91320282567753425A  河北镁神科技股份有限公司  911305316610547945  ¥ -12389.38   ¥ -1610.62  （负数）壹万肆仟圆整   ¥ -14000.00  韩海燕  * 无机化学原料 * 氧化镁   13% 吨   -12389.38   -1610.62 24778.76 -0.5  被红冲蓝字数电票号码： 24132000000195423123'
+  const redParsed = parseInvoice(redText, '数电票（专用发票）_25132000000004482819_202518154631.pdf')
+  if (redParsed.is_positive !== '否') {
+    throw new Error(`红字发票 is_positive 错误: ${JSON.stringify(redParsed)}`)
+  }
+  const redLine = parseDigitalLineItem(redText)
+  if (!redLine?.item_name?.includes('氧化镁') || redLine.unit !== '吨' || redLine.quantity == null) {
+    throw new Error(`红字发票明细解析失败: ${JSON.stringify(redLine)}`)
+  }
 }
 
 assertLayoutRegression()
@@ -699,6 +723,12 @@ for (const filePath of files) {
   if (parsed.amount == null) issues.push('缺金额')
   if (parsed.tax_amount == null) issues.push('缺税额')
   if (parsed.total_amount == null) issues.push('缺价税合计')
+  if (parsed.is_positive === '否' && parsed.total_amount != null && parsed.total_amount > 0) {
+    issues.push('负数发票但 is_positive=否 且价税合计为正')
+  }
+  if (/红字发票|被红冲|（负数）/.test(text) && parsed.is_positive !== '否') {
+    issues.push('红字发票 is_positive 应为否')
+  }
   if (parsed.amount != null && parsed.tax_amount != null && parsed.total_amount != null) {
     const sum = Math.round((parsed.amount + parsed.tax_amount) * 100) / 100
     if (Math.abs(sum - parsed.total_amount) > 0.02) {

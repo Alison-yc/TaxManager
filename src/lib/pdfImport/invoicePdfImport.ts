@@ -774,11 +774,15 @@ function resolveQuantityAndUnitPrice(
   if (first == null || second == null) {
     return { quantity: first, unit_price: second }
   }
-  if (amount != null && amount > 0) {
+  if (amount != null && amount !== 0) {
     const err1 =
-      first !== 0 ? Math.abs(amount / first - second) / Math.max(Math.abs(second), 1e-9) : Number.POSITIVE_INFINITY
+      first !== 0
+        ? Math.abs(Math.abs(amount) / first - second) / Math.max(Math.abs(second), 1e-9)
+        : Number.POSITIVE_INFINITY
     const err2 =
-      second !== 0 ? Math.abs(amount / second - first) / Math.max(Math.abs(first), 1e-9) : Number.POSITIVE_INFINITY
+      second !== 0
+        ? Math.abs(Math.abs(amount) / second - first) / Math.max(Math.abs(first), 1e-9)
+        : Number.POSITIVE_INFINITY
     const bothGood = err1 < 0.02 && err2 < 0.02
     if (bothGood) {
       if (Number.isInteger(second) && !Number.isInteger(first)) {
@@ -799,7 +803,7 @@ function resolveQuantityAndUnitPrice(
 
 /** 明细行：*大类*品名(可含*) [规格] 税率 单位 + 四列数字（列顺序不固定） */
 const DIGITAL_LINE_ITEM_ROW =
-  /\*\s*([^*]+?)\s*\*\s*(.+?)\s+(?:(无|[A-Za-z0-9][A-Za-z0-9-]{0,40})\s+)?(\d{1,2}%|\*)\s+(\S+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)/g
+  /\*\s*([^*]+?)\s*\*\s*(.+?)\s+(?:(无|[A-Za-z0-9][A-Za-z0-9-]{0,40})\s+)?(\d{1,2}%|\*)\s+(\S+)\s+(-?[\d,.]+)\s+(-?[\d,.]+)\s+(-?[\d,.]+)\s+(-?[\d,.]+)/g
 
 function moneyApproxEqual(a: number, b: number, tolerance = 0.02): boolean {
   if (b === 0) return Math.abs(a - b) < 0.01
@@ -862,7 +866,7 @@ function interpretDigitalLineItemRow(
 function parseDigitalLineItem(text: string, header: ParsedInvoicePdf): InvoiceLineItem[] {
   const remark = text.match(/[\d,.]+\s+([\u4e00-\u9fa5\d]{2,40})\s*$/)?.[1] ?? header.remark
   const items: InvoiceLineItem[] = []
-  const rowPattern = new RegExp(DIGITAL_LINE_ITEM_ROW.source, 'g')
+  const rowPattern = new RegExp(DIGITAL_LINE_ITEM_ROW.source, DIGITAL_LINE_ITEM_ROW.flags)
   let match: RegExpExecArray | null
 
   while ((match = rowPattern.exec(text)) !== null) {
@@ -931,6 +935,24 @@ function parseLineItems(text: string, header: ParsedInvoicePdf): InvoiceLineItem
       remark: header.remark,
     }),
   ]
+}
+
+/** 是否正数发票：红字/负数金额应为「否」 */
+export function resolveIsPositiveInvoice(
+  text: string,
+  amounts?: {
+    amount?: number | null
+    tax_amount?: number | null
+    total_amount?: number | null
+  },
+): string {
+  if (/是否正数发票[：:\s]*否/.test(text)) return '否'
+  if (/红字发票|被红冲|负数发票|（负数）|\(负数\)/.test(text)) return '否'
+  if (amounts?.total_amount != null && amounts.total_amount < 0) return '否'
+  if (amounts?.amount != null && amounts.amount < 0) return '否'
+  if (amounts?.tax_amount != null && amounts.tax_amount < 0) return '否'
+  if (/是否正数发票[：:\s]*是/.test(text)) return '是'
+  return '是'
 }
 
 export async function parseInvoicePdf(file: File): Promise<ParsedInvoicePdf> {
@@ -1027,5 +1049,10 @@ export function parseInvoicePdfText(text: string, fileName: string): ParsedInvoi
   header.amount = clampMoneyForDb(header.amount)
   header.tax_amount = clampMoneyForDb(header.tax_amount)
   header.total_amount = clampMoneyForDb(header.total_amount)
+  header.is_positive = resolveIsPositiveInvoice(text, {
+    amount: header.amount,
+    tax_amount: header.tax_amount,
+    total_amount: header.total_amount,
+  })
   return header
 }
