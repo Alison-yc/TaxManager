@@ -360,12 +360,163 @@ function parseDigitalInvoiceBlock(text, fileName) {
 }
 function shouldUseDigitalLineItemParser(text) {
   if (new RegExp(`${ISSUER_LABEL}${ISSUER_BLOCK_SKIP}${ISSUER_INVOICE_NO}`).test(text)) return true
-  return /\*[^*]+\*[^*\n]{2,200}?\s+\d{1,2}%/.test(text)
+  if (/\*[^*]+\*[^*\n]{2,80}?\s+\d{1,2}%/.test(text)) return true
+  return /\*[^*]+\*[^*\n]{2,200}?\s+\d(?:[\s\u00a0]?\d)*[\s\u00a0]*%/.test(text)
 }
+const SPACED_TAX_RATE = String.raw`\d(?:[\s\u00a0]?\d)*[\s\u00a0]*%|\*|免税`
 const DIGITAL_LINE_ITEM_WITH_SPEC =
-  /\*\s*([^*]+?)\s*\*\s*([\u4e00-\u9fa5A-Za-z0-9（）()·\s]+?)\s+([A-Z0-9][A-Za-z0-9-]{1,30})\s+(\d{1,2}%|\*)\s+(\S+)\s+(-?[\d,.]+)\s+(-?[\d,.]+)\s+(-?[\d,.]+)\s+(-?[\d,.]+)/
+  /\*\s*([^*]+?)\s*\*\s*([\u4e00-\u9fa5A-Za-z0-9（）()·\s]+?)\s+([A-Z0-9][A-Za-z0-9-]{1,30})\s+(\d{1,2}%|\*|免税)\s+(\S+)\s+(-?[\d,.]+)\s+(-?[\d,.]+)\s+(-?[\d,.]+)\s+(-?[\d,.]+)/
 const DIGITAL_LINE_ITEM_NO_SPEC =
-  /\*\s*([^*]+?)\s*\*\s*([\u4e00-\u9fa5A-Za-z0-9（）()·\s]+?)\s+(\d{1,2}%|\*)\s+(\S+)\s+(-?[\d,.]+)\s+(-?[\d,.]+)\s+(-?[\d,.]+)\s+(-?[\d,.]+)/
+  /\*\s*([^*]+?)\s*\*\s*([\u4e00-\u9fa5A-Za-z0-9（）()·\s]+?)\s+(\d{1,2}%|\*|免税)\s+(\S+)\s+(-?[\d,.]+)\s+(-?[\d,.]+)\s+(-?[\d,.]+)\s+(-?[\d,.]+)/
+
+function compactSpacedDigits(text) {
+  let prev = ''
+  let cur = text
+  while (cur !== prev) {
+    prev = cur
+    cur = cur
+      .replace(/(\d)[\s\u00a0]+(?=\d)/g, '$1')
+      .replace(/(\d)[\s\u00a0]+(?=[.,])/g, '$1')
+      .replace(/([.,])[\s\u00a0]+(?=\d)/g, '$1')
+  }
+  return cur
+}
+function separateFixedDecimals(text) {
+  return text.replace(/(\d\.\d{2})(?=\d)/g, '$1 ')
+}
+function normalizeTaxRateDisplay(raw) {
+  if (!raw?.trim()) return null
+  const trimmed = raw.trim()
+  if (trimmed === '免税' || trimmed === '*') return trimmed
+  const compact = compactSpacedDigits(trimmed)
+  return compact.endsWith('%') ? compact : trimmed
+}
+function expandDecimalCandidates(digitStr) {
+  if (!digitStr) return []
+  const results = new Set()
+  const direct = parseMoney(digitStr)
+  if (direct != null) results.add(direct)
+  for (let d = 1; d < digitStr.length; d++) {
+    const n = parseMoney(`${digitStr.slice(0, d)}.${digitStr.slice(d)}`)
+    if (n != null) results.add(n)
+  }
+  return [...results]
+}
+function qtyPriceMatchError(amount, a, b) {
+  if (a === 0 || b === 0) return Infinity
+  return Math.abs(a * b - amount) / Math.max(Math.abs(amount), 1e-9)
+}
+function findQtyPriceInDigitBlob(blob, amount) {
+  const digits = blob.replace(/\D/g, '')
+  if (!digits) return null
+  let best = null
+  for (let i = 1; i < digits.length; i++) {
+    for (const a of expandDecimalCandidates(digits.slice(0, i))) {
+      for (const b of expandDecimalCandidates(digits.slice(i))) {
+        const err = qtyPriceMatchError(amount, a, b)
+        if (err >= 0.02) continue
+        const resolved = resolveQuantityAndUnitPrice(amount, a, b)
+        if (resolved.quantity == null || resolved.unit_price == null) continue
+        if (!best || err < best.err) best = { ...resolved, err }
+      }
+    }
+  }
+  return best ? { quantity: best.quantity, unit_price: best.unit_price } : null
+}
+function parseFirstSpacedMoney(raw) {
+  const m = raw.match(/^(\d(?:[\s\u00a0]*\d)*[\s\u00a0]*(?:[.,][\s\u00a0]*\d(?:[\s\u00a0]*\d){0,2})?)/)
+  if (!m) return { value: null, rest: raw }
+  return { value: parseMoney(m[1]), rest: raw.slice(m[0].length).trimStart() }
+}
+function extractLineItemSections(text) {
+  const sections = []
+  const pattern = /\*\s*[^*]+?\s*\*[\s\S]{8,600}?(?=收\s*款\s*人|复\s*核\s*人|$)/g
+  let match
+  while ((match = pattern.exec(text)) !== null) sections.push(match[0].trim())
+  return sections
+}
+function parseLineItemPrefix(section) {
+  const withUnit = section.match(
+    new RegExp(
+      `^\\*\\s*([^*]+?)\\s*\\*\\s*(.+?)\\s+(?:(无|[A-Za-z0-9][A-Za-z0-9-]{0,40})\\s+)?(${SPACED_TAX_RATE})\\s+(\\S+)\\s+(.+)$`,
+    ),
+  )
+  if (withUnit) {
+    return {
+      item_name: `* ${withUnit[1].trim()} * ${withUnit[2].trim()}`,
+      spec: withUnit[3]?.trim() || null,
+      tax_rate: normalizeTaxRateDisplay(withUnit[4]),
+      unit: withUnit[5].trim(),
+      numericTail: withUnit[6].trim(),
+    }
+  }
+  const serviceLine = section.match(
+    new RegExp(`^\\*\\s*([^*]+?)\\s*\\*\\s*(.+?)\\s+(${SPACED_TAX_RATE})\\s+(.+)$`),
+  )
+  if (serviceLine) {
+    return {
+      item_name: `* ${serviceLine[1].trim()} * ${serviceLine[2].trim()}`,
+      spec: null,
+      tax_rate: normalizeTaxRateDisplay(serviceLine[3]),
+      unit: null,
+      numericTail: serviceLine[4].trim(),
+    }
+  }
+  return null
+}
+function parseDigitalLineItemNumbers(tail, header = {}) {
+  const segments = tail.split(/\s{2,}/).map((s) => s.trim()).filter(Boolean)
+  let amount = segments[0] ? parseFirstSpacedMoney(segments[0]).value : null
+  let tax_amount = null
+  let qtyPriceBlob = ''
+  if (segments.length >= 2) {
+    const taxPart = parseFirstSpacedMoney(segments[1])
+    tax_amount = taxPart.value
+    qtyPriceBlob = taxPart.rest
+    if (segments.length >= 3) qtyPriceBlob = [qtyPriceBlob, ...segments.slice(2)].filter(Boolean).join(' ')
+  }
+  const bounded = separateFixedDecimals(compactSpacedDigits(tail))
+  const nums = [...bounded.matchAll(/-?\d+(?:\.\d+)?/g)]
+    .map((m) => parseMoney(m[0]))
+    .filter((n) => n != null)
+  if (amount == null && nums.length >= 1) amount = nums[0]
+  if (tax_amount == null && nums.length >= 2) tax_amount = nums[1]
+  if (header.amount != null) amount = header.amount
+  if (header.tax_amount != null) tax_amount = header.tax_amount
+  let quantity = null
+  let unit_price = null
+  const rest = nums.slice(2)
+  if (amount != null) {
+    let bestErr = Infinity
+    for (let i = 0; i < rest.length; i++) {
+      for (let j = 0; j < rest.length; j++) {
+        if (i === j) continue
+        const err = qtyPriceMatchError(amount, rest[i], rest[j])
+        if (err >= 0.02 || err >= bestErr) continue
+        const resolved = resolveQuantityAndUnitPrice(amount, rest[i], rest[j])
+        if (resolved.quantity == null || resolved.unit_price == null) continue
+        bestErr = err
+        quantity = resolved.quantity
+        unit_price = resolved.unit_price
+      }
+    }
+    if (quantity == null || unit_price == null) {
+      for (const blob of [qtyPriceBlob, tail, ...rest.map(String)].filter(Boolean)) {
+        const fromBlob = findQtyPriceInDigitBlob(blob, amount)
+        if (fromBlob) {
+          quantity = fromBlob.quantity
+          unit_price = fromBlob.unit_price
+          break
+        }
+      }
+    }
+    if (quantity == null && unit_price == null) {
+      quantity = 1
+      unit_price = amount
+    }
+  }
+  return { amount, tax_amount, quantity, unit_price }
+}
 
 function resolveQuantityAndUnitPrice(amount, first, second) {
   if (first == null || second == null) return { quantity: first, unit_price: second }
@@ -388,7 +539,33 @@ function resolveQuantityAndUnitPrice(amount, first, second) {
   return { quantity: first, unit_price: second }
 }
 
-function parseDigitalLineItem(text) {
+function parseSpacedDigitalLineItem(text, header = {}) {
+  for (const section of extractLineItemSections(text)) {
+    const prefix = parseLineItemPrefix(section)
+    if (!prefix) continue
+    const numbers = parseDigitalLineItemNumbers(prefix.numericTail, {
+      amount: header.amount ?? null,
+      tax_amount: header.tax_amount ?? null,
+    })
+    if (numbers.amount == null) continue
+    return {
+      item_name: prefix.item_name,
+      spec: prefix.spec,
+      tax_rate: prefix.tax_rate,
+      unit: prefix.unit ?? (numbers.quantity === 1 ? '项' : null),
+      amount: numbers.amount,
+      tax_amount: numbers.tax_amount,
+      quantity: numbers.quantity,
+      unit_price: numbers.unit_price,
+    }
+  }
+  return null
+}
+
+function parseDigitalLineItem(text, header = {}) {
+  const spaced = parseSpacedDigitalLineItem(text, header)
+  if (spaced) return spaced
+
   const withSpec = text.match(DIGITAL_LINE_ITEM_WITH_SPEC)
   if (withSpec) {
     const amount = parseMoney(withSpec[6])
@@ -673,6 +850,22 @@ const TEMPLATE_FILES = [
   '河北镁泰镁质材料有限公司_数电发票（增值税专用发票）_25132000000239578649.pdf',
   '河北镁泰镁质材料有限公司_数电发票（增值税专用发票）_25132000000239615949.pdf',
   '河北镁泰镁质材料有限公司_数电发票（增值税专用发票）_25132000000239607501.pdf',
+  '常州百佳翔禾实业投资有限公司_数电发票（增值税专用发票）_25132000000176988129.pdf',
+  'dzfp_25132000000235207185_浙江洁华新材料股份有限公司_94500.00_2025-12-26.pdf',
+  '安徽佳通乘用子午线轮胎有限公司_数电发票（增值税专用发票）_25132000000182814387.pdf',
+  '重庆布尔动物药业有限公司_数电发票（增值税专用发票）_25132000000182744703.pdf',
+  '广西青龙化学建材有限公司_数电票（增值税专用发票）_25132000000162314154.pdf',
+  '四川科伦药业股份有限公司邛崃分公司_数电票（增值税专用发票）_25132000000139173745.pdf',
+  '陕西华星电子开发有限公司_数电票（增值税专用发票）_25132000000132494834.pdf',
+  '山东昶旭汽车配件有限公司_数电票（专用发票）_25132000000116179573.pdf',
+  '宁乡新阳化工有限公司_数电票（专用发票）_25132000000111569569.pdf',
+  '广州海有生物科技有限公司_数电票（专用发票）_25132000000095783745.pdf',
+  '天津市鑫泓金属制品加工厂_数电票（专用发票）_25132000000052355112.pdf',
+  '福州新信制动系统有限公司_数电票（专用发票）_25132000000047232377.pdf',
+  '嘉兴合创未来生物科技有限公司_数电票（专用发票）_25132000000039571381.pdf',
+  'dzfp_25122000000091880286_河北镁神科技股份有限公司_20251209100306.pdf',
+  'dzfp_25122000000091857405_河北镁神科技股份有限公司_20251209100129.pdf',
+  'dzfp_25112000000170901636_第一创业证券承销保荐有限责任公司_20250831180205.pdf',
 ]
 
 const dirs = [
@@ -737,11 +930,12 @@ for (const filePath of files) {
   }
 
   if (shouldUseDigitalLineItemParser(text)) {
-    const line = parseDigitalLineItem(text)
+    const line = parseDigitalLineItem(text, { amount: parsed.amount, tax_amount: parsed.tax_amount })
     if (!line?.item_name || line.item_name === '—') issues.push('缺明细项目名称')
     if (!line?.unit) issues.push('缺明细单位')
     if (line?.quantity == null) issues.push('缺明细数量')
     if (line?.unit_price == null) issues.push('缺明细单价')
+    if (!line?.tax_rate) issues.push('缺明细税率')
   }
 
   if (issues.length) {

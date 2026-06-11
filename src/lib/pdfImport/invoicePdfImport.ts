@@ -499,10 +499,11 @@ function parseDigitalInvoiceBlock(
   const yenAmounts = extractYenAmounts(afterParties)
   if (yenAmounts.length < 2) return null
 
+  const taxExempt = hasTaxExemptTaxAmountMarker(afterParties)
   const amount = yenAmounts[0]
-  const tax_amount = yenAmounts[1]
+  const tax_amount = taxExempt ? 0 : yenAmounts[1]
   const total_amount =
-    yenAmounts[2] ??
+    (taxExempt ? yenAmounts[1] : yenAmounts[2]) ??
     (amount != null && tax_amount != null
       ? Math.round((amount + tax_amount) * 100) / 100
       : null)
@@ -536,7 +537,9 @@ function hasIssuerBlockInvoiceNo(text: string): boolean {
 
 function shouldUseDigitalLineItemParser(text: string): boolean {
   if (hasIssuerBlockInvoiceNo(text)) return true
-  return /\*[^*]+\*[^*\n]{2,80}?\s+\d{1,2}%/.test(text)
+  if (/\*[^*]+\*[^*\n]{2,80}?\s+\d{1,2}%/.test(text)) return true
+  // PDF.js 可能将税率拆成「1 3 %」
+  return /\*[^*]+\*[^*\n]{2,200}?\s+\d(?:[\s\u00a0]?\d)*[\s\u00a0]*%/.test(text)
 }
 
 function extractInvoiceTypeFromText(text: string): string | null {
@@ -559,6 +562,10 @@ function extractYenAmounts(text: string): number[] {
   return [...text.matchAll(YEN_MONEY_PATTERN)]
     .map((match) => parseMoney(match[1]))
     .filter((value): value is number => value != null)
+}
+
+function hasTaxExemptTaxAmountMarker(text: string): boolean {
+  return /免\s*税/.test(text) && /\*{3}/.test(text)
 }
 
 function isChineseUppercaseAmount(value: string): boolean {
@@ -616,8 +623,9 @@ function parsePrefaceInvoiceBlock(text: string): InvoiceFieldBlock | null {
   const buyerTaxId = compactTaxId(block[5])
   if (!isValidTaxId(sellerTaxId) || !isValidTaxId(buyerTaxId)) return null
 
+  const taxExempt = hasTaxExemptTaxAmountMarker(text)
   const yenAmounts = extractYenAmounts(text)
-  if (yenAmounts.length < 3) return null
+  if (taxExempt ? yenAmounts.length < 2 : yenAmounts.length < 3) return null
 
   return {
     digital_invoice_no: block[4],
@@ -627,8 +635,8 @@ function parsePrefaceInvoiceBlock(text: string): InvoiceFieldBlock | null {
     buyer_name: block[6].replace(/\s+/g, ' ').trim(),
     buyer_tax_id: buyerTaxId,
     amount: yenAmounts[0],
-    tax_amount: yenAmounts[1],
-    total_amount: yenAmounts[2],
+    tax_amount: taxExempt ? 0 : yenAmounts[1],
+    total_amount: taxExempt ? yenAmounts[1] : yenAmounts[2],
     issuer: extractIssuerFromText(text),
   }
 }
@@ -738,6 +746,15 @@ function extractAmountTriplet(text: string): {
   total_amount: number | null
 } {
   const yenAmounts = extractYenAmounts(text)
+  const taxExempt = hasTaxExemptTaxAmountMarker(text)
+
+  if (taxExempt && yenAmounts.length >= 2) {
+    return {
+      amount: yenAmounts[0],
+      tax_amount: 0,
+      total_amount: yenAmounts[1],
+    }
+  }
 
   if (yenAmounts.length >= 3) {
     return {
@@ -801,9 +818,284 @@ function resolveQuantityAndUnitPrice(
   return { quantity: first, unit_price: second }
 }
 
-/** 明细行：*大类*品名(可含*) [规格] 税率 单位 + 四列数字（列顺序不固定） */
+/** PDF.js 可能在数字/税率字符间插入空格 */
+const SPACED_TAX_RATE = String.raw`\d(?:[\s\u00a0]?\d)*[\s\u00a0]*%|\*|免税`
+
+/** 明细行（未拆字）：*大类*品名 [规格] 税率 单位 + 四列数字 */
 const DIGITAL_LINE_ITEM_ROW =
-  /\*\s*([^*]+?)\s*\*\s*(.+?)\s+(?:(无|[A-Za-z0-9][A-Za-z0-9-]{0,40})\s+)?(\d{1,2}%|\*)\s+(\S+)\s+(-?[\d,.]+)\s+(-?[\d,.]+)\s+(-?[\d,.]+)\s+(-?[\d,.]+)/g
+  /\*\s*([^*]+?)\s*\*\s*(.+?)\s+(?:(无|[A-Za-z0-9][A-Za-z0-9-]{0,40})\s+)?(\d{1,2}%|\*|免税)\s+(\S+)\s+(-?[\d,.]+)\s+(-?[\d,.]+)\s+(-?[\d,.]+)\s+(-?[\d,.]+)/g
+
+function compactSpacedDigits(text: string): string {
+  let prev = ''
+  let cur = text
+  while (cur !== prev) {
+    prev = cur
+    cur = cur
+      .replace(/(\d)[\s\u00a0]+(?=\d)/g, '$1')
+      .replace(/(\d)[\s\u00a0]+(?=[.,])/g, '$1')
+      .replace(/([.,])[\s\u00a0]+(?=\d)/g, '$1')
+  }
+  return cur
+}
+
+/** 金额小数点后紧跟下一数字字段时插入边界，如 7800.0015000 → 7800.00 15000 */
+function separateFixedDecimals(text: string): string {
+  return text.replace(/(\d\.\d{2})(?=\d)/g, '$1 ')
+}
+
+function normalizeTaxRateDisplay(raw: string | null | undefined): string | null {
+  if (!raw?.trim()) return null
+  const trimmed = raw.trim()
+  if (trimmed === '免税' || trimmed === '*') return trimmed
+  const compact = compactSpacedDigits(trimmed)
+  return compact.endsWith('%') ? compact : trimmed
+}
+
+function expandDecimalCandidates(digitStr: string): number[] {
+  if (!digitStr) return []
+  const results = new Set<number>()
+  const direct = parseMoney(digitStr)
+  if (direct != null) results.add(direct)
+  for (let d = 1; d < digitStr.length; d++) {
+    const n = parseMoney(`${digitStr.slice(0, d)}.${digitStr.slice(d)}`)
+    if (n != null) results.add(n)
+  }
+  return [...results]
+}
+
+function qtyPriceMatchError(amount: number, a: number, b: number): number {
+  if (a === 0 || b === 0) return Number.POSITIVE_INFINITY
+  return Math.abs(a * b - amount) / Math.max(Math.abs(amount), 1e-9)
+}
+
+function findQtyPriceInDigitBlob(
+  blob: string,
+  amount: number,
+  unit: string | null = null,
+): { quantity: number; unit_price: number } | null {
+  const digits = blob.replace(/\D/g, '')
+  if (!digits) return null
+
+  let best: { quantity: number; unit_price: number; err: number } | null = null
+  for (let i = 1; i < digits.length; i++) {
+    for (const a of expandDecimalCandidates(digits.slice(0, i))) {
+      for (const b of expandDecimalCandidates(digits.slice(i))) {
+        const score = scoreQtyPriceCandidate(amount, a, b, unit)
+        if (!Number.isFinite(score)) continue
+        const { quantity, unit_price } = resolveQuantityAndUnitPrice(amount, a, b)
+        if (quantity == null || unit_price == null) continue
+        if (!best || score < best.err) best = { quantity, unit_price, err: score }
+      }
+    }
+  }
+  return best ? { quantity: best.quantity, unit_price: best.unit_price } : null
+}
+
+function parseFirstSpacedMoney(raw: string): { value: number | null; rest: string } {
+  const m = raw.match(/^(\d(?:[\s\u00a0]*\d)*[\s\u00a0]*(?:[.,][\s\u00a0]*\d(?:[\s\u00a0]*\d){0,2})?)/)
+  if (!m) return { value: null, rest: raw }
+  return { value: parseMoney(m[1]), rest: raw.slice(m[0].length).trimStart() }
+}
+
+type ParsedLinePrefix = {
+  item_name: string
+  spec: string | null
+  tax_rate: string | null
+  unit: string | null
+  numericTail: string
+}
+
+function isLikelyUnit(value: string): boolean {
+  const trimmed = value.trim()
+  if (!trimmed) return false
+  if (/[壹贰叁肆伍陆柒捌玖拾佰仟万亿元整]/.test(trimmed)) return false
+  const money = parseMoney(trimmed)
+  if (money != null && /^[\d\s\u00a0.,]+$/.test(trimmed)) return false
+  return true
+}
+
+/** 数电票明细大类通常仅为中文/字母，PDF.js 可能在字间插空格 */
+const LINE_ITEM_CATEGORY = '[\\u4e00-\\u9fa5A-Za-z（）()·\\s]{2,40}'
+
+function isLikelyLineItemCategory(category: string): boolean {
+  const trimmed = category.trim().replace(/[\s\u00a0]+/g, '')
+  if (/[壹贰叁肆伍陆柒捌玖拾佰仟万亿元整]/.test(trimmed)) return false
+  if (/^[¥￥]/.test(trimmed)) return false
+  if (/\d/.test(trimmed)) return false
+  return trimmed.length >= 2
+}
+
+function findDigitalLineItemPrefixes(text: string): ParsedLinePrefix[] {
+  const items: ParsedLinePrefix[] = []
+  const pattern = new RegExp(
+    `\\*\\s*(${LINE_ITEM_CATEGORY}?)\\s*\\*\\s*(.+?)\\s+(?:(无|[A-Za-z0-9][A-Za-z0-9-]{0,40})\\s+)?(${SPACED_TAX_RATE})\\s+(\\S+)\\s+`,
+    'g',
+  )
+  let match: RegExpExecArray | null
+  while ((match = pattern.exec(text)) !== null) {
+    if (!isLikelyLineItemCategory(match[1])) continue
+    const tailStart = match.index + match[0].length
+    const tailSlice = text.slice(tailStart)
+    const tailEnd = tailSlice.search(
+      /(?:\*\s*[^*]+?\s*\*|收\s*款\s*人|复\s*核\s*人|购\s*方|销\s*方|购买方|销售方)/,
+    )
+    const numericTail = (tailEnd >= 0 ? tailSlice.slice(0, tailEnd) : tailSlice).trim()
+    if (!isLikelyUnit(match[5])) continue
+    items.push({
+      item_name: `* ${match[1].trim().replace(/[\s\u00a0]+/g, '')} * ${match[2].trim()}`,
+      spec: match[3]?.trim() || null,
+      tax_rate: normalizeTaxRateDisplay(match[4]),
+      unit: match[5].trim(),
+      numericTail,
+    })
+  }
+
+  const servicePattern = new RegExp(
+    `\\*\\s*(${LINE_ITEM_CATEGORY}?)\\s*\\*\\s*(.+?)\\s+(${SPACED_TAX_RATE})\\s+`,
+    'g',
+  )
+  while ((match = servicePattern.exec(text)) !== null) {
+    if (!isLikelyLineItemCategory(match[1])) continue
+    const tailStart = match.index + match[0].length
+    const tailSlice = text.slice(tailStart)
+    const tailEnd = tailSlice.search(
+      /(?:\*\s*[^*]+?\s*\*|收\s*款\s*人|复\s*核\s*人|购\s*方|销\s*方|购买方|销售方)/,
+    )
+    const numericTail = (tailEnd >= 0 ? tailSlice.slice(0, tailEnd) : tailSlice).trim()
+    items.push({
+      item_name: `* ${match[1].trim().replace(/[\s\u00a0]+/g, '')} * ${match[2].trim()}`,
+      spec: null,
+      tax_rate: normalizeTaxRateDisplay(match[3]),
+      unit: null,
+      numericTail,
+    })
+  }
+
+  const seen = new Set<string>()
+  return items.filter((item) => {
+    const key = `${item.item_name}|${item.numericTail.slice(0, 40)}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
+function scoreQtyPriceCandidate(
+  amount: number,
+  a: number,
+  b: number,
+  unit: string | null,
+): number {
+  const err = qtyPriceMatchError(amount, a, b)
+  if (err >= 0.02) return Number.POSITIVE_INFINITY
+  const resolved = resolveQuantityAndUnitPrice(amount, a, b)
+  let score = err
+  if (resolved.quantity != null && resolved.unit_price != null && unit && /吨|千克|公斤|kg/i.test(unit)) {
+    if (resolved.unit_price < resolved.quantity) score += 1
+  }
+  return score
+}
+
+function parseDigitalLineItemNumbers(
+  tail: string,
+  header: { amount: number | null; tax_amount: number | null },
+  unit: string | null = null,
+): {
+  amount: number | null
+  tax_amount: number | null
+  quantity: number | null
+  unit_price: number | null
+} {
+  const segments = tail
+    .split(/\s{2,}/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+
+  let amount = segments[0] ? parseFirstSpacedMoney(segments[0]).value : null
+  let tax_amount: number | null = null
+  let qtyPriceBlob = ''
+
+  if (segments.length >= 2) {
+    const taxPart = parseFirstSpacedMoney(segments[1])
+    tax_amount = taxPart.value
+    qtyPriceBlob = taxPart.rest
+    if (segments.length >= 3) {
+      qtyPriceBlob = [qtyPriceBlob, ...segments.slice(2)].filter(Boolean).join(' ')
+    }
+  }
+
+  const bounded = separateFixedDecimals(compactSpacedDigits(tail))
+  const nums = [...bounded.matchAll(/-?\d+(?:\.\d+)?/g)]
+    .map((m) => parseMoney(m[0]))
+    .filter((n): n is number => n != null)
+
+  if (amount == null && nums.length >= 1) amount = nums[0]
+  if (tax_amount == null && nums.length >= 2) tax_amount = nums[1]
+  if (header.amount != null) amount = header.amount
+  if (header.tax_amount != null) tax_amount = header.tax_amount
+
+  let quantity: number | null = null
+  let unit_price: number | null = null
+  const rest = nums.slice(2)
+
+  if (amount != null) {
+    let bestErr = Number.POSITIVE_INFINITY
+    for (let i = 0; i < rest.length; i++) {
+      for (let j = 0; j < rest.length; j++) {
+        if (i === j) continue
+        const score = scoreQtyPriceCandidate(amount, rest[i], rest[j], unit)
+        if (!Number.isFinite(score) || score >= bestErr) continue
+        const resolved = resolveQuantityAndUnitPrice(amount, rest[i], rest[j])
+        if (resolved.quantity == null || resolved.unit_price == null) continue
+        bestErr = score
+        quantity = resolved.quantity
+        unit_price = resolved.unit_price
+      }
+    }
+
+    if (quantity == null || unit_price == null) {
+      const blobCandidates = [qtyPriceBlob, tail, ...rest.map(String)].filter(Boolean)
+      for (const blob of blobCandidates) {
+        const fromBlob = findQtyPriceInDigitBlob(blob, amount, unit)
+        if (fromBlob) {
+          quantity = fromBlob.quantity
+          unit_price = fromBlob.unit_price
+          break
+        }
+      }
+    }
+
+    if (quantity == null && unit_price == null) {
+      quantity = 1
+      unit_price = amount
+    }
+  }
+
+  return { amount, tax_amount, quantity, unit_price }
+}
+
+function parseSpacedDigitalLineItemSection(
+  prefix: ParsedLinePrefix,
+  header: ParsedInvoicePdf,
+): Omit<InvoiceLineItem, 'total_amount' | 'business_type' | 'remark'> | null {
+  const numbers = parseDigitalLineItemNumbers(prefix.numericTail, {
+    amount: header.amount,
+    tax_amount: header.tax_amount,
+  }, prefix.unit)
+  if (numbers.amount == null) return null
+  const tax_amount = prefix.tax_rate === '免税' ? 0 : numbers.tax_amount
+
+  return {
+    item_name: prefix.item_name,
+    spec: prefix.spec,
+    tax_rate: prefix.tax_rate,
+    unit: prefix.unit ?? (numbers.quantity === 1 && numbers.unit_price === numbers.amount ? '项' : null),
+    amount: numbers.amount,
+    tax_amount,
+    quantity: numbers.quantity,
+    unit_price: numbers.unit_price,
+  }
+}
 
 function moneyApproxEqual(a: number, b: number, tolerance = 0.02): boolean {
   if (b === 0) return Math.abs(a - b) < 0.01
@@ -866,11 +1158,9 @@ function interpretDigitalLineItemRow(
 function parseDigitalLineItem(text: string, header: ParsedInvoicePdf): InvoiceLineItem[] {
   const remark = text.match(/[\d,.]+\s+([\u4e00-\u9fa5\d]{2,40})\s*$/)?.[1] ?? header.remark
   const items: InvoiceLineItem[] = []
-  const rowPattern = new RegExp(DIGITAL_LINE_ITEM_ROW.source, DIGITAL_LINE_ITEM_ROW.flags)
-  let match: RegExpExecArray | null
 
-  while ((match = rowPattern.exec(text)) !== null) {
-    const parsed = interpretDigitalLineItemRow(match)
+  for (const prefix of findDigitalLineItemPrefixes(text)) {
+    const parsed = parseSpacedDigitalLineItemSection(prefix, header)
     if (!parsed) continue
     items.push(
       sanitizeLineItem({
@@ -880,6 +1170,23 @@ function parseDigitalLineItem(text: string, header: ParsedInvoicePdf): InvoiceLi
         remark,
       }),
     )
+  }
+
+  if (items.length === 0) {
+    const rowPattern = new RegExp(DIGITAL_LINE_ITEM_ROW.source, DIGITAL_LINE_ITEM_ROW.flags)
+    let match: RegExpExecArray | null
+    while ((match = rowPattern.exec(text)) !== null) {
+      const parsed = interpretDigitalLineItemRow(match)
+      if (!parsed) continue
+      items.push(
+        sanitizeLineItem({
+          ...parsed,
+          total_amount: header.total_amount,
+          business_type: header.business_type,
+          remark,
+        }),
+      )
+    }
   }
 
   if (items.length > 0) return items
