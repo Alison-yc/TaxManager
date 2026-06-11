@@ -3606,22 +3606,22 @@
   min-height: 680px;
 }
 
-/* 申报/财报 PDF：去掉阅读器式灰边，内容区全宽白底铺满 */
-.etax-record-preview-frame.etax-declaration-pdf-preview.vat-preview-frame {
+/* PDF 纯内容预览：留白呼吸感，避免内容贴满边框 */
+.etax-record-preview-frame.etax-chromeless-pdf-preview.vat-preview-frame {
+  padding: 16px 24px 20px;
+  background: #fff;
+}
+
+.etax-chromeless-pdf-preview {
   padding: 0;
   background: #fff;
 }
 
-.etax-declaration-pdf-preview {
-  padding: 0;
-  background: #fff;
-}
-
-.etax-declaration-pdf-preview .etax-pdf-preview-wrap {
+.etax-chromeless-pdf-preview .etax-pdf-preview-wrap {
   min-height: 720px;
 }
 
-.etax-declaration-pdf-preview .etax-pdf-preview-frame {
+.etax-chromeless-pdf-preview .etax-pdf-preview-frame {
   min-height: 720px;
 }
 
@@ -3658,23 +3658,23 @@
   margin-bottom: 0;
 }
 
-.etax-declaration-pdf-preview .etax-pdf-chromeless-wrap {
+.etax-chromeless-pdf-preview .etax-pdf-chromeless-wrap {
   min-height: 720px;
 }
 
-.etax-declaration-pdf-preview .etax-pdf-chromeless {
+.etax-chromeless-pdf-preview .etax-pdf-chromeless {
   min-height: 720px;
-  background: #fff;
-  padding: 0;
+  background: #fafbfd;
+  padding: 16px 20px;
 }
 
-.etax-declaration-pdf-preview .etax-pdf-chromeless-page {
+.etax-chromeless-pdf-preview .etax-pdf-chromeless-page {
   display: block;
   width: 100%;
   max-width: 100%;
-  margin: 0;
+  margin: 0 auto;
   background: #fff;
-  box-shadow: none;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.07);
 }
 
 .etax-record-main-form .ant-select {

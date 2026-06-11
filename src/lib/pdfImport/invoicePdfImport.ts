@@ -147,7 +147,8 @@ export function parseAltInvoiceFileName(fileName: string): {
 
 export function parseCompactInvoiceFileName(fileName: string): {
   digital_invoice_no: string
-  buyer_name: string | null
+  /** 紧凑文件名中的公司名一般为开票方（销方） */
+  seller_name: string | null
 } | null {
   const base = basenameOf(fileName)
   if (INVOICE_FILE_RE.test(base) || ALT_INVOICE_FILE_RE.test(base)) return null
@@ -155,7 +156,7 @@ export function parseCompactInvoiceFileName(fileName: string): {
   if (!m) return null
   return {
     digital_invoice_no: m[2],
-    buyer_name: m[1]?.trim() || null,
+    seller_name: m[1]?.trim() || null,
   }
 }
 
@@ -205,8 +206,8 @@ export function parseInvoiceFileNameHints(fileName: string): InvoiceFileNameHint
       pattern: 'compact',
       digital_invoice_no: fromCompact.digital_invoice_no,
       invoice_number: fromCompact.digital_invoice_no,
-      buyer_name: fromCompact.buyer_name,
-      seller_name: null,
+      buyer_name: null,
+      seller_name: fromCompact.seller_name,
       invoice_type: null,
       issue_date: null,
     }
@@ -300,7 +301,7 @@ function partyNameMatchesHint(partyName: string, hint: string | null | undefined
   return party.includes(target) || target.includes(party)
 }
 
-/** 开票人块默认销方在前；若与文件名销/购方不一致则交换 */
+/** 开票人块默认销方在前；仅 dzfp 文件名（购方名）与块顺序冲突时交换 */
 function orientIssuerBlockParties(
   firstName: string,
   firstTaxId: string,
@@ -308,30 +309,33 @@ function orientIssuerBlockParties(
   secondTaxId: string,
   hints?: InvoiceFileNameHints | null,
 ): Pick<InvoiceFieldBlock, 'seller_name' | 'seller_tax_id' | 'buyer_name' | 'buyer_tax_id'> {
-  let sellerName = firstName.replace(/\s+/g, ' ').trim()
-  let sellerTaxId = firstTaxId
-  let buyerName = secondName.replace(/\s+/g, ' ').trim()
-  let buyerTaxId = secondTaxId
+  const first = {
+    name: firstName.replace(/\s+/g, ' ').trim(),
+    taxId: firstTaxId,
+  }
+  const second = {
+    name: secondName.replace(/\s+/g, ' ').trim(),
+    taxId: secondTaxId,
+  }
 
-  const secondIsSeller =
-    partyNameMatchesHint(secondName, hints?.seller_name) ||
-    partyNameMatchesHint(firstName, hints?.buyer_name)
-  const firstIsSeller =
-    partyNameMatchesHint(firstName, hints?.seller_name) ||
-    partyNameMatchesHint(secondName, hints?.buyer_name)
+  let seller = first
+  let buyer = second
 
-  if (secondIsSeller && !firstIsSeller) {
-    sellerName = secondName.replace(/\s+/g, ' ').trim()
-    sellerTaxId = secondTaxId
-    buyerName = firstName.replace(/\s+/g, ' ').trim()
-    buyerTaxId = firstTaxId
+  if (hints?.pattern === 'dzfp' && hints.buyer_name) {
+    const firstIsBuyer =
+      partyNameMatchesHint(first.name, hints.buyer_name) &&
+      !partyNameMatchesHint(second.name, hints.buyer_name)
+    if (firstIsBuyer) {
+      seller = second
+      buyer = first
+    }
   }
 
   return {
-    seller_name: sellerName,
-    seller_tax_id: sellerTaxId,
-    buyer_name: buyerName,
-    buyer_tax_id: buyerTaxId,
+    seller_name: seller.name,
+    seller_tax_id: seller.taxId,
+    buyer_name: buyer.name,
+    buyer_tax_id: buyer.taxId,
   }
 }
 

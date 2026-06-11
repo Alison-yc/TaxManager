@@ -91,12 +91,11 @@ export function InvoiceRecordPreview() {
               导出
             </Button>
           </div>
-          <div className="vat-preview-frame etax-record-preview-frame etax-pdf-preview-shell">
+          <div className="vat-preview-frame etax-record-preview-frame etax-chromeless-pdf-preview">
             <PdfEmbedViewer
               storagePath={row.storage_path}
               fileName={row.source_file_name}
               showDownload={false}
-              chromeless={false}
             />
           </div>
         </section>

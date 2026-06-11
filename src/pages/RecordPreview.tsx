@@ -303,7 +303,7 @@ export function RecordPreview({ variant = 'declaration' }: { variant?: PreviewVa
               导出
             </Button>
           </div>
-          <div className="vat-preview-frame etax-record-preview-frame etax-declaration-pdf-preview">
+          <div className="vat-preview-frame etax-record-preview-frame etax-chromeless-pdf-preview">
             <PdfEmbedViewer
               storagePath={pdfStoragePath}
               fileName={pdfFileName}

@@ -92,6 +92,7 @@ function parseInvoiceFileNameHints(fileName) {
         ? `${stamp.slice(0, 4)}-${stamp.slice(4, 6)}-${stamp.slice(6, 8)}`
         : null
     return {
+      pattern: 'dzfp',
       digital_invoice_no: dzfp[1],
       buyer_name: dzfp[2]?.trim() || null,
       seller_name: null,
@@ -108,6 +109,7 @@ function parseInvoiceFileNameHints(fileName) {
         ? '数电发票（普通发票）'
         : normalizeInvoiceType(`电子发票（${label}）`)
     return {
+      pattern: 'alt',
       digital_invoice_no: alt[3],
       buyer_name: null,
       seller_name: alt[1]?.trim() || null,
@@ -118,14 +120,46 @@ function parseInvoiceFileNameHints(fileName) {
   const compact = base.match(COMPACT_INVOICE_FILE_RE)
   if (compact) {
     return {
+      pattern: 'compact',
       digital_invoice_no: compact[2],
-      buyer_name: compact[1]?.trim() || null,
-      seller_name: null,
+      buyer_name: null,
+      seller_name: compact[1]?.trim() || null,
       invoice_type: null,
       issue_date: null,
     }
   }
   return null
+}
+function compactPartyName(value) {
+  return value.replace(/\s+/g, '').replace(/[（）()]/g, '')
+}
+function partyNameMatchesHint(partyName, hint) {
+  if (!hint?.trim()) return false
+  const party = compactPartyName(partyName)
+  const target = compactPartyName(hint)
+  if (!party || !target) return false
+  return party.includes(target) || target.includes(party)
+}
+function orientIssuerBlockParties(firstName, firstTaxId, secondName, secondTaxId, hints) {
+  const first = { name: firstName.replace(/\s+/g, ' ').trim(), taxId: firstTaxId }
+  const second = { name: secondName.replace(/\s+/g, ' ').trim(), taxId: secondTaxId }
+  let seller = first
+  let buyer = second
+  if (hints?.pattern === 'dzfp' && hints.buyer_name) {
+    const firstIsBuyer =
+      partyNameMatchesHint(first.name, hints.buyer_name) &&
+      !partyNameMatchesHint(second.name, hints.buyer_name)
+    if (firstIsBuyer) {
+      seller = second
+      buyer = first
+    }
+  }
+  return {
+    seller_name: seller.name,
+    seller_tax_id: seller.taxId,
+    buyer_name: buyer.name,
+    buyer_tax_id: buyer.taxId,
+  }
 }
 function extractInvoiceTypeFromText(text) {
   for (const p of [/(数电发票（[^）]+）)/, /(电子发票（[^）]+）)/, /(增值税专用发票)/]) {
@@ -185,7 +219,8 @@ function parsePrefaceInvoiceBlock(text) {
     issuer: extractIssuerFromText(text),
   }
 }
-function parseDigitalInvoiceBlock(text) {
+function parseDigitalInvoiceBlock(text, fileName) {
+  const hints = fileName ? parseInvoiceFileNameHints(fileName) : null
   const headerMatch = text.match(
     new RegExp(`${ISSUER_LABEL}${ISSUER_BLOCK_SKIP}(${ISSUER_INVOICE_NO})\\s+(${FLEX_ISSUE_DATE})\\s+(.*)`, 's'),
   )
@@ -195,9 +230,16 @@ function parseDigitalInvoiceBlock(text) {
     new RegExp(`^(${PARTY_NAME})\\s+${SPACED_TAX_ID}\\s+(${PARTY_NAME})\\s+${SPACED_TAX_ID}`),
   )
   if (!parties) return null
-  const sellerTaxId = compactTaxId(parties[2])
-  const buyerTaxId = compactTaxId(parties[4])
-  if (sellerTaxId.length < 15 || buyerTaxId.length < 15) return null
+  const firstTaxId = compactTaxId(parties[2])
+  const secondTaxId = compactTaxId(parties[4])
+  if (firstTaxId.length < 15 || secondTaxId.length < 15) return null
+  const oriented = orientIssuerBlockParties(
+    parties[1],
+    firstTaxId,
+    parties[3],
+    secondTaxId,
+    hints,
+  )
   const afterParties = rest.slice(parties[0].length)
   const yenAmounts = extractYenAmounts(afterParties)
   if (yenAmounts.length < 2) return null
@@ -205,10 +247,10 @@ function parseDigitalInvoiceBlock(text) {
   return {
     digital_invoice_no: compactDigitRun(headerMatch[1]),
     issue_date: parseIssuerBlockIssueDate(headerMatch[2]),
-    seller_name: parties[1].replace(/\s+/g, ' ').trim(),
-    seller_tax_id: sellerTaxId,
-    buyer_name: parties[3].replace(/\s+/g, ' ').trim(),
-    buyer_tax_id: buyerTaxId,
+    seller_name: oriented.seller_name,
+    seller_tax_id: oriented.seller_tax_id,
+    buyer_name: oriented.buyer_name,
+    buyer_tax_id: oriented.buyer_tax_id,
     amount: yenAmounts[0],
     tax_amount: yenAmounts[1],
     total_amount:
@@ -301,7 +343,7 @@ function coalesceMoney(...vals) {
 }
 function parseInvoice(text, fileName) {
   const hints = parseInvoiceFileNameHints(fileName)
-  const block = parseDigitalInvoiceBlock(text) ?? parsePrefaceInvoiceBlock(text)
+  const block = parseDigitalInvoiceBlock(text, fileName) ?? parsePrefaceInvoiceBlock(text)
   const invoice_type = coalesceText(extractInvoiceTypeFromText(text), hints?.invoice_type)
   const digitalNo = coalesceText(block?.digital_invoice_no, hints?.digital_invoice_no)
   return {
@@ -459,12 +501,31 @@ function assertLayoutRegression() {
   if (!block?.seller_tax_id || !block?.buyer_name || block.issue_date !== '2025-12-03') {
     throw new Error(`ISO 日期版式解析失败: ${JSON.stringify(block)}`)
   }
+  if (!block.seller_name.includes('山东丰源') || !block.buyer_name.includes('河北镁神')) {
+    throw new Error(`ISO 日期版式购销方方向错误: ${JSON.stringify(block)}`)
+  }
 
   const mitaiText =
     '开票人：  电子发票（增值税专用发票） 发票号码： 开票日期： 25132000000092994521 2025年05月31日  河北镁泰镁质材料有限公司  911305310954895067  河北镁神科技股份有限公司  911305316610547945  ¥ 7921.62   ¥ 1029.79  捌仟玖佰伍拾壹圆肆角壹分   ¥ 8951.41  韩海燕  *塑料制品*白包装55*85   13% 条   3.5946902654867 400   1437.88   186.92'
-  const mitaiBlock = parseDigitalInvoiceBlock(mitaiText)
+  const mitaiBlock = parseDigitalInvoiceBlock(
+    mitaiText,
+    '河北镁泰镁质材料有限公司_数电票（专用发票）_25132000000092994521.pdf',
+  )
   if (!mitaiBlock?.seller_tax_id || !mitaiBlock?.buyer_name || mitaiBlock.issue_date !== '2025-05-31') {
     throw new Error(`镁泰模板票头解析失败: ${JSON.stringify(mitaiBlock)}`)
+  }
+  if (!mitaiBlock.seller_name.includes('镁泰') || !mitaiBlock.buyer_name.includes('镁神')) {
+    throw new Error(`镁泰模板购销方方向错误: ${JSON.stringify(mitaiBlock)}`)
+  }
+
+  const jilinText =
+    '开票人：  25132000000117465784 2025年07月08日  吉林金恒制药股份有限公司  91220201064629684x  河北镁神科技股份有限公司  911305316610547945  ¥ 1061.95   ¥ 138.05  壹仟贰佰圆整   ¥ 1200.00  韩海燕  *无机化学原料*氧化镁   13% 吨   1061.95   138.05 13274.375 0.08'
+  const jilinBlock = parseDigitalInvoiceBlock(
+    jilinText,
+    '吉林金恒制药股份有限公司_数电票（专用发票）_25132000000117465784.pdf',
+  )
+  if (!jilinBlock?.seller_name?.includes('吉林金恒') || !jilinBlock?.buyer_name?.includes('镁神')) {
+    throw new Error(`吉林金恒购销方方向错误: ${JSON.stringify(jilinBlock)}`)
   }
 }
 
