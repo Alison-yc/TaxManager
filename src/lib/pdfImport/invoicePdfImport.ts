@@ -1127,7 +1127,10 @@ function splitLineItemNameAndSpec(
   explicitSpec?: string | null,
 ): { item_name: string; spec: string | null } {
   const cleanCategory = category.trim().replace(/[\s\u00a0]+/g, '')
-  let cleanName = rawName.replace(/\s+/g, ' ').trim()
+  let cleanName = rawName
+    .replace(/([\u4e00-\u9fa5])[\s\u00a0]+(?=[\u4e00-\u9fa5])/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim()
   let spec = explicitSpec?.trim() || null
 
   if (!spec) {
@@ -1164,6 +1167,8 @@ function isLikelyUnit(value: string): boolean {
   if (money != null && /^[\d\s\u00a0.,]+$/.test(trimmed)) return false
   return true
 }
+
+const KNOWN_UNIT_PATTERN = '(?:KWH|kwh|kg|KG|千克|公斤|立方米|吨|个|件|套|条|项)'
 
 /** 数电票明细大类通常仅为中文/字母，PDF.js 可能在字间插空格 */
 const LINE_ITEM_CATEGORY = '[\\u4e00-\\u9fa5A-Za-z（）()·\\s]{2,40}'
@@ -1226,19 +1231,20 @@ function findDigitalLineItemPrefixes(text: string): ParsedLinePrefix[] {
   }
 
   const amountPattern = new RegExp(
-    `\\*\\s*(${LINE_ITEM_CATEGORY}?)\\s*\\*\\s*(.+?)\\s+(\\S+)\\s+(?=[¥￥])`,
+    `\\*\\s*(${LINE_ITEM_CATEGORY}?)\\s*\\*\\s*(.+?)\\s+(${KNOWN_UNIT_PATTERN})(?:\\s+([\\u4e00-\\u9fa5A-Za-z0-9（）()·-]{1,20}))?\\s+(?=[¥￥])`,
     'g',
   )
   while ((match = amountPattern.exec(text)) !== null) {
     if (!isLikelyLineItemCategory(match[1])) continue
-    if (!isLikelyUnit(match[3])) continue
     const tailStart = match.index + match[0].length
     const tailSlice = text.slice(tailStart)
     const tailEnd = tailSlice.search(
       /(?:\*\s*[^*]+?\s*\*|收\s*款\s*人|复\s*核\s*人|购\s*方|销\s*方|购买方|销售方)/,
     )
     const numericTail = (tailEnd >= 0 ? tailSlice.slice(0, tailEnd) : tailSlice).trim()
-    const item = splitLineItemNameAndSpec(match[1], match[2])
+    const suffix = match[4]?.trim() ?? ''
+    const rawName = suffix ? `${match[2]}${suffix}` : match[2]
+    const item = splitLineItemNameAndSpec(match[1], rawName)
     items.push({
       item_name: item.item_name,
       spec: item.spec,

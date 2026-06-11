@@ -579,7 +579,10 @@ function looksLikeSpecToken(value) {
 }
 function splitLineItemNameAndSpec(category, rawName, explicitSpec = null) {
   const cleanCategory = category.trim().replace(/[\s\u00a0]+/g, '')
-  let cleanName = rawName.replace(/\s+/g, ' ').trim()
+  let cleanName = rawName
+    .replace(/([\u4e00-\u9fa5])[\s\u00a0]+(?=[\u4e00-\u9fa5])/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim()
   let spec = explicitSpec?.trim() || null
   if (!spec) {
     const m = cleanName.match(/^(.+?)\s+([A-Za-z0-9][A-Za-z0-9/\\\-*（）()·\u4e00-\u9fa5]{0,40})$/)
@@ -598,6 +601,7 @@ function normalizeSpecAndTaxRate(rawSpec, rawTaxRate) {
   }
   return { spec, tax_rate: normalizeTaxRateDisplay(rawTaxRate) }
 }
+const KNOWN_UNIT_PATTERN = '(?:KWH|kwh|kg|KG|千克|公斤|立方米|吨|个|件|套|条|项)'
 function expandDecimalCandidates(digitStr) {
   if (!digitStr) return []
   const results = new Set()
@@ -672,15 +676,19 @@ function parseLineItemPrefix(section) {
       numericTail: serviceLine[4].trim(),
     }
   }
-  const amountLine = section.match(/^\*\s*([^*]+?)\s*\*\s*(.+?)\s+(\S+)\s+(?=[¥￥])(.+)$/)
+  const amountLine = section.match(
+    new RegExp(`^\\*\\s*([^*]+?)\\s*\\*\\s*(.+?)\\s+(${KNOWN_UNIT_PATTERN})(?:\\s+([\\u4e00-\\u9fa5A-Za-z0-9（）()·-]{1,20}))?\\s+(?=[¥￥])(.+)$`),
+  )
   if (amountLine) {
-    const item = splitLineItemNameAndSpec(amountLine[1], amountLine[2])
+    const suffix = amountLine[4]?.trim() ?? ''
+    const rawName = suffix ? `${amountLine[2]}${suffix}` : amountLine[2]
+    const item = splitLineItemNameAndSpec(amountLine[1], rawName)
     return {
       item_name: item.item_name,
       spec: item.spec,
       tax_rate: null,
       unit: amountLine[3].trim(),
-      numericTail: amountLine[4].trim(),
+      numericTail: amountLine[5].trim(),
     }
   }
   return null
