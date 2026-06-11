@@ -62,6 +62,7 @@ function isPlaceholderFieldValue(value: string): boolean {
   if (!trimmed) return true
   if (/^[—–\-－]+$/.test(trimmed)) return true
   if (trimmed === 'null' || trimmed === 'undefined') return true
+  if (/[壹贰叁肆伍陆柒捌玖拾佰仟万亿元整角分]/.test(trimmed) && trimmed.length > 4) return true
   return false
 }
 

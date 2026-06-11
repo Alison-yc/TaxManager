@@ -15,6 +15,8 @@ const INVOICE_FILE_RE =
   /^dzfp_(\d{10,30})_(.+?)_(?:[\d,.]+_)?(\d{4}-\d{2}-\d{2}|\d{14})(?:\[单一发票\])?(?:\s*\(\d+\))?\.pdf$/i
 const ALT_INVOICE_FILE_RE =
   /^(.+?)_数电(?:发票|票)[（(]([^）)]+)[）)]_(\d{20})\.pdf$/i
+const COMPACT_INVOICE_FILE_RE =
+  /^(.+?)(\d{20})(?:\s*[-–—]\s*副本)?\.pdf$/i
 
 const ISSUER_LABEL = '开\\s*票\\s*人[：:\\s]*'
 const ISSUER_INVOICE_NO =
@@ -103,6 +105,16 @@ function parseInvoiceFileNameHints(fileName) {
       issue_date: null,
     }
   }
+  const compact = base.match(COMPACT_INVOICE_FILE_RE)
+  if (compact) {
+    return {
+      digital_invoice_no: compact[2],
+      buyer_name: compact[1]?.trim() || null,
+      seller_name: null,
+      invoice_type: null,
+      issue_date: null,
+    }
+  }
   return null
 }
 function extractInvoiceTypeFromText(text) {
@@ -118,6 +130,50 @@ function extractYenAmounts(text) {
   return [...text.matchAll(YEN_MONEY_PATTERN)]
     .map((m) => parseMoney(m[1]))
     .filter((v) => v != null)
+}
+function isLikelyIssuerName(value) {
+  const t = value.trim()
+  if (t.length < 2 || t.length > 4) return false
+  if (/[壹贰叁肆伍陆柒捌玖拾佰仟万亿元整角分]/.test(t)) return false
+  return /^[\u4e00-\u9fa5·]+$/.test(t)
+}
+function extractIssuerFromText(text) {
+  const beforeLabel = text.match(/([\u4e00-\u9fa5·]{2,4})\s+开\s*票\s*人[：:\s]/)
+  if (beforeLabel && isLikelyIssuerName(beforeLabel[1])) return beforeLabel[1].trim()
+  for (const pattern of [
+    /[¥￥][^¥]+\s+([\u4e00-\u9fa5·]{2,4})\s+\*/,
+    /[¥￥][^¥]+\s+([\u4e00-\u9fa5·]{2,4})(?=\s*收|$)/,
+  ]) {
+    const m = text.match(pattern)
+    if (m?.[1] && isLikelyIssuerName(m[1])) return m[1].trim()
+  }
+  return null
+}
+function parsePrefaceInvoiceBlock(text) {
+  const head = text.slice(0, 600)
+  const block = head.match(
+    new RegExp(
+      `([\\u4e00-\\u9fa5A-Za-z0-9（）()·\\s]+?)\\s+(${FLEX_CN_DATE})\\s+${SPACED_TAX_ID}\\s+(\\d{20})\\s+${SPACED_TAX_ID}\\s+([\\u4e00-\\u9fa5A-Za-z0-9（）()·\\s]+?)\\s+国家税务总局`,
+    ),
+  )
+  if (!block) return null
+  const sellerTaxId = compactTaxId(block[3])
+  const buyerTaxId = compactTaxId(block[5])
+  if (sellerTaxId.length < 15 || buyerTaxId.length < 15) return null
+  const yenAmounts = extractYenAmounts(text)
+  if (yenAmounts.length < 3) return null
+  return {
+    digital_invoice_no: block[4],
+    issue_date: parseCnDateToIso(block[2]),
+    seller_name: block[1].replace(/\s+/g, ' ').trim(),
+    seller_tax_id: sellerTaxId,
+    buyer_name: block[6].replace(/\s+/g, ' ').trim(),
+    buyer_tax_id: buyerTaxId,
+    amount: yenAmounts[0],
+    tax_amount: yenAmounts[1],
+    total_amount: yenAmounts[2],
+    issuer: extractIssuerFromText(text),
+  }
 }
 function parseDigitalInvoiceBlock(text) {
   const headerMatch = text.match(
@@ -135,9 +191,7 @@ function parseDigitalInvoiceBlock(text) {
   const afterParties = rest.slice(parties[0].length)
   const yenAmounts = extractYenAmounts(afterParties)
   if (yenAmounts.length < 3) return null
-  const issuer =
-    afterParties.match(/[¥￥][^¥]+\s+([\u4e00-\u9fa5·]{2,20})\s+\*/)?.[1] ??
-    afterParties.match(/[¥￥][^¥]+\s+([\u4e00-\u9fa5·]{2,20})(?=\s*收|$)/)?.[1]
+  const issuer = extractIssuerFromText(afterParties) ?? extractIssuerFromText(text)
   if (!issuer) return null
   return {
     digital_invoice_no: compactDigitRun(headerMatch[1]),
@@ -166,7 +220,7 @@ function coalesceMoney(...vals) {
 }
 function parseInvoice(text, fileName) {
   const hints = parseInvoiceFileNameHints(fileName)
-  const block = parseDigitalInvoiceBlock(text)
+  const block = parseDigitalInvoiceBlock(text) ?? parsePrefaceInvoiceBlock(text)
   const invoice_type = coalesceText(extractInvoiceTypeFromText(text), hints?.invoice_type)
   const digitalNo = coalesceText(block?.digital_invoice_no, hints?.digital_invoice_no)
   return {
@@ -193,6 +247,7 @@ function isInvoicePdfName(fileName) {
   return (
     INVOICE_FILE_RE.test(base) ||
     ALT_INVOICE_FILE_RE.test(base) ||
+    COMPACT_INVOICE_FILE_RE.test(base) ||
     /数电(?:发票|票)/.test(base) ||
     base.startsWith('dzfp_')
   )
