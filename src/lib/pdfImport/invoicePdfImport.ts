@@ -255,6 +255,178 @@ function pick(text: string, patterns: RegExp[]): string | null {
   return null
 }
 
+const REMARK_FIELD_LABEL =
+  '购买方地址|销售方地址|购方地址|销方地址|购方开户银行|购买方开户银行|销方开户银行|销售方开户银行|银行账号|电话|收款人|复核人|订单号|被红冲蓝字数电票号码'
+
+function remarkSearchRegion(text: string): string {
+  const yenMatches = [...text.matchAll(YEN_MONEY_PATTERN)]
+  if (yenMatches.length === 0) return text
+  const last = yenMatches[yenMatches.length - 1]
+  return text.slice(last.index! + last[0].length)
+}
+
+function normalizeRemarkLabelSpacing(text: string): string {
+  return text
+    .replace(/购\s*买\s*方\s*地\s*址/g, '购买方地址')
+    .replace(/销\s*售\s*方\s*地\s*址/g, '销售方地址')
+    .replace(/购\s*方\s*地\s*址/g, '购方地址')
+    .replace(/销\s*方\s*地\s*址/g, '销方地址')
+    .replace(/购\s*方\s*开\s*户\s*银\s*行/g, '购方开户银行')
+    .replace(/购\s*买\s*方\s*开\s*户\s*银\s*行/g, '购买方开户银行')
+    .replace(/销\s*方\s*开\s*户\s*银\s*行/g, '销方开户银行')
+    .replace(/销\s*售\s*方\s*开\s*户\s*银\s*行/g, '销售方开户银行')
+    .replace(/银\s*行\s*账\s*号/g, '银行账号')
+    .replace(/收\s*款\s*人/g, '收款人')
+    .replace(/复\s*核\s*人/g, '复核人')
+    .replace(/订\s*单\s*号/g, '订单号')
+    .replace(/备\s*注/g, '备注')
+}
+
+function formatRemarkSegment(label: string, value: string): string {
+  const normalizedValue =
+    label === '银行账号'
+      ? value.replace(/[\s\u00a0]/g, '').trim()
+      : value.replace(/\s+/g, ' ').trim()
+  if (!normalizedValue) return ''
+  return `${label}:${normalizedValue.replace(/^[：:\s]+/, '')}`
+}
+
+function parseRemarkFieldSegments(region: string): string[] {
+  const re = new RegExp(`(?:${REMARK_FIELD_LABEL})[：:\\s]+([^;；]+)`, 'gi')
+  const segments: string[] = []
+  const seen = new Set<string>()
+  let match: RegExpExecArray | null
+  while ((match = re.exec(region)) !== null) {
+    const full = match[0]
+    const labelMatch = full.match(new RegExp(`^(${REMARK_FIELD_LABEL})`, 'i'))
+    const label = labelMatch?.[1] ?? ''
+    const rawValue = match[1]?.trim() ?? ''
+    if (!label || !rawValue) continue
+    if (rawValue.includes('*') || isChineseUppercaseAmount(rawValue)) continue
+    const formatted = formatRemarkSegment(label, rawValue)
+    if (!formatted || seen.has(formatted)) continue
+    seen.add(formatted)
+    segments.push(formatted)
+  }
+  return segments
+}
+
+function extractTrailingRemarkCode(region: string): string | null {
+  const match = region.match(/(?:[;；\s]+)([A-Z][A-Z0-9-]{5,})\s*$/)
+  return match?.[1] ?? null
+}
+
+function stripRemarkFooter(text: string): string {
+  return text
+    .replace(/\s*共\s*\d+\s*页\s*第\s*\d+\s*页\s*$/g, '')
+    .replace(/\s*第\s*\d+\s*页\s*\/\s*共\s*\d+\s*页\s*$/g, '')
+    .trim()
+}
+
+function normalizeRemarkText(text: string): string {
+  return stripRemarkFooter(text)
+    .replace(/\s*([:：])\s*/g, ':')
+    .replace(/\s*([;；])\s*/g, '; ')
+    .replace(/\s+/g, ' ')
+    .replace(/(?:;\s*)+$/g, '')
+    .trim()
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function stripIssuerPrefix(region: string, issuer?: string | null): string {
+  const trimmed = region.trimStart()
+  if (issuer) {
+    return trimmed.replace(new RegExp(`^${escapeRegExp(issuer).replace(/\s+/g, '\\s*')}\\s+`), '')
+  }
+  return trimmed.replace(/^[\u4e00-\u9fa5·]{2,4}\s+/, '')
+}
+
+function stripLeadingLineItemRows(region: string): string {
+  let rest = region
+  const compactNumber = '[-+]?\\d+(?:\\.\\d+)?'
+  const rowNumber = '[-+]?(?:\\d[\\s\\u00a0]*)+(?:\\.[\\s\\u00a0]*(?:\\d[\\s\\u00a0]*)+)?'
+  const taxRate = '(?:(?:\\d[\\s\\u00a0]*){1,2}%|\\*|免税)'
+  const compactLineItemRow = new RegExp(
+    `^\\s*\\*[^*]+\\*[\\s\\S]*?${taxRate}\\s+(?:(?!\\*)\\S+\\s+)?(?:${compactNumber}\\s+){3}${compactNumber}\\s*`,
+  )
+  const spacedLineItemRow = new RegExp(
+    `^\\s*\\*[^*]+\\*[\\s\\S]*?${taxRate}\\s+(?:(?!\\*)\\S+\\s+)?(?:${rowNumber}\\s+){3}${rowNumber}\\s*`,
+  )
+
+  while (/^\s*\*/.test(rest)) {
+    const compactNext = rest.replace(compactLineItemRow, '')
+    const next = compactNext !== rest ? compactNext : rest.replace(spacedLineItemRow, '')
+    if (next === rest) break
+    rest = next
+  }
+
+  return rest
+}
+
+function extractRemarkArea(region: string, issuer?: string | null): string | null {
+  const withoutIssuer = stripIssuerPrefix(region, issuer)
+  const area = normalizeRemarkText(stripLeadingLineItemRows(withoutIssuer))
+  if (!area) return null
+  if (area.includes('*')) return null
+  if (isLikelyIssuerName(area) || isChineseUppercaseAmount(area)) return null
+  return area
+}
+
+function extractFreeRemarkTail(region: string, issuer?: string | null): string | null {
+  let tail = region.trimStart()
+  if (issuer) {
+    tail = tail.replace(new RegExp(`^${issuer.replace(/\s+/g, '\\s*')}\\s+`), '')
+  } else {
+    tail = tail.replace(/^[\u4e00-\u9fa5·]{2,4}\s+/, '')
+  }
+
+  const afterLineItem = tail.match(
+    /\*[^*]+\*[\s\S]*?\d(?:\.\d+)?\s+([\u4e00-\u9fa5][\u4e00-\u9fa5A-Za-z0-9（）()·,\s]{1,60})\s*$/,
+  )
+  if (afterLineItem?.[1]) {
+    const note = afterLineItem[1].replace(/\s+/g, ' ').trim()
+    if (note.length >= 2 && !isLikelyIssuerName(note) && !isChineseUppercaseAmount(note)) {
+      return note
+    }
+  }
+
+  return null
+}
+
+/** 从 PDF 正文提取备注（银行/地址/收款人/复核人等），排除开票人姓名误匹配 */
+export function extractInvoiceRemarkFromText(
+  text: string,
+  issuer?: string | null,
+): string | null {
+  const region = normalizeRemarkLabelSpacing(remarkSearchRegion(text))
+  const area = extractRemarkArea(region, issuer)
+  if (area) return area
+
+  const segments = parseRemarkFieldSegments(region)
+
+  const trailingCode = extractTrailingRemarkCode(region)
+  if (trailingCode) segments.push(trailingCode)
+
+  if (segments.length === 0) {
+    const free = extractFreeRemarkTail(region, issuer)
+    if (free) segments.push(free)
+  }
+
+  const explicit = region.match(/备注[：:\s]+([^;；\n\r]{2,200})/)
+  if (explicit?.[1]) {
+    const cleaned = explicit[1].replace(/\s+/g, ' ').trim()
+    if (cleaned && !cleaned.includes('*') && !isChineseUppercaseAmount(cleaned)) {
+      segments.unshift(cleaned)
+    }
+  }
+
+  if (segments.length === 0) return null
+  return segments.join('; ')
+}
+
 function sanitizeLineItem(item: InvoiceLineItem): InvoiceLineItem {
   return {
     ...item,
@@ -569,7 +741,11 @@ function hasTaxExemptTaxAmountMarker(text: string): boolean {
 }
 
 function isChineseUppercaseAmount(value: string): boolean {
-  return /[壹贰叁肆伍陆柒捌玖拾佰仟万亿元整角分]/.test(value)
+  if (!/[壹贰叁肆伍陆柒捌玖拾佰仟万]/.test(value)) return false
+  return (
+    /[壹贰叁肆伍陆柒捌玖拾佰仟万]{2,}/.test(value) ||
+    (/[壹贰叁肆伍陆柒捌玖拾佰仟万]/.test(value) && /[圆整角]/.test(value))
+  )
 }
 
 function isLikelyIssuerName(value: string): boolean {
@@ -1156,7 +1332,7 @@ function interpretDigitalLineItemRow(
 }
 
 function parseDigitalLineItem(text: string, header: ParsedInvoicePdf): InvoiceLineItem[] {
-  const remark = text.match(/[\d,.]+\s+([\u4e00-\u9fa5\d]{2,40})\s*$/)?.[1] ?? header.remark
+  const remark = header.remark
   const items: InvoiceLineItem[] = []
 
   for (const prefix of findDigitalLineItemPrefixes(text)) {
@@ -1345,9 +1521,7 @@ export function parseInvoicePdfText(text: string, fileName: string): ParsedInvoi
     amount: coalesceOptionalMoney(pdfBlock?.amount, amountTriplet.amount),
     tax_amount: coalesceOptionalMoney(pdfBlock?.tax_amount, amountTriplet.tax_amount),
     total_amount: coalesceOptionalMoney(pdfBlock?.total_amount, amountTriplet.total_amount),
-    remark:
-      text.match(/[\d,.]+\s+([\u4e00-\u9fa5\d]{2,40})\s*$/)?.[1] ??
-      pick(text, [/备注[：:\s]*([^\n\r]{2,120})/]),
+    remark: extractInvoiceRemarkFromText(text, pdfIssuer),
     business_type: pick(text, [/特定业务类型[：:\s]*([^\n\r]+)/]) || null,
     line_items: [],
   }

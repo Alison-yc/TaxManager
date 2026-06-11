@@ -31,8 +31,9 @@ export type ReparseAllInvoiceResult = {
 
 export type ReparseMode = 'full' | 'missing'
 
-const REPARSE_FETCH_BATCH = 50
-const DEFAULT_REPARSE_CONCURRENCY = 1
+const REPARSE_FETCH_BATCH = 100
+const DEFAULT_REPARSE_CONCURRENCY = 3
+const REPARSE_PROGRESS_REPORT_INTERVAL = 10
 
 type InvoiceRecordForReparse = Pick<
   InvoiceRecordRow,
@@ -420,7 +421,7 @@ export async function reparseAllInvoiceRecords(options?: {
   ) => void
 }): Promise<ReparseAllInvoiceResult> {
   const mode = options?.mode ?? 'missing'
-  const concurrency = options?.concurrency ?? DEFAULT_REPARSE_CONCURRENCY
+  const concurrency = Math.max(1, Math.min(options?.concurrency ?? DEFAULT_REPARSE_CONCURRENCY, 4))
   resetReparseFailureLog()
 
   const total = await countInvoiceRecordsForReparse()
@@ -432,7 +433,15 @@ export async function reparseAllInvoiceRecords(options?: {
   let reparseDone = 0
   const failureItems: ReparseInvoiceResult[] = []
 
-  const reportProgress = () => {
+  const reportProgress = (force = false) => {
+    if (
+      !force &&
+      done < total &&
+      reparseDone < reparseTotal &&
+      reparseDone % REPARSE_PROGRESS_REPORT_INTERVAL !== 0
+    ) {
+      return
+    }
     options?.onProgress?.(done, total, {
       skipped,
       pending: Math.max(reparseTotal - reparseDone, 0),
@@ -441,7 +450,7 @@ export async function reparseAllInvoiceRecords(options?: {
     })
   }
 
-  reportProgress()
+  reportProgress(true)
 
   for (let from = 0; from < total; from += REPARSE_FETCH_BATCH) {
     const batch = await fetchInvoiceRecordBatch(from, from + REPARSE_FETCH_BATCH - 1)
@@ -457,7 +466,7 @@ export async function reparseAllInvoiceRecords(options?: {
     }
 
     reparseTotal += toReparse.length
-    reportProgress()
+    reportProgress(true)
 
     await runWithConcurrency(toReparse, concurrency, async (row) => {
       const result = await reparseInvoiceRecord(row, {
