@@ -32,6 +32,11 @@ import {
   INVOICE_TYPE_OPTIONS,
 } from '../constants/invoiceQuery'
 import { exportInvoicesToExcel } from '../lib/invoiceExcelExport'
+import {
+  fetchAllInvoiceRecordsForExport,
+  fetchInvoiceRecordsForDisplay,
+  INVOICE_QUERY_DISPLAY_LIMIT,
+} from '../lib/invoiceRecordQuery'
 import { supabase } from '../lib/supabase'
 import type { InvoiceRecordRow } from '../types/database'
 
@@ -84,6 +89,7 @@ export function FullInvoiceQueryPage() {
   const [form] = Form.useForm<FilterShape>()
   const [rows, setRows] = useState<InvoiceRecordRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [exporting, setExporting] = useState(false)
   const [filtersExpanded, setFiltersExpanded] = useState(true)
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([])
   const [page, setPage] = useState(1)
@@ -105,37 +111,12 @@ export function FullInvoiceQueryPage() {
 
   const loadRows = useCallback(async () => {
     setLoading(true)
-    let q = supabase.from('invoice_records').select('*').order('issue_date', { ascending: false })
-    if (applied.digitalNo.trim()) q = q.ilike('digital_invoice_no', `%${applied.digitalNo.trim()}%`)
-    if (applied.invoiceCode.trim()) q = q.ilike('invoice_code', `%${applied.invoiceCode.trim()}%`)
-    if (applied.invoiceNumber.trim()) q = q.ilike('invoice_number', `%${applied.invoiceNumber.trim()}%`)
-    if (applied.counterpartyTaxId.trim()) {
-      q = q.or(
-        `buyer_tax_id.ilike.%${applied.counterpartyTaxId.trim()}%,seller_tax_id.ilike.%${applied.counterpartyTaxId.trim()}%`,
-      )
-    }
-    if (applied.counterpartyName.trim()) {
-      q = q.or(
-        `buyer_name.ilike.%${applied.counterpartyName.trim()}%,seller_name.ilike.%${applied.counterpartyName.trim()}%`,
-      )
-    }
-    if (applied.invoiceSource !== '全部') q = q.eq('invoice_source', applied.invoiceSource)
-    const invoiceStatus = applied.invoiceStatus?.trim()
-    if (invoiceStatus && invoiceStatus !== '全部') q = q.eq('invoice_status', invoiceStatus)
-    const isPositive = applied.isPositive?.trim()
-    if (isPositive && isPositive !== '全部') q = q.eq('is_positive', isPositive)
-    if (applied.invoiceType !== '全部') q = q.eq('invoice_type', applied.invoiceType)
-    if (applied.amountFrom != null) q = q.gte('total_amount', applied.amountFrom)
-    if (applied.amountTo != null) q = q.lte('total_amount', applied.amountTo)
-    if (applied.issueFrom) q = q.gte('issue_date', applied.issueFrom.startOf('day').toISOString())
-    if (applied.issueTo) q = q.lte('issue_date', applied.issueTo.endOf('day').toISOString())
-
-    const { data, error } = await q
+    const { data, error } = await fetchInvoiceRecordsForDisplay(applied)
     if (error) {
       void message.error(error.message)
       setRows([])
     } else {
-      setRows((data ?? []) as InvoiceRecordRow[])
+      setRows(data)
     }
     setLoading(false)
   }, [applied])
@@ -172,23 +153,67 @@ export function FullInvoiceQueryPage() {
 
   const exportRows = useCallback(
     (mode: 'selected' | 'all') => {
-      const target =
-        mode === 'selected'
-          ? rows.filter((r) => selectedRowKeys.includes(r.id))
-          : rows
-      if (target.length === 0) {
-        void message.warning('没有可导出的发票')
-        return
-      }
-      void exportInvoicesToExcel(target, '全量发票查询导出结果.xlsx')
-        .then(() => {
+      void (async () => {
+        if (mode === 'selected') {
+          const target = rows.filter((r) => selectedRowKeys.includes(r.id))
+          if (target.length === 0) {
+            void message.warning('没有可导出的发票')
+            return
+          }
+          setExporting(true)
+          try {
+            await exportInvoicesToExcel(target, '全量发票查询导出结果.xlsx')
+            void message.success(`已导出 ${target.length} 张发票`)
+          } catch (e: unknown) {
+            void message.error(e instanceof Error ? e.message : String(e))
+          } finally {
+            setExporting(false)
+          }
+          return
+        }
+
+        setExporting(true)
+        const progressRef: { hide?: () => void } = {}
+        const showProgress = (text: string) => {
+          progressRef.hide?.()
+          const closer = message.loading(text, 0)
+          progressRef.hide = () => {
+            closer()
+          }
+        }
+        const clearProgress = () => {
+          progressRef.hide?.()
+          progressRef.hide = undefined
+        }
+
+        try {
+          showProgress('正在加载发票数据…')
+          const target = await fetchAllInvoiceRecordsForExport(applied, {
+            onProgress: (loaded) => {
+              showProgress(`正在加载 ${loaded} 条发票…`)
+            },
+          })
+          clearProgress()
+
+          if (target.length === 0) {
+            void message.warning('没有可导出的发票')
+            return
+          }
+
+          showProgress(`正在生成 Excel（${target.length} 张）…`)
+          await exportInvoicesToExcel(target, '全量发票查询导出结果.xlsx')
+          clearProgress()
           void message.success(`已导出 ${target.length} 张发票`)
-        })
-        .catch((e: unknown) => {
+        } catch (e: unknown) {
+          clearProgress()
           void message.error(e instanceof Error ? e.message : String(e))
-        })
+        } finally {
+          clearProgress()
+          setExporting(false)
+        }
+      })()
     },
-    [rows, selectedRowKeys],
+    [applied, rows, selectedRowKeys],
   )
 
   const handleDeleteRecord = useCallback(
@@ -473,12 +498,19 @@ export function FullInvoiceQueryPage() {
           <Card className="etax-query-result-card">
             <div className="etax-invoice-query-toolbar">
               <Space>
-                <Dropdown menu={{ items: exportMenu }}>
-                  <Button type="primary">导出</Button>
+                <Dropdown menu={{ items: exportMenu }} disabled={exporting}>
+                  <Button type="primary" loading={exporting}>
+                    导出
+                  </Button>
                 </Dropdown>
               </Space>
               <div className="etax-invoice-query-summary">
                 查询结果：合计金额：{fmtMoney(totals.amount)}元 合计税额：{fmtMoney(totals.tax)}元
+                {rows.length >= INVOICE_QUERY_DISPLAY_LIMIT ? (
+                  <span className="etax-invoice-query-summary-hint">
+                    （列表最多显示 {INVOICE_QUERY_DISPLAY_LIMIT} 条，导出全部可获取完整数据）
+                  </span>
+                ) : null}
               </div>
             </div>
             <Spin spinning={loading}>
