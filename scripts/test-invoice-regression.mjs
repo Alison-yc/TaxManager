@@ -185,20 +185,50 @@ function extractYenAmounts(text) {
     .filter((v) => v != null)
 }
 function isLikelyIssuerName(value) {
-  const t = value.trim()
+  const t = value.replace(/[\s\u00a0]+/g, '').trim()
   if (t.length < 2 || t.length > 4) return false
   if (/[壹贰叁肆伍陆柒捌玖拾佰仟万]/.test(t) && /[圆整角]/.test(t)) return false
   return /^[\u4e00-\u9fa5·]+$/.test(t)
 }
+function normalizeIssuerName(value) {
+  const normalized = value.replace(/[\s\u00a0]+/g, '').trim()
+  return isLikelyIssuerName(normalized) ? normalized : null
+}
+function extractIssuerAfterTotalAmount(text) {
+  const yenMatches = [...text.matchAll(YEN_MONEY_PATTERN)]
+  for (let i = yenMatches.length - 1; i >= 0; i -= 1) {
+    const match = yenMatches[i]
+    const region = text.slice(match.index + match[0].length, match.index + match[0].length + 80)
+    const beforeItem = region.split('*')[0]?.trim() ?? ''
+    if (!beforeItem || isChineseUppercaseAmount(beforeItem)) continue
+    const candidate = beforeItem.match(/^([\u4e00-\u9fa5·](?:[\s\u00a0]*[\u4e00-\u9fa5·]){1,3})(?=\s|$)/)?.[1]
+    const issuer = candidate ? normalizeIssuerName(candidate) : null
+    if (issuer) return issuer
+  }
+  return null
+}
 function extractIssuerFromText(text) {
-  const beforeLabel = text.match(/([\u4e00-\u9fa5·]{2,4})\s+开\s*票\s*人[：:\s]/)
-  if (beforeLabel && isLikelyIssuerName(beforeLabel[1])) return beforeLabel[1].trim()
+  const afterTotal = extractIssuerAfterTotalAmount(text)
+  if (afterTotal) return afterTotal
+
+  const beforeLabel = text.match(/(?:^|[^*\u4e00-\u9fa5])([\u4e00-\u9fa5·](?:[\s\u00a0]*[\u4e00-\u9fa5·]){1,3})\s+开\s*票\s*人[：:\s]/)
+  if (beforeLabel) {
+    const beforeIndex = beforeLabel.index ?? 0
+    const context = text.slice(Math.max(0, beforeIndex - 20), beforeIndex)
+    if (!context.includes('*')) {
+      const issuer = normalizeIssuerName(beforeLabel[1])
+      if (issuer) return issuer
+    }
+  }
   for (const pattern of [
-    /[¥￥][^¥]+\s+([\u4e00-\u9fa5·]{2,4})\s+\*/,
-    /[¥￥][^¥]+\s+([\u4e00-\u9fa5·]{2,4})(?=\s*收|$)/,
+    /[¥￥][^¥]+\s+([\u4e00-\u9fa5·](?:[\s\u00a0]*[\u4e00-\u9fa5·]){1,3})\s+\*/,
+    /[¥￥][^¥]+\s+([\u4e00-\u9fa5·](?:[\s\u00a0]*[\u4e00-\u9fa5·]){1,3})(?=\s*收|$)/,
   ]) {
     const m = text.match(pattern)
-    if (m?.[1] && isLikelyIssuerName(m[1])) return m[1].trim()
+    if (m?.[1]) {
+      const issuer = normalizeIssuerName(m[1])
+      if (issuer) return issuer
+    }
   }
   return null
 }
@@ -540,6 +570,34 @@ function normalizeTaxRateDisplay(raw) {
   const compact = compactSpacedDigits(trimmed)
   return compact.endsWith('%') ? compact : trimmed
 }
+function looksLikeSpecToken(value) {
+  const trimmed = value.trim()
+  if (!trimmed) return false
+  if (/[\d*/\\-]/.test(trimmed)) return true
+  if (/^[A-Z]{1,12}$/.test(trimmed)) return true
+  return false
+}
+function splitLineItemNameAndSpec(category, rawName, explicitSpec = null) {
+  const cleanCategory = category.trim().replace(/[\s\u00a0]+/g, '')
+  let cleanName = rawName.replace(/\s+/g, ' ').trim()
+  let spec = explicitSpec?.trim() || null
+  if (!spec) {
+    const m = cleanName.match(/^(.+?)\s+([A-Za-z0-9][A-Za-z0-9/\\\-*（）()·\u4e00-\u9fa5]{0,40})$/)
+    if (m?.[1] && m?.[2] && looksLikeSpecToken(m[2])) {
+      cleanName = m[1].trim()
+      spec = m[2].trim()
+    }
+  }
+  return { item_name: `* ${cleanCategory} * ${cleanName}`, spec }
+}
+function normalizeSpecAndTaxRate(rawSpec, rawTaxRate) {
+  const spec = rawSpec?.trim() || null
+  const taxCompact = compactSpacedDigits(rawTaxRate).replace(/\s+/g, '')
+  if (spec && /^\d$/.test(spec) && /^\d%$/.test(taxCompact)) {
+    return { spec: null, tax_rate: `${spec}${taxCompact}` }
+  }
+  return { spec, tax_rate: normalizeTaxRateDisplay(rawTaxRate) }
+}
 function expandDecimalCandidates(digitStr) {
   if (!digitStr) return []
   const results = new Set()
@@ -591,10 +649,12 @@ function parseLineItemPrefix(section) {
     ),
   )
   if (withUnit) {
+    const specAndTax = normalizeSpecAndTaxRate(withUnit[3], withUnit[4])
+    const item = splitLineItemNameAndSpec(withUnit[1], withUnit[2], specAndTax.spec)
     return {
-      item_name: `* ${withUnit[1].trim()} * ${withUnit[2].trim()}`,
-      spec: withUnit[3]?.trim() || null,
-      tax_rate: normalizeTaxRateDisplay(withUnit[4]),
+      item_name: item.item_name,
+      spec: item.spec,
+      tax_rate: specAndTax.tax_rate,
       unit: withUnit[5].trim(),
       numericTail: withUnit[6].trim(),
     }
@@ -603,12 +663,24 @@ function parseLineItemPrefix(section) {
     new RegExp(`^\\*\\s*([^*]+?)\\s*\\*\\s*(.+?)\\s+(${SPACED_TAX_RATE})\\s+(.+)$`),
   )
   if (serviceLine) {
+    const item = splitLineItemNameAndSpec(serviceLine[1], serviceLine[2])
     return {
-      item_name: `* ${serviceLine[1].trim()} * ${serviceLine[2].trim()}`,
-      spec: null,
+      item_name: item.item_name,
+      spec: item.spec,
       tax_rate: normalizeTaxRateDisplay(serviceLine[3]),
       unit: null,
       numericTail: serviceLine[4].trim(),
+    }
+  }
+  const amountLine = section.match(/^\*\s*([^*]+?)\s*\*\s*(.+?)\s+(\S+)\s+(?=[¥￥])(.+)$/)
+  if (amountLine) {
+    const item = splitLineItemNameAndSpec(amountLine[1], amountLine[2])
+    return {
+      item_name: item.item_name,
+      spec: item.spec,
+      tax_rate: null,
+      unit: amountLine[3].trim(),
+      numericTail: amountLine[4].trim(),
     }
   }
   return null

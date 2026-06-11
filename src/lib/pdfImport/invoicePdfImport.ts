@@ -749,25 +749,57 @@ function isChineseUppercaseAmount(value: string): boolean {
 }
 
 function isLikelyIssuerName(value: string): boolean {
-  const trimmed = value.trim()
+  const trimmed = value.replace(/[\s\u00a0]+/g, '').trim()
   if (trimmed.length < 2 || trimmed.length > 4) return false
   if (isChineseUppercaseAmount(trimmed)) return false
   return /^[\u4e00-\u9fa5·]+$/.test(trimmed)
 }
 
+function normalizeIssuerName(value: string): string | null {
+  const normalized = value.replace(/[\s\u00a0]+/g, '').trim()
+  return isLikelyIssuerName(normalized) ? normalized : null
+}
+
+function extractIssuerAfterTotalAmount(text: string): string | null {
+  const yenMatches = [...text.matchAll(YEN_MONEY_PATTERN)]
+  for (let i = yenMatches.length - 1; i >= 0; i -= 1) {
+    const match = yenMatches[i]
+    const region = text.slice(match.index! + match[0].length, match.index! + match[0].length + 80)
+    const beforeItem = region.split('*')[0]?.trim() ?? ''
+    if (!beforeItem || isChineseUppercaseAmount(beforeItem)) continue
+    const candidate = beforeItem.match(/^([\u4e00-\u9fa5·](?:[\s\u00a0]*[\u4e00-\u9fa5·]){1,3})(?=\s|$)/)?.[1]
+    const issuer = candidate ? normalizeIssuerName(candidate) : null
+    if (issuer) return issuer
+  }
+  return null
+}
+
 /** 开票人姓名（排除价税合计大写如「叁万贰仟圆整」） */
 function extractIssuerFromText(text: string): string | null {
-  const beforeLabel = text.match(/([\u4e00-\u9fa5·]{2,4})\s+开\s*票\s*人[：:\s]/)
-  if (beforeLabel && isLikelyIssuerName(beforeLabel[1])) return beforeLabel[1].trim()
+  const afterTotal = extractIssuerAfterTotalAmount(text)
+  if (afterTotal) return afterTotal
+
+  const beforeLabel = text.match(/(?:^|[^*\u4e00-\u9fa5])([\u4e00-\u9fa5·](?:[\s\u00a0]*[\u4e00-\u9fa5·]){1,3})\s+开\s*票\s*人[：:\s]/)
+  if (beforeLabel) {
+    const beforeIndex = beforeLabel.index ?? 0
+    const context = text.slice(Math.max(0, beforeIndex - 20), beforeIndex)
+    if (!context.includes('*')) {
+      const issuer = normalizeIssuerName(beforeLabel[1])
+      if (issuer) return issuer
+    }
+  }
 
   const patterns = [
-    /[¥￥][^¥]+\s+([\u4e00-\u9fa5·]{2,4})\s+\*/,
-    /[¥￥][^¥]+\s+([\u4e00-\u9fa5·]{2,4})(?=\s*收|$)/,
-    /开票人[：:\s]+([\u4e00-\u9fa5·]{2,8})(?=\s*(?:收|复|$|\*))/,
+    /[¥￥][^¥]+\s+([\u4e00-\u9fa5·](?:[\s\u00a0]*[\u4e00-\u9fa5·]){1,3})\s+\*/,
+    /[¥￥][^¥]+\s+([\u4e00-\u9fa5·](?:[\s\u00a0]*[\u4e00-\u9fa5·]){1,3})(?=\s*收|$)/,
+    /开票人[：:\s]+([\u4e00-\u9fa5·](?:[\s\u00a0]*[\u4e00-\u9fa5·]){1,7})(?=\s*(?:收|复|$|\*))/,
   ]
   for (const pattern of patterns) {
     const match = text.match(pattern)
-    if (match?.[1] && isLikelyIssuerName(match[1])) return match[1].trim()
+    if (match?.[1]) {
+      const issuer = normalizeIssuerName(match[1])
+      if (issuer) return issuer
+    }
   }
   return null
 }
@@ -1081,6 +1113,49 @@ type ParsedLinePrefix = {
   numericTail: string
 }
 
+function looksLikeSpecToken(value: string): boolean {
+  const trimmed = value.trim()
+  if (!trimmed) return false
+  if (/[\d*/\\-]/.test(trimmed)) return true
+  if (/^[A-Z]{1,12}$/.test(trimmed)) return true
+  return false
+}
+
+function splitLineItemNameAndSpec(
+  category: string,
+  rawName: string,
+  explicitSpec?: string | null,
+): { item_name: string; spec: string | null } {
+  const cleanCategory = category.trim().replace(/[\s\u00a0]+/g, '')
+  let cleanName = rawName.replace(/\s+/g, ' ').trim()
+  let spec = explicitSpec?.trim() || null
+
+  if (!spec) {
+    const m = cleanName.match(/^(.+?)\s+([A-Za-z0-9][A-Za-z0-9/\\\-*（）()·\u4e00-\u9fa5]{0,40})$/)
+    if (m?.[1] && m?.[2] && looksLikeSpecToken(m[2])) {
+      cleanName = m[1].trim()
+      spec = m[2].trim()
+    }
+  }
+
+  return {
+    item_name: `* ${cleanCategory} * ${cleanName}`,
+    spec,
+  }
+}
+
+function normalizeSpecAndTaxRate(
+  rawSpec: string | null | undefined,
+  rawTaxRate: string,
+): { spec: string | null; tax_rate: string | null } {
+  const spec = rawSpec?.trim() || null
+  const taxCompact = compactSpacedDigits(rawTaxRate).replace(/\s+/g, '')
+  if (spec && /^\d$/.test(spec) && /^\d%$/.test(taxCompact)) {
+    return { spec: null, tax_rate: `${spec}${taxCompact}` }
+  }
+  return { spec, tax_rate: normalizeTaxRateDisplay(rawTaxRate) }
+}
+
 function isLikelyUnit(value: string): boolean {
   const trimmed = value.trim()
   if (!trimmed) return false
@@ -1117,10 +1192,12 @@ function findDigitalLineItemPrefixes(text: string): ParsedLinePrefix[] {
     )
     const numericTail = (tailEnd >= 0 ? tailSlice.slice(0, tailEnd) : tailSlice).trim()
     if (!isLikelyUnit(match[5])) continue
+    const specAndTax = normalizeSpecAndTaxRate(match[3], match[4])
+    const item = splitLineItemNameAndSpec(match[1], match[2], specAndTax.spec)
     items.push({
-      item_name: `* ${match[1].trim().replace(/[\s\u00a0]+/g, '')} * ${match[2].trim()}`,
-      spec: match[3]?.trim() || null,
-      tax_rate: normalizeTaxRateDisplay(match[4]),
+      item_name: item.item_name,
+      spec: item.spec,
+      tax_rate: specAndTax.tax_rate,
       unit: match[5].trim(),
       numericTail,
     })
@@ -1138,11 +1215,35 @@ function findDigitalLineItemPrefixes(text: string): ParsedLinePrefix[] {
       /(?:\*\s*[^*]+?\s*\*|收\s*款\s*人|复\s*核\s*人|购\s*方|销\s*方|购买方|销售方)/,
     )
     const numericTail = (tailEnd >= 0 ? tailSlice.slice(0, tailEnd) : tailSlice).trim()
+    const item = splitLineItemNameAndSpec(match[1], match[2])
     items.push({
-      item_name: `* ${match[1].trim().replace(/[\s\u00a0]+/g, '')} * ${match[2].trim()}`,
-      spec: null,
+      item_name: item.item_name,
+      spec: item.spec,
       tax_rate: normalizeTaxRateDisplay(match[3]),
       unit: null,
+      numericTail,
+    })
+  }
+
+  const amountPattern = new RegExp(
+    `\\*\\s*(${LINE_ITEM_CATEGORY}?)\\s*\\*\\s*(.+?)\\s+(\\S+)\\s+(?=[¥￥])`,
+    'g',
+  )
+  while ((match = amountPattern.exec(text)) !== null) {
+    if (!isLikelyLineItemCategory(match[1])) continue
+    if (!isLikelyUnit(match[3])) continue
+    const tailStart = match.index + match[0].length
+    const tailSlice = text.slice(tailStart)
+    const tailEnd = tailSlice.search(
+      /(?:\*\s*[^*]+?\s*\*|收\s*款\s*人|复\s*核\s*人|购\s*方|销\s*方|购买方|销售方)/,
+    )
+    const numericTail = (tailEnd >= 0 ? tailSlice.slice(0, tailEnd) : tailSlice).trim()
+    const item = splitLineItemNameAndSpec(match[1], match[2])
+    items.push({
+      item_name: item.item_name,
+      spec: item.spec,
+      tax_rate: null,
+      unit: match[3].trim(),
       numericTail,
     })
   }
