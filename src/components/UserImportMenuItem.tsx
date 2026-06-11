@@ -265,25 +265,39 @@ export function UserImportMenuItem() {
     };
 
     try {
-      showProgress("正在重新解析发票…");
+      showProgress("正在检查发票数据…");
       const { reparseAllInvoiceRecords } =
         await import("../lib/pdfImport/reparseInvoiceRecords");
       const result = await reparseAllInvoiceRecords({
-        onProgress: (done, total) => {
-          showProgress(`正在重新解析 ${done}/${total} 张发票…`);
+        onProgress: (done, total, stats) => {
+          if (stats.pending === 0) {
+            showProgress(`检查完成 ${done}/${total}（均已完整，无需解析）`);
+            return;
+          }
+          showProgress(
+            `重新解析 ${Math.min(done - stats.skipped, stats.pending)}/${stats.pending}（共 ${total}，跳过 ${stats.skipped} 张已完整）`,
+          );
         },
       });
       progressRef.hide?.();
       progressRef.hide = undefined;
 
-      if (result.failed === 0) {
-        void message.success(`重新解析完成：成功 ${result.success} 张`);
-      } else if (result.success > 0) {
-        void message.warning(
-          `重新解析完成：成功 ${result.success} 张，失败 ${result.failed} 张`,
-        );
+      const summary = [
+        result.success > 0 ? `成功 ${result.success} 张` : "",
+        result.skipped > 0 ? `跳过 ${result.skipped} 张（已完整）` : "",
+        result.failed > 0 ? `失败 ${result.failed} 张` : "",
+      ]
+        .filter(Boolean)
+        .join("，");
+
+      if (result.failed === 0 && result.success === 0 && result.skipped === result.total) {
+        void message.info(`全部 ${result.total} 张发票字段已完整，无需重新解析`);
+      } else if (result.failed === 0 && result.success > 0) {
+        void message.success(`重新解析完成：${summary}`);
+      } else if (result.success > 0 || result.skipped > 0) {
+        void message.warning(`重新解析完成：${summary}`);
       } else {
-        void message.error(`重新解析失败：共 ${result.failed} 张`);
+        void message.error(`重新解析失败：${summary || `共 ${result.failed} 张`}`);
       }
 
       const failures = result.items.filter((item) => item.status === "failed");
