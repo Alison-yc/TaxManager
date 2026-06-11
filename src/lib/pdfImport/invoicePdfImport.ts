@@ -339,6 +339,125 @@ function orientIssuerBlockParties(
   }
 }
 
+type ParsedIssuerParties = {
+  matchLength: number
+  seller_name: string
+  seller_tax_id: string | null
+  buyer_name: string
+  buyer_tax_id: string | null
+}
+
+function normalizePartyName(value: string): string {
+  return value.replace(/\s+/g, ' ').trim()
+}
+
+/** 解析开票人块中的购销方：支持「名+税号+名+税号」「名+名+税号」「名+税号+名」 */
+function parseIssuerBlockParties(
+  rest: string,
+  hints?: InvoiceFileNameHints | null,
+): ParsedIssuerParties | null {
+  const twoTax = rest.match(
+    new RegExp(
+      `^(${PARTY_NAME})\\s+${SPACED_TAX_ID}\\s+(${PARTY_NAME})\\s+${SPACED_TAX_ID}`,
+    ),
+  )
+  if (twoTax) {
+    const firstTaxId = compactTaxId(twoTax[2])
+    const secondTaxId = compactTaxId(twoTax[4])
+    if (!isValidTaxId(firstTaxId) || !isValidTaxId(secondTaxId)) return null
+    const oriented = orientIssuerBlockParties(
+      twoTax[1],
+      firstTaxId,
+      twoTax[3],
+      secondTaxId,
+      hints,
+    )
+    return {
+      matchLength: twoTax[0].length,
+      seller_name: oriented.seller_name,
+      seller_tax_id: oriented.seller_tax_id,
+      buyer_name: oriented.buyer_name,
+      buyer_tax_id: oriented.buyer_tax_id,
+    }
+  }
+
+  const twoNamesOneTax = rest.match(
+    new RegExp(`^(${PARTY_NAME})\\s+(${PARTY_NAME})\\s+${SPACED_TAX_ID}`),
+  )
+  if (twoNamesOneTax) {
+    const taxId = compactTaxId(twoNamesOneTax[3])
+    if (!isValidTaxId(taxId)) return null
+    const firstName = normalizePartyName(twoNamesOneTax[1])
+    const secondName = normalizePartyName(twoNamesOneTax[2])
+
+    // 税号紧跟第二个名称；稀疏版式常见：购方名 销方名 销方税号
+    let sellerName = secondName
+    let sellerTaxId: string | null = taxId
+    let buyerName = firstName
+    let buyerTaxId: string | null = null
+
+    if (hints?.pattern === 'dzfp' && hints.buyer_name) {
+      const firstIsBuyer =
+        partyNameMatchesHint(firstName, hints.buyer_name) &&
+        !partyNameMatchesHint(secondName, hints.buyer_name)
+      const secondIsBuyer =
+        partyNameMatchesHint(secondName, hints.buyer_name) &&
+        !partyNameMatchesHint(firstName, hints.buyer_name)
+      if (secondIsBuyer && !firstIsBuyer) {
+        sellerName = firstName
+        sellerTaxId = null
+        buyerName = secondName
+        buyerTaxId = taxId
+      }
+    }
+
+    return {
+      matchLength: twoNamesOneTax[0].length,
+      seller_name: sellerName,
+      seller_tax_id: sellerTaxId,
+      buyer_name: buyerName,
+      buyer_tax_id: buyerTaxId,
+    }
+  }
+
+  const nameTaxName = rest.match(
+    new RegExp(`^(${PARTY_NAME})\\s+${SPACED_TAX_ID}\\s+(${PARTY_NAME})(?=\\s|[¥￥])`),
+  )
+  if (nameTaxName) {
+    const taxId = compactTaxId(nameTaxName[2])
+    if (!isValidTaxId(taxId)) return null
+    const firstName = normalizePartyName(nameTaxName[1])
+    const secondName = normalizePartyName(nameTaxName[3])
+
+    let sellerName = firstName
+    let sellerTaxId: string | null = taxId
+    let buyerName = secondName
+    let buyerTaxId: string | null = null
+
+    if (
+      hints?.pattern === 'dzfp' &&
+      hints.buyer_name &&
+      partyNameMatchesHint(firstName, hints.buyer_name) &&
+      !partyNameMatchesHint(secondName, hints.buyer_name)
+    ) {
+      sellerName = secondName
+      sellerTaxId = null
+      buyerName = firstName
+      buyerTaxId = taxId
+    }
+
+    return {
+      matchLength: nameTaxName[0].length,
+      seller_name: sellerName,
+      seller_tax_id: sellerTaxId,
+      buyer_name: buyerName,
+      buyer_tax_id: buyerTaxId,
+    }
+  }
+
+  return null
+}
+
 /** 数电票 PDF 正文为稀疏排版，核心字段集中在「开票人：」后的数据块 */
 function parseDigitalInvoiceBlock(
   text: string,
@@ -347,26 +466,10 @@ function parseDigitalInvoiceBlock(
   const header = matchIssuerBlockHeader(text)
   if (!header) return null
 
-  const parties = header.rest.match(
-    new RegExp(
-      `^(${PARTY_NAME})\\s+${SPACED_TAX_ID}\\s+(${PARTY_NAME})\\s+${SPACED_TAX_ID}`,
-    ),
-  )
+  const parties = parseIssuerBlockParties(header.rest, hints)
   if (!parties) return null
 
-  const firstTaxId = compactTaxId(parties[2])
-  const secondTaxId = compactTaxId(parties[4])
-  if (!isValidTaxId(firstTaxId) || !isValidTaxId(secondTaxId)) return null
-
-  const oriented = orientIssuerBlockParties(
-    parties[1],
-    firstTaxId,
-    parties[3],
-    secondTaxId,
-    hints,
-  )
-
-  const afterParties = header.rest.slice(parties[0].length)
+  const afterParties = header.rest.slice(parties.matchLength)
   const yenAmounts = extractYenAmounts(afterParties)
   if (yenAmounts.length < 2) return null
 
@@ -383,10 +486,10 @@ function parseDigitalInvoiceBlock(
   return {
     digital_invoice_no: header.digital_invoice_no,
     issue_date: header.issue_date,
-    seller_name: oriented.seller_name,
-    seller_tax_id: oriented.seller_tax_id,
-    buyer_name: oriented.buyer_name,
-    buyer_tax_id: oriented.buyer_tax_id,
+    seller_name: parties.seller_name,
+    seller_tax_id: parties.seller_tax_id ?? '',
+    buyer_name: parties.buyer_name,
+    buyer_tax_id: parties.buyer_tax_id ?? '',
     amount,
     tax_amount,
     total_amount,
@@ -870,8 +973,11 @@ export function parseInvoicePdfText(text: string, fileName: string): ParsedInvoi
   const header: ParsedInvoicePdf = {
     digital_invoice_no: digitalNo,
     invoice_number,
-    buyer_name: coalesceOptionalText(pdfBuyerName, hints?.buyer_name),
-    seller_name: coalesceOptionalText(pdfSellerName, hints?.seller_name),
+    buyer_name: coalesceOptionalText(
+      pdfBuyerName,
+      hints?.pattern === 'dzfp' ? hints?.buyer_name : null,
+    ),
+    seller_name: coalesceOptionalText(pdfSellerName),
     buyer_tax_id: pdfBlock?.buyer_tax_id ?? labeledParties.buyer_tax_id,
     seller_tax_id: pdfBlock?.seller_tax_id ?? labeledParties.seller_tax_id,
     issue_date: coalesceOptionalText(pdfIssueDate, hints?.issue_date),

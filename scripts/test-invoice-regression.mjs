@@ -219,6 +219,92 @@ function parsePrefaceInvoiceBlock(text) {
     issuer: extractIssuerFromText(text),
   }
 }
+function parseIssuerBlockParties(rest, hints) {
+  const twoTax = rest.match(
+    new RegExp(`^(${PARTY_NAME})\\s+${SPACED_TAX_ID}\\s+(${PARTY_NAME})\\s+${SPACED_TAX_ID}`),
+  )
+  if (twoTax) {
+    const firstTaxId = compactTaxId(twoTax[2])
+    const secondTaxId = compactTaxId(twoTax[4])
+    if (firstTaxId.length < 15 || secondTaxId.length < 15) return null
+    const oriented = orientIssuerBlockParties(twoTax[1], firstTaxId, twoTax[3], secondTaxId, hints)
+    return {
+      matchLength: twoTax[0].length,
+      seller_name: oriented.seller_name,
+      seller_tax_id: oriented.seller_tax_id,
+      buyer_name: oriented.buyer_name,
+      buyer_tax_id: oriented.buyer_tax_id,
+    }
+  }
+
+  const twoNamesOneTax = rest.match(
+    new RegExp(`^(${PARTY_NAME})\\s+(${PARTY_NAME})\\s+${SPACED_TAX_ID}`),
+  )
+  if (twoNamesOneTax) {
+    const taxId = compactTaxId(twoNamesOneTax[3])
+    if (taxId.length < 15) return null
+    const firstName = twoNamesOneTax[1].replace(/\s+/g, ' ').trim()
+    const secondName = twoNamesOneTax[2].replace(/\s+/g, ' ').trim()
+    let sellerName = secondName
+    let sellerTaxId = taxId
+    let buyerName = firstName
+    let buyerTaxId = null
+    if (hints?.pattern === 'dzfp' && hints.buyer_name) {
+      const firstIsBuyer =
+        partyNameMatchesHint(firstName, hints.buyer_name) &&
+        !partyNameMatchesHint(secondName, hints.buyer_name)
+      const secondIsBuyer =
+        partyNameMatchesHint(secondName, hints.buyer_name) &&
+        !partyNameMatchesHint(firstName, hints.buyer_name)
+      if (secondIsBuyer && !firstIsBuyer) {
+        sellerName = firstName
+        sellerTaxId = null
+        buyerName = secondName
+        buyerTaxId = taxId
+      }
+    }
+    return {
+      matchLength: twoNamesOneTax[0].length,
+      seller_name: sellerName,
+      seller_tax_id: sellerTaxId,
+      buyer_name: buyerName,
+      buyer_tax_id: buyerTaxId,
+    }
+  }
+
+  const nameTaxName = rest.match(
+    new RegExp(`^(${PARTY_NAME})\\s+${SPACED_TAX_ID}\\s+(${PARTY_NAME})(?=\\s|[¥￥])`),
+  )
+  if (nameTaxName) {
+    const taxId = compactTaxId(nameTaxName[2])
+    if (taxId.length < 15) return null
+    const firstName = nameTaxName[1].replace(/\s+/g, ' ').trim()
+    const secondName = nameTaxName[3].replace(/\s+/g, ' ').trim()
+    let sellerName = firstName
+    let sellerTaxId = taxId
+    let buyerName = secondName
+    let buyerTaxId = null
+    if (
+      hints?.pattern === 'dzfp' &&
+      hints.buyer_name &&
+      partyNameMatchesHint(firstName, hints.buyer_name) &&
+      !partyNameMatchesHint(secondName, hints.buyer_name)
+    ) {
+      sellerName = secondName
+      sellerTaxId = null
+      buyerName = firstName
+      buyerTaxId = taxId
+    }
+    return {
+      matchLength: nameTaxName[0].length,
+      seller_name: sellerName,
+      seller_tax_id: sellerTaxId,
+      buyer_name: buyerName,
+      buyer_tax_id: buyerTaxId,
+    }
+  }
+  return null
+}
 function parseDigitalInvoiceBlock(text, fileName) {
   const hints = fileName ? parseInvoiceFileNameHints(fileName) : null
   const headerMatch = text.match(
@@ -226,31 +312,19 @@ function parseDigitalInvoiceBlock(text, fileName) {
   )
   if (!headerMatch) return null
   const rest = headerMatch[3]
-  const parties = rest.match(
-    new RegExp(`^(${PARTY_NAME})\\s+${SPACED_TAX_ID}\\s+(${PARTY_NAME})\\s+${SPACED_TAX_ID}`),
-  )
+  const parties = parseIssuerBlockParties(rest, hints)
   if (!parties) return null
-  const firstTaxId = compactTaxId(parties[2])
-  const secondTaxId = compactTaxId(parties[4])
-  if (firstTaxId.length < 15 || secondTaxId.length < 15) return null
-  const oriented = orientIssuerBlockParties(
-    parties[1],
-    firstTaxId,
-    parties[3],
-    secondTaxId,
-    hints,
-  )
-  const afterParties = rest.slice(parties[0].length)
+  const afterParties = rest.slice(parties.matchLength)
   const yenAmounts = extractYenAmounts(afterParties)
   if (yenAmounts.length < 2) return null
   const issuer = extractIssuerFromText(afterParties) ?? extractIssuerFromText(text)
   return {
     digital_invoice_no: compactDigitRun(headerMatch[1]),
     issue_date: parseIssuerBlockIssueDate(headerMatch[2]),
-    seller_name: oriented.seller_name,
-    seller_tax_id: oriented.seller_tax_id,
-    buyer_name: oriented.buyer_name,
-    buyer_tax_id: oriented.buyer_tax_id,
+    seller_name: parties.seller_name,
+    seller_tax_id: parties.seller_tax_id ?? '',
+    buyer_name: parties.buyer_name,
+    buyer_tax_id: parties.buyer_tax_id ?? '',
     amount: yenAmounts[0],
     tax_amount: yenAmounts[1],
     total_amount:
@@ -349,8 +423,8 @@ function parseInvoice(text, fileName) {
   return {
     digital_invoice_no: digitalNo,
     invoice_number: digitalNo,
-    buyer_name: coalesceText(block?.buyer_name, hints?.buyer_name),
-    seller_name: coalesceText(block?.seller_name, hints?.seller_name),
+    buyer_name: coalesceText(block?.buyer_name, hints?.pattern === 'dzfp' ? hints?.buyer_name : null),
+    seller_name: coalesceText(block?.seller_name),
     buyer_tax_id: block?.buyer_tax_id ?? null,
     seller_tax_id: block?.seller_tax_id ?? null,
     issue_date: coalesceText(block?.issue_date, hints?.issue_date),
@@ -526,6 +600,16 @@ function assertLayoutRegression() {
   )
   if (!jilinBlock?.seller_name?.includes('吉林金恒') || !jilinBlock?.buyer_name?.includes('镁神')) {
     throw new Error(`吉林金恒购销方方向错误: ${JSON.stringify(jilinBlock)}`)
+  }
+
+  const klainText =
+    '开票人：  25132000000056597615 2025年04月05日  可莱恩食品科技（佛山）有限公司   河北镁神科技股份有限公司  911305316610547945  ¥ 29203.54   ¥ 3796.46  叁万叁仟圆整   ¥ 33000.00  韩海燕  *无机化学原料*氧化镁   13% 吨   29203.54   3796.46'
+  const klainBlock = parseDigitalInvoiceBlock(
+    klainText,
+    '可莱恩食品科技（佛山）有限公司_数电票（普通发票）_25132000000056597615.pdf',
+  )
+  if (!klainBlock?.seller_name?.includes('镁神') || !klainBlock?.buyer_name?.includes('可莱恩')) {
+    throw new Error(`可莱恩购销方方向错误: ${JSON.stringify(klainBlock)}`)
   }
 }
 
