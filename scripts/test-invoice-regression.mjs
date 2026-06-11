@@ -31,6 +31,7 @@ const SPACED_TAX_ID = '((?:[0-9A-Za-z][\\s\\u00a0]?){15,22})'
 const YEN_MONEY_VALUE =
   '(?:[-+]?(?:\\d(?:[\\s\\u00a0]?\\d)*)[\\s\\u00a0]*(?:\\.[\\s\\u00a0]*\\d(?:[\\s\\u00a0]?\\d)*)?)'
 const YEN_MONEY_PATTERN = new RegExp(`[¥￥]\\s*(${YEN_MONEY_VALUE})`, 'g')
+const SELLER_NAME_HINTS = ['河北镁神科技股份有限公司']
 
 function compactDigitRun(v) {
   return v.replace(/[\s\u00a0]/g, '')
@@ -140,12 +141,20 @@ function partyNameMatchesHint(partyName, hint) {
   if (!party || !target) return false
   return party.includes(target) || target.includes(party)
 }
+function partyNameMatchesAnyHint(partyName, hints) {
+  return hints.some((hint) => partyNameMatchesHint(partyName, hint))
+}
 function orientIssuerBlockParties(firstName, firstTaxId, secondName, secondTaxId, hints) {
   const first = { name: firstName.replace(/\s+/g, ' ').trim(), taxId: firstTaxId }
   const second = { name: secondName.replace(/\s+/g, ' ').trim(), taxId: secondTaxId }
   let seller = first
   let buyer = second
-  if (hints?.pattern === 'dzfp' && hints.buyer_name) {
+  const firstIsKnownSeller = partyNameMatchesAnyHint(first.name, SELLER_NAME_HINTS)
+  const secondIsKnownSeller = partyNameMatchesAnyHint(second.name, SELLER_NAME_HINTS)
+  if (secondIsKnownSeller && !firstIsKnownSeller) {
+    seller = second
+    buyer = first
+  } else if (hints?.pattern === 'dzfp' && hints.buyer_name) {
     const firstIsBuyer =
       partyNameMatchesHint(first.name, hints.buyer_name) &&
       !partyNameMatchesHint(second.name, hints.buyer_name)
@@ -249,7 +258,14 @@ function parseIssuerBlockParties(rest, hints) {
     let sellerTaxId = taxId
     let buyerName = firstName
     let buyerTaxId = null
-    if (hints?.pattern === 'dzfp' && hints.buyer_name) {
+    const firstIsKnownSeller = partyNameMatchesAnyHint(firstName, SELLER_NAME_HINTS)
+    const secondIsKnownSeller = partyNameMatchesAnyHint(secondName, SELLER_NAME_HINTS)
+    if (firstIsKnownSeller && !secondIsKnownSeller) {
+      sellerName = firstName
+      sellerTaxId = null
+      buyerName = secondName
+      buyerTaxId = taxId
+    } else if (hints?.pattern === 'dzfp' && hints.buyer_name) {
       const firstIsBuyer =
         partyNameMatchesHint(firstName, hints.buyer_name) &&
         !partyNameMatchesHint(secondName, hints.buyer_name)
@@ -284,7 +300,14 @@ function parseIssuerBlockParties(rest, hints) {
     let sellerTaxId = taxId
     let buyerName = secondName
     let buyerTaxId = null
-    if (
+    const firstIsKnownSeller = partyNameMatchesAnyHint(firstName, SELLER_NAME_HINTS)
+    const secondIsKnownSeller = partyNameMatchesAnyHint(secondName, SELLER_NAME_HINTS)
+    if (secondIsKnownSeller && !firstIsKnownSeller) {
+      sellerName = secondName
+      sellerTaxId = null
+      buyerName = firstName
+      buyerTaxId = taxId
+    } else if (
       hints?.pattern === 'dzfp' &&
       hints.buyer_name &&
       partyNameMatchesHint(firstName, hints.buyer_name) &&
@@ -575,7 +598,7 @@ function assertLayoutRegression() {
   if (!block?.seller_tax_id || !block?.buyer_name || block.issue_date !== '2025-12-03') {
     throw new Error(`ISO 日期版式解析失败: ${JSON.stringify(block)}`)
   }
-  if (!block.seller_name.includes('山东丰源') || !block.buyer_name.includes('河北镁神')) {
+  if (!block.seller_name.includes('河北镁神') || !block.buyer_name.includes('山东丰源')) {
     throw new Error(`ISO 日期版式购销方方向错误: ${JSON.stringify(block)}`)
   }
 
@@ -588,7 +611,7 @@ function assertLayoutRegression() {
   if (!mitaiBlock?.seller_tax_id || !mitaiBlock?.buyer_name || mitaiBlock.issue_date !== '2025-05-31') {
     throw new Error(`镁泰模板票头解析失败: ${JSON.stringify(mitaiBlock)}`)
   }
-  if (!mitaiBlock.seller_name.includes('镁泰') || !mitaiBlock.buyer_name.includes('镁神')) {
+  if (!mitaiBlock.seller_name.includes('镁神') || !mitaiBlock.buyer_name.includes('镁泰')) {
     throw new Error(`镁泰模板购销方方向错误: ${JSON.stringify(mitaiBlock)}`)
   }
 
@@ -598,7 +621,7 @@ function assertLayoutRegression() {
     jilinText,
     '吉林金恒制药股份有限公司_数电票（专用发票）_25132000000117465784.pdf',
   )
-  if (!jilinBlock?.seller_name?.includes('吉林金恒') || !jilinBlock?.buyer_name?.includes('镁神')) {
+  if (!jilinBlock?.seller_name?.includes('镁神') || !jilinBlock?.buyer_name?.includes('吉林金恒')) {
     throw new Error(`吉林金恒购销方方向错误: ${JSON.stringify(jilinBlock)}`)
   }
 

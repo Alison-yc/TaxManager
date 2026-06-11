@@ -106,6 +106,8 @@ const YEN_MONEY_PATTERN = new RegExp(`[¥￥]\\s*(${YEN_MONEY_VALUE})`, 'g')
 /** 票面公司名常含空格，如「北威 ( 重庆 ) 科技股份有限公司」 */
 const PARTY_NAME = '[\\u4e00-\\u9fa5A-Za-z0-9（）()·\\s]{2,80}?'
 
+const SELLER_NAME_HINTS = ['河北镁神科技股份有限公司']
+
 function basenameOf(fileName: string): string {
   const normalized = fileName.replace(/\\/g, '/')
   return normalized.slice(normalized.lastIndexOf('/') + 1)
@@ -301,7 +303,11 @@ function partyNameMatchesHint(partyName: string, hint: string | null | undefined
   return party.includes(target) || target.includes(party)
 }
 
-/** 开票人块默认销方在前；仅 dzfp 文件名（购方名）与块顺序冲突时交换 */
+function partyNameMatchesAnyHint(partyName: string, hints: readonly string[]): boolean {
+  return hints.some((hint) => partyNameMatchesHint(partyName, hint))
+}
+
+/** 开票人块优先按本账套公司识别销方；无法识别时再用版式兜底 */
 function orientIssuerBlockParties(
   firstName: string,
   firstTaxId: string,
@@ -321,7 +327,13 @@ function orientIssuerBlockParties(
   let seller = first
   let buyer = second
 
-  if (hints?.pattern === 'dzfp' && hints.buyer_name) {
+  const firstIsKnownSeller = partyNameMatchesAnyHint(first.name, SELLER_NAME_HINTS)
+  const secondIsKnownSeller = partyNameMatchesAnyHint(second.name, SELLER_NAME_HINTS)
+
+  if (secondIsKnownSeller && !firstIsKnownSeller) {
+    seller = second
+    buyer = first
+  } else if (hints?.pattern === 'dzfp' && hints.buyer_name) {
     const firstIsBuyer =
       partyNameMatchesHint(first.name, hints.buyer_name) &&
       !partyNameMatchesHint(second.name, hints.buyer_name)
@@ -396,7 +408,14 @@ function parseIssuerBlockParties(
     let buyerName = firstName
     let buyerTaxId: string | null = null
 
-    if (hints?.pattern === 'dzfp' && hints.buyer_name) {
+    const firstIsKnownSeller = partyNameMatchesAnyHint(firstName, SELLER_NAME_HINTS)
+    const secondIsKnownSeller = partyNameMatchesAnyHint(secondName, SELLER_NAME_HINTS)
+    if (firstIsKnownSeller && !secondIsKnownSeller) {
+      sellerName = firstName
+      sellerTaxId = null
+      buyerName = secondName
+      buyerTaxId = taxId
+    } else if (hints?.pattern === 'dzfp' && hints.buyer_name) {
       const firstIsBuyer =
         partyNameMatchesHint(firstName, hints.buyer_name) &&
         !partyNameMatchesHint(secondName, hints.buyer_name)
@@ -434,7 +453,14 @@ function parseIssuerBlockParties(
     let buyerName = secondName
     let buyerTaxId: string | null = null
 
-    if (
+    const firstIsKnownSeller = partyNameMatchesAnyHint(firstName, SELLER_NAME_HINTS)
+    const secondIsKnownSeller = partyNameMatchesAnyHint(secondName, SELLER_NAME_HINTS)
+    if (secondIsKnownSeller && !firstIsKnownSeller) {
+      sellerName = secondName
+      sellerTaxId = null
+      buyerName = firstName
+      buyerTaxId = taxId
+    } else if (
       hints?.pattern === 'dzfp' &&
       hints.buyer_name &&
       partyNameMatchesHint(firstName, hints.buyer_name) &&
