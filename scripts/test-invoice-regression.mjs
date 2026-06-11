@@ -192,6 +192,7 @@ function isLikelyIssuerName(value) {
 }
 function normalizeIssuerName(value) {
   const normalized = value.replace(/[\s\u00a0]+/g, '').trim()
+  if (/页/.test(normalized)) return null
   return isLikelyIssuerName(normalized) ? normalized : null
 }
 function extractIssuerAfterTotalAmount(text) {

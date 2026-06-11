@@ -757,6 +757,7 @@ function isLikelyIssuerName(value: string): boolean {
 
 function normalizeIssuerName(value: string): string | null {
   const normalized = value.replace(/[\s\u00a0]+/g, '').trim()
+  if (/页/.test(normalized)) return null
   return isLikelyIssuerName(normalized) ? normalized : null
 }
 
@@ -1183,6 +1184,7 @@ function isLikelyLineItemCategory(category: string): boolean {
 
 function findDigitalLineItemPrefixes(text: string): ParsedLinePrefix[] {
   const items: ParsedLinePrefix[] = []
+  const matchedStarts = new Set<number>()
   const pattern = new RegExp(
     `\\*\\s*(${LINE_ITEM_CATEGORY}?)\\s*\\*\\s*(.+?)\\s+(?:(无|[A-Za-z0-9][A-Za-z0-9-]{0,40})\\s+)?(${SPACED_TAX_RATE})\\s+(\\S+)\\s+`,
     'g',
@@ -1206,6 +1208,7 @@ function findDigitalLineItemPrefixes(text: string): ParsedLinePrefix[] {
       unit: match[5].trim(),
       numericTail,
     })
+    matchedStarts.add(match.index)
   }
 
   const servicePattern = new RegExp(
@@ -1213,6 +1216,7 @@ function findDigitalLineItemPrefixes(text: string): ParsedLinePrefix[] {
     'g',
   )
   while ((match = servicePattern.exec(text)) !== null) {
+    if (matchedStarts.has(match.index)) continue
     if (!isLikelyLineItemCategory(match[1])) continue
     const tailStart = match.index + match[0].length
     const tailSlice = text.slice(tailStart)
@@ -1228,6 +1232,7 @@ function findDigitalLineItemPrefixes(text: string): ParsedLinePrefix[] {
       unit: null,
       numericTail,
     })
+    matchedStarts.add(match.index)
   }
 
   const amountPattern = new RegExp(
@@ -1235,6 +1240,7 @@ function findDigitalLineItemPrefixes(text: string): ParsedLinePrefix[] {
     'g',
   )
   while ((match = amountPattern.exec(text)) !== null) {
+    if (matchedStarts.has(match.index)) continue
     if (!isLikelyLineItemCategory(match[1])) continue
     const tailStart = match.index + match[0].length
     const tailSlice = text.slice(tailStart)
@@ -1252,6 +1258,7 @@ function findDigitalLineItemPrefixes(text: string): ParsedLinePrefix[] {
       unit: match[3].trim(),
       numericTail,
     })
+    matchedStarts.add(match.index)
   }
 
   const seen = new Set<string>()
