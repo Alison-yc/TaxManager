@@ -65,7 +65,7 @@ const ISSUER_LABEL = '开\\s*票\\s*人[：:\\s]*'
 const ISSUER_BLOCK_SKIP = '[\\s\\S]{0,1200}?'
 
 /** 税号/识别号可能被拆成逐字符空格 */
-const SPACED_TAX_ID = '((?:[0-9A-Z][\\s\\u00a0]?){15,22})'
+const SPACED_TAX_ID = '((?:[0-9A-Za-z][\\s\\u00a0]?){15,22})'
 
 function compactTaxId(value: string): string {
   return value.replace(/[\s\u00a0]/g, '').toUpperCase()
@@ -589,12 +589,12 @@ function extractLabeledParties(text: string): {
     buyer_name: buyerBlock?.[1]?.replace(/\s+/g, ' ').trim() ?? pick(text, [/购买方名称[：:\s]*([^\n\r]{2,80})/]),
     buyer_tax_id:
       compactTaxId(buyerBlock?.[2] ?? '') ||
-      pick(text, [/购方识别号[：:\s]*([0-9A-Z]{15,20})/, /购买方[\s\S]{0,200}?识别号[：:\s]*([0-9A-Z]{15,20})/]) ||
+      pick(text, [/购方识别号[：:\s]*([0-9A-Za-z]{15,20})/, /购买方[\s\S]{0,200}?识别号[：:\s]*([0-9A-Za-z]{15,20})/]) ||
       null,
     seller_name: sellerBlock?.[1]?.replace(/\s+/g, ' ').trim() ?? pick(text, [/销售方名称[：:\s]*([^\n\r]{2,80})/]),
     seller_tax_id:
       compactTaxId(sellerBlock?.[2] ?? '') ||
-      pick(text, [/销方识别号[：:\s]*([0-9A-Z]{15,20})/, /销售方[\s\S]{0,200}?识别号[：:\s]*([0-9A-Z]{15,20})/]) ||
+      pick(text, [/销方识别号[：:\s]*([0-9A-Za-z]{15,20})/, /销售方[\s\S]{0,200}?识别号[：:\s]*([0-9A-Za-z]{15,20})/]) ||
       null,
   }
 }
