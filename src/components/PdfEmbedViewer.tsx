@@ -23,6 +23,12 @@ type Props = {
   className?: string
 }
 
+function getHostContentWidth(hostEl: HTMLElement): number {
+  const styles = getComputedStyle(hostEl)
+  const paddingX = parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight)
+  return Math.max(0, hostEl.clientWidth - paddingX)
+}
+
 async function loadPdfData(storagePath?: string, iframeUrl?: string | null): Promise<ArrayBuffer> {
   if (iframeUrl) {
     const res = await fetch(iframeUrl)
@@ -57,7 +63,7 @@ function ChromelessPdfCanvas({ data }: { data: ArrayBuffer }) {
           const hostEl = pagesHostRef.current
           const page = await pdf.getPage(pageNum)
           const baseViewport = page.getViewport({ scale: 1 })
-          const hostWidth = hostEl.clientWidth > 0 ? hostEl.clientWidth : baseViewport.width
+          const hostWidth = getHostContentWidth(hostEl) || baseViewport.width
           const scale = hostWidth / baseViewport.width
           const viewport = page.getViewport({ scale })
           const outputScale = Math.min(window.devicePixelRatio || 1, 3)
@@ -65,10 +71,12 @@ function ChromelessPdfCanvas({ data }: { data: ArrayBuffer }) {
           const ctx = canvas.getContext('2d')
           if (!ctx) throw new Error('PDF 画布初始化失败')
 
-          canvas.width = Math.floor(viewport.width * outputScale)
-          canvas.height = Math.floor(viewport.height * outputScale)
-          canvas.style.width = '100%'
-          canvas.style.height = 'auto'
+          const displayWidth = Math.floor(viewport.width)
+          const displayHeight = Math.floor(viewport.height)
+          canvas.width = Math.floor(displayWidth * outputScale)
+          canvas.height = Math.floor(displayHeight * outputScale)
+          canvas.style.width = `${displayWidth}px`
+          canvas.style.height = `${displayHeight}px`
           canvas.className = 'etax-pdf-chromeless-page'
 
           await page.render({
