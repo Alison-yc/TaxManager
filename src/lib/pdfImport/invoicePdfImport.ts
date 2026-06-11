@@ -528,38 +528,131 @@ function extractAmountTriplet(text: string): {
   return { amount: null, tax_amount: null, total_amount: totalOnly }
 }
 
+/** 数电票「开票人」块明细：* 大类 * 品名 [规格] 税率 单位 金额 税额 数量 单价（后两项顺序可能互换） */
+const DIGITAL_LINE_ITEM_WITH_SPEC =
+  /\*\s*([^*]+?)\s*\*\s*([\u4e00-\u9fa5A-Za-z0-9（）()·\s]+?)\s+([A-Z0-9][A-Za-z0-9-]{1,30})\s+(\d{1,2}%|\*)\s+(\S+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)/
+const DIGITAL_LINE_ITEM_NO_SPEC =
+  /\*\s*([^*]+?)\s*\*\s*([\u4e00-\u9fa5A-Za-z0-9（）()·\s]+?)\s+(\d{1,2}%|\*)\s+(\S+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)/
+/** 旧版紧凑项目名（*大类*品名，无星号旁空格） */
+const DIGITAL_LINE_ITEM_LEGACY =
+  /(\*[^*]+\*[^\s%]{1,80}?)\s+(\d{1,2}%|\*)\s+([A-Za-z\u4e00-\u9fff]+)\s+([-+]?\d[\d,.]*)\s+([-+]?\d[\d,.]*)\s+([-+]?\d[\d.]*)\s+([-+]?\d[\d,.]*)/
+
+function resolveQuantityAndUnitPrice(
+  amount: number | null,
+  first: number | null,
+  second: number | null,
+): { quantity: number | null; unit_price: number | null } {
+  if (first == null || second == null) {
+    return { quantity: first, unit_price: second }
+  }
+  if (amount != null && amount > 0) {
+    const err1 =
+      first !== 0 ? Math.abs(amount / first - second) / Math.max(Math.abs(second), 1e-9) : Number.POSITIVE_INFINITY
+    const err2 =
+      second !== 0 ? Math.abs(amount / second - first) / Math.max(Math.abs(first), 1e-9) : Number.POSITIVE_INFINITY
+    const bothGood = err1 < 0.02 && err2 < 0.02
+    if (bothGood) {
+      if (Number.isInteger(second) && !Number.isInteger(first)) {
+        return { quantity: second, unit_price: first }
+      }
+      if (Number.isInteger(first) && !Number.isInteger(second)) {
+        return { quantity: first, unit_price: second }
+      }
+      return first >= second
+        ? { quantity: first, unit_price: second }
+        : { quantity: second, unit_price: first }
+    }
+    if (err1 < err2) return { quantity: first, unit_price: second }
+    return { quantity: second, unit_price: first }
+  }
+  return { quantity: first, unit_price: second }
+}
+
 function parseDigitalLineItem(text: string, header: ParsedInvoicePdf): InvoiceLineItem[] {
-  const line = text.match(
-    /(\*[^*]+\*[^\s]*)\s+(\d{1,2}%|\*)\s+([A-Za-z\u4e00-\u9fff]+)\s+([-+]?\d[\d,.]*)\s+([-+]?\d[\d,.]*)\s+([-+]?\d[\d.]*)\s+([-+]?\d[\d,.]*)/,
-  )
   const remark = text.match(/[\d,.]+\s+([\u4e00-\u9fa5\d]{2,40})\s*$/)?.[1] ?? header.remark
 
-  if (!line) {
+  const withSpec = text.match(DIGITAL_LINE_ITEM_WITH_SPEC)
+  if (withSpec) {
+    const amount = parseMoney(withSpec[6])
+    const { quantity, unit_price } = resolveQuantityAndUnitPrice(
+      amount,
+      parseMoney(withSpec[8]),
+      parseMoney(withSpec[9]),
+    )
     return [
-      {
-        item_name: '—',
-        amount: header.amount,
-        tax_amount: header.tax_amount,
+      sanitizeLineItem({
+        item_name: `* ${withSpec[1].trim()} * ${withSpec[2].trim()}`,
+        spec: withSpec[3]?.trim() || null,
+        tax_rate: withSpec[4]?.trim() || null,
+        unit: withSpec[5]?.trim() || null,
+        amount,
+        tax_amount: parseMoney(withSpec[7]),
+        quantity,
+        unit_price,
         total_amount: header.total_amount,
         business_type: header.business_type,
         remark,
-      },
+      }),
+    ]
+  }
+
+  const noSpec = text.match(DIGITAL_LINE_ITEM_NO_SPEC)
+  if (noSpec) {
+    const amount = parseMoney(noSpec[5])
+    const { quantity, unit_price } = resolveQuantityAndUnitPrice(
+      amount,
+      parseMoney(noSpec[7]),
+      parseMoney(noSpec[8]),
+    )
+    return [
+      sanitizeLineItem({
+        item_name: `* ${noSpec[1].trim()} * ${noSpec[2].trim()}`,
+        tax_rate: noSpec[3]?.trim() || null,
+        unit: noSpec[4]?.trim() || null,
+        amount,
+        tax_amount: parseMoney(noSpec[6]),
+        quantity,
+        unit_price,
+        total_amount: header.total_amount,
+        business_type: header.business_type,
+        remark,
+      }),
+    ]
+  }
+
+  const legacy = text.match(DIGITAL_LINE_ITEM_LEGACY)
+  if (legacy) {
+    const amount = parseMoney(legacy[4])
+    const { quantity, unit_price } = resolveQuantityAndUnitPrice(
+      amount,
+      parseMoney(legacy[6]),
+      parseMoney(legacy[7]),
+    )
+    return [
+      sanitizeLineItem({
+        item_name: legacy[1]?.trim() || null,
+        tax_rate: legacy[2]?.trim() || null,
+        unit: legacy[3]?.trim() || null,
+        amount,
+        tax_amount: parseMoney(legacy[5]),
+        quantity,
+        unit_price,
+        total_amount: header.total_amount,
+        business_type: header.business_type,
+        remark,
+      }),
     ]
   }
 
   return [
-    sanitizeLineItem({
-      item_name: line[1]?.trim() || null,
-      tax_rate: line[2]?.trim() || null,
-      unit: line[3]?.trim() || null,
-      amount: parseMoney(line[4]),
-      tax_amount: parseMoney(line[5]),
-      unit_price: parseMoney(line[6]),
-      quantity: parseMoney(line[7]),
+    {
+      item_name: '—',
+      amount: header.amount,
+      tax_amount: header.tax_amount,
       total_amount: header.total_amount,
       business_type: header.business_type,
       remark,
-    }),
+    },
   ]
 }
 

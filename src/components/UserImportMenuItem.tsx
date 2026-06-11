@@ -305,11 +305,25 @@ export function UserImportMenuItem() {
 
       const failures = result.items.filter((item) => item.status === "failed");
       if (failures.length > 0) {
+        const { downloadReparseFailureLog, getReparseFailureLog, logReparseFailureSummary } =
+          await import("../lib/pdfImport/reparseFailureLog");
+        const logEntries = getReparseFailureLog();
+        if (logEntries.length > 0) {
+          downloadReparseFailureLog(logEntries);
+        }
+        logReparseFailureSummary(failures.length);
+
         const preview = failures
           .slice(0, 3)
-          .map((item) => `${item.digital_invoice_no}：${item.message ?? "未知错误"}`)
+          .map(
+            (item) =>
+              `${item.digital_invoice_no}${item.source_file_name ? `（${item.source_file_name}）` : ""}：${item.message ?? "未知错误"}`,
+          )
           .join("；");
-        void message.error(preview, 8);
+        void message.error(
+          `${preview}${failures.length > 3 ? ` 等共 ${failures.length} 张；失败清单已下载` : "；失败清单已下载"}`,
+          10,
+        );
       }
 
       if (result.success > 0) {

@@ -7,10 +7,16 @@ import {
   STANDARD_DIGITAL_INVOICE_NO_LENGTH,
   type ParsedInvoicePdf,
 } from './invoicePdfImport'
+import type { InvoiceLineItem } from '../../types/database'
+import {
+  appendReparseFailureLog,
+  resetReparseFailureLog,
+} from './reparseFailureLog'
 
 export type ReparseInvoiceResult = {
   id: string
   digital_invoice_no: string
+  source_file_name?: string
   status: 'success' | 'skipped' | 'failed'
   message?: string
 }
@@ -83,6 +89,63 @@ export function hasValidDigitalInvoiceNo(value: string | null | undefined): bool
   return normalizeInvoiceDigits(value).length >= STANDARD_DIGITAL_INVOICE_NO_LENGTH
 }
 
+function getInvoiceLineItems(row: InvoiceRecordForReparse): InvoiceLineItem[] {
+  const content = row.content
+  if (!content || typeof content !== 'object' || !('line_items' in content)) return []
+  const items = (content as InvoiceRecordContent).line_items
+  return Array.isArray(items) ? items : []
+}
+
+const LINE_ITEM_FIELD_LABELS = {
+  item_name: '货物或应税劳务名称',
+  spec: '规格型号',
+  unit: '单位',
+  quantity: '数量',
+  unit_price: '单价',
+} as const
+
+function listMissingLineItemFieldLabels(row: InvoiceRecordForReparse): string[] {
+  const items = getInvoiceLineItems(row)
+  if (items.length === 0) {
+    return Object.values(LINE_ITEM_FIELD_LABELS)
+  }
+
+  const missing = new Set<string>()
+  const activeLines = items.filter(
+    (item) =>
+      hasFilledText(item.item_name) ||
+      hasFilledText(item.spec) ||
+      hasFilledText(item.unit) ||
+      hasMoney(item.quantity) ||
+      hasMoney(item.unit_price) ||
+      hasMoney(item.amount),
+  )
+  const linesToCheck = activeLines.length > 0 ? activeLines : items
+
+  for (const item of linesToCheck) {
+    if (!hasFilledText(item.item_name)) {
+      missing.add(LINE_ITEM_FIELD_LABELS.item_name)
+    }
+    if (!hasFilledText(item.unit)) missing.add(LINE_ITEM_FIELD_LABELS.unit)
+    if (!hasMoney(item.quantity)) missing.add(LINE_ITEM_FIELD_LABELS.quantity)
+    if (!hasMoney(item.unit_price)) missing.add(LINE_ITEM_FIELD_LABELS.unit_price)
+  }
+
+  return [...missing]
+}
+
+function logReparseFailure(
+  row: InvoiceRecordForReparse,
+  reason: string,
+): void {
+  appendReparseFailureLog({
+    record_id: row.id,
+    digital_invoice_no: row.digital_invoice_no,
+    source_file_name: row.source_file_name,
+    reason,
+  })
+}
+
 /** 缺字段模式：任一关键字段缺失或票号不足 20 位则需重解析 */
 export function invoiceRecordHasMissingFields(row: InvoiceRecordForReparse): boolean {
   return listMissingInvoiceFieldLabels(row).length > 0
@@ -102,6 +165,7 @@ export function listMissingInvoiceFieldLabels(row: InvoiceRecordForReparse): str
   if (!hasMoney(row.amount)) missing.push('金额')
   if (!hasMoney(row.tax_amount)) missing.push('税额')
   if (!hasMoney(row.total_amount)) missing.push('价税合计')
+  missing.push(...listMissingLineItemFieldLabels(row))
   return missing
 }
 
@@ -274,32 +338,46 @@ export async function reparseInvoiceRecord(
     const merged = mergeParsedInvoiceRecord(row, parsed)
     const { error } = await supabase.from('invoice_records').update(merged).eq('id', row.id)
     if (error) {
+      const message = error.message
+      logReparseFailure(row, `数据库更新失败：${message}`)
       return {
         id: row.id,
         digital_invoice_no: row.digital_invoice_no,
+        source_file_name: row.source_file_name,
         status: 'failed',
-        message: error.message,
+        message,
       }
     }
 
     const mergedRow: InvoiceRecordForReparse = { ...row, ...merged }
     const stillMissing = listMissingInvoiceFieldLabels(mergedRow)
     if (options?.requireComplete && stillMissing.length > 0) {
+      const message = `解析后仍缺：${stillMissing.join('、')}`
+      logReparseFailure(row, message)
       return {
         id: row.id,
         digital_invoice_no: mergedRow.digital_invoice_no,
+        source_file_name: row.source_file_name,
         status: 'failed',
-        message: `解析后仍缺：${stillMissing.join('、')}`,
+        message,
       }
     }
 
-    return { id: row.id, digital_invoice_no: mergedRow.digital_invoice_no, status: 'success' }
+    return {
+      id: row.id,
+      digital_invoice_no: mergedRow.digital_invoice_no,
+      source_file_name: row.source_file_name,
+      status: 'success',
+    }
   } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : String(e)
+    logReparseFailure(row, message)
     return {
       id: row.id,
       digital_invoice_no: row.digital_invoice_no,
+      source_file_name: row.source_file_name,
       status: 'failed',
-      message: e instanceof Error ? e.message : String(e),
+      message,
     }
   }
 }
@@ -310,6 +388,7 @@ export async function reparseAllInvoiceRecords(options?: {
   onProgress?: (done: number, total: number, stats: { skipped: number; pending: number }) => void
 }): Promise<ReparseAllInvoiceResult> {
   const mode = options?.mode ?? 'missing'
+  resetReparseFailureLog()
   const rows = await fetchAllInvoiceRecordsForReparse()
   const items: ReparseInvoiceResult[] = new Array(rows.length)
   const toReparse: { row: InvoiceRecordForReparse; index: number }[] = []
@@ -319,6 +398,7 @@ export async function reparseAllInvoiceRecords(options?: {
       items[index] = {
         id: row.id,
         digital_invoice_no: row.digital_invoice_no,
+        source_file_name: row.source_file_name,
         status: 'skipped',
         message: '字段已完整',
       }

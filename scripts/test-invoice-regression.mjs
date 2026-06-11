@@ -206,6 +206,70 @@ function parseDigitalInvoiceBlock(text) {
     issuer,
   }
 }
+const DIGITAL_LINE_ITEM_WITH_SPEC =
+  /\*\s*([^*]+?)\s*\*\s*([\u4e00-\u9fa5A-Za-z0-9（）()·\s]+?)\s+([A-Z0-9][A-Za-z0-9\-]{1,30})\s+(\d{1,2}%|\*)\s+(\S+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)/
+const DIGITAL_LINE_ITEM_NO_SPEC =
+  /\*\s*([^*]+?)\s*\*\s*([\u4e00-\u9fa5A-Za-z0-9（）()·\s]+?)\s+(\d{1,2}%|\*)\s+(\S+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)/
+
+function resolveQuantityAndUnitPrice(amount, first, second) {
+  if (first == null || second == null) return { quantity: first, unit_price: second }
+  if (amount != null && amount > 0) {
+    const err1 =
+      first !== 0 ? Math.abs(amount / first - second) / Math.max(Math.abs(second), 1e-9) : Infinity
+    const err2 =
+      second !== 0 ? Math.abs(amount / second - first) / Math.max(Math.abs(first), 1e-9) : Infinity
+    const bothGood = err1 < 0.02 && err2 < 0.02
+    if (bothGood) {
+      if (Number.isInteger(second) && !Number.isInteger(first)) return { quantity: second, unit_price: first }
+      if (Number.isInteger(first) && !Number.isInteger(second)) return { quantity: first, unit_price: second }
+      return first >= second
+        ? { quantity: first, unit_price: second }
+        : { quantity: second, unit_price: first }
+    }
+    if (err1 < err2) return { quantity: first, unit_price: second }
+    return { quantity: second, unit_price: first }
+  }
+  return { quantity: first, unit_price: second }
+}
+
+function parseDigitalLineItem(text) {
+  const withSpec = text.match(DIGITAL_LINE_ITEM_WITH_SPEC)
+  if (withSpec) {
+    const amount = parseMoney(withSpec[6])
+    const { quantity, unit_price } = resolveQuantityAndUnitPrice(
+      amount,
+      parseMoney(withSpec[8]),
+      parseMoney(withSpec[9]),
+    )
+    return {
+      item_name: `* ${withSpec[1].trim()} * ${withSpec[2].trim()}`,
+      spec: withSpec[3]?.trim() || null,
+      unit: withSpec[5]?.trim() || null,
+      amount,
+      quantity,
+      unit_price,
+    }
+  }
+  const noSpec = text.match(DIGITAL_LINE_ITEM_NO_SPEC)
+  if (noSpec) {
+    const amount = parseMoney(noSpec[5])
+    const { quantity, unit_price } = resolveQuantityAndUnitPrice(
+      amount,
+      parseMoney(noSpec[7]),
+      parseMoney(noSpec[8]),
+    )
+    return {
+      item_name: `* ${noSpec[1].trim()} * ${noSpec[2].trim()}`,
+      spec: null,
+      unit: noSpec[4]?.trim() || null,
+      amount,
+      quantity,
+      unit_price,
+    }
+  }
+  return null
+}
+
 function coalesceText(...vals) {
   for (const v of vals) {
     if (typeof v === 'string' && v.trim() && !/^[—–\-－]+$/.test(v.trim())) return v.trim()
@@ -317,6 +381,14 @@ for (const filePath of files) {
     if (Math.abs(sum - parsed.total_amount) > 0.02) {
       issues.push(`金额校验失败: ${parsed.amount}+${parsed.tax_amount}≠${parsed.total_amount}`)
     }
+  }
+
+  if (new RegExp(`${ISSUER_LABEL}${ISSUER_INVOICE_NO}`).test(text)) {
+    const line = parseDigitalLineItem(text)
+    if (!line?.item_name || line.item_name === '—') issues.push('缺明细项目名称')
+    if (!line?.unit) issues.push('缺明细单位')
+    if (line?.quantity == null) issues.push('缺明细数量')
+    if (line?.unit_price == null) issues.push('缺明细单价')
   }
 
   if (issues.length) {
