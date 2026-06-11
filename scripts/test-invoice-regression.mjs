@@ -19,10 +19,13 @@ const COMPACT_INVOICE_FILE_RE =
   /^(.+?)(\d{20})(?:\s*[-–—]\s*副本)?\.pdf$/i
 
 const ISSUER_LABEL = '开\\s*票\\s*人[：:\\s]*'
-const ISSUER_INVOICE_NO =
-  '(?:\\d{20}|(?:\\d[\\s\\u00a0]?){20})(?=\\s*(?:\\d{4}|(?:\\d[\\s\\u00a0]?){4})\\s*年)'
+const ISSUER_BLOCK_SKIP = '[\\s\\S]{0,1200}?'
 const FLEX_CN_DATE =
   '(?:\\d{4}|(?:\\d[\\s\\u00a0]?){4})\\s*年\\s*(?:\\d{1,2}|(?:\\d[\\s\\u00a0]?){1,2})\\s*月\\s*(?:\\d{1,2}|(?:\\d[\\s\\u00a0]?){1,2})\\s*日'
+const FLEX_ISO_DATE = '\\d{4}-\\d{1,2}-\\d{1,2}'
+const FLEX_ISSUE_DATE = `(?:${FLEX_CN_DATE}|${FLEX_ISO_DATE})`
+const ISSUER_INVOICE_NO =
+  `(?:\\d{20}|(?:\\d[\\s\\u00a0]?){20})(?=\\s*(?:${FLEX_ISSUE_DATE}))`
 const PARTY_NAME = '[\\u4e00-\\u9fa5A-Za-z0-9（）()·\\s]{2,80}?'
 const SPACED_TAX_ID = '((?:[0-9A-Z][\\s\\u00a0]?){15,22})'
 const YEN_MONEY_VALUE =
@@ -44,6 +47,13 @@ function parseCnDateToIso(text) {
   const m = compact.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/)
   if (!m) return null
   return `${m[1]}-${String(Number(m[2])).padStart(2, '0')}-${String(Number(m[3])).padStart(2, '0')}`
+}
+function parseIssuerBlockIssueDate(raw) {
+  const cn = parseCnDateToIso(raw)
+  if (cn) return cn
+  const iso = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
+  if (!iso) return null
+  return `${iso[1]}-${String(Number(iso[2])).padStart(2, '0')}-${String(Number(iso[3])).padStart(2, '0')}`
 }
 function parseMoney(text) {
   if (!text) return null
@@ -177,7 +187,7 @@ function parsePrefaceInvoiceBlock(text) {
 }
 function parseDigitalInvoiceBlock(text) {
   const headerMatch = text.match(
-    new RegExp(`${ISSUER_LABEL}(${ISSUER_INVOICE_NO})\\s+(${FLEX_CN_DATE})\\s+(.*)`, 's'),
+    new RegExp(`${ISSUER_LABEL}${ISSUER_BLOCK_SKIP}(${ISSUER_INVOICE_NO})\\s+(${FLEX_ISSUE_DATE})\\s+(.*)`, 's'),
   )
   if (!headerMatch) return null
   const rest = headerMatch[3]
@@ -190,21 +200,28 @@ function parseDigitalInvoiceBlock(text) {
   if (sellerTaxId.length < 15 || buyerTaxId.length < 15) return null
   const afterParties = rest.slice(parties[0].length)
   const yenAmounts = extractYenAmounts(afterParties)
-  if (yenAmounts.length < 3) return null
+  if (yenAmounts.length < 2) return null
   const issuer = extractIssuerFromText(afterParties) ?? extractIssuerFromText(text)
-  if (!issuer) return null
   return {
     digital_invoice_no: compactDigitRun(headerMatch[1]),
-    issue_date: parseCnDateToIso(headerMatch[2]),
+    issue_date: parseIssuerBlockIssueDate(headerMatch[2]),
     seller_name: parties[1].replace(/\s+/g, ' ').trim(),
     seller_tax_id: sellerTaxId,
     buyer_name: parties[3].replace(/\s+/g, ' ').trim(),
     buyer_tax_id: buyerTaxId,
     amount: yenAmounts[0],
     tax_amount: yenAmounts[1],
-    total_amount: yenAmounts[2],
+    total_amount:
+      yenAmounts[2] ??
+      (yenAmounts[0] != null && yenAmounts[1] != null
+        ? Math.round((yenAmounts[0] + yenAmounts[1]) * 100) / 100
+        : null),
     issuer,
   }
+}
+function shouldUseDigitalLineItemParser(text) {
+  if (new RegExp(`${ISSUER_LABEL}${ISSUER_BLOCK_SKIP}${ISSUER_INVOICE_NO}`).test(text)) return true
+  return /\*[^*]+\*[^*\n]{2,200}?\s+\d{1,2}%/.test(text)
 }
 const DIGITAL_LINE_ITEM_WITH_SPEC =
   /\*\s*([^*]+?)\s*\*\s*([\u4e00-\u9fa5A-Za-z0-9（）()·\s]+?)\s+([A-Z0-9][A-Za-z0-9-]{1,30})\s+(\d{1,2}%|\*)\s+(\S+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)/
@@ -416,7 +433,7 @@ function assertMissingFieldRegression() {
       row: {
         digital_invoice_no: '25132000000003577436',
         invoice_number: '25132000000003577436',
-        line_items: [{ item_name: '* 无机化学原料 * 氧化镁', unit: '吨', quantity: 1, unit_price: 100 }],
+        line_items: [{ item_name: '* 无机化学原料 * 氧化镁', spec: '无', unit: '吨', quantity: 1, unit_price: 100 }],
       },
       expected: [],
     },
@@ -435,13 +452,44 @@ function assertMissingFieldRegression() {
 
 assertMissingFieldRegression()
 
+function assertLayoutRegression() {
+  const isoDateText =
+    '开票人：  25132000000216443295 2025-12-03  山东丰源轮胎制造股份有限公司  91370400679206899N  河北镁神科技股份有限公司  911305316610547945  ¥ 1575.22   ¥ 204.78  壹仟柒佰捌拾圆整   ¥ 1780.00  *无机化学原料*氧化镁   13% 吨   1575.22   204.78 7876.1 0.2'
+  const block = parseDigitalInvoiceBlock(isoDateText)
+  if (!block?.seller_tax_id || !block?.buyer_name || block.issue_date !== '2025-12-03') {
+    throw new Error(`ISO 日期版式解析失败: ${JSON.stringify(block)}`)
+  }
+
+  const mitaiText =
+    '开票人：  电子发票（增值税专用发票） 发票号码： 开票日期： 25132000000092994521 2025年05月31日  河北镁泰镁质材料有限公司  911305310954895067  河北镁神科技股份有限公司  911305316610547945  ¥ 7921.62   ¥ 1029.79  捌仟玖佰伍拾壹圆肆角壹分   ¥ 8951.41  韩海燕  *塑料制品*白包装55*85   13% 条   3.5946902654867 400   1437.88   186.92'
+  const mitaiBlock = parseDigitalInvoiceBlock(mitaiText)
+  if (!mitaiBlock?.seller_tax_id || !mitaiBlock?.buyer_name || mitaiBlock.issue_date !== '2025-05-31') {
+    throw new Error(`镁泰模板票头解析失败: ${JSON.stringify(mitaiBlock)}`)
+  }
+}
+
+assertLayoutRegression()
+
+const TEMPLATE_FILES = [
+  '河北镁泰镁质材料有限公司_数电票（专用发票）_25132000000092994521.pdf',
+  '河北镁泰镁质材料有限公司_数电票（增值税专用发票）_25132000000231452039.pdf',
+  '河北镁泰镁质材料有限公司_数电票（增值税专用发票）_25132000000224111482.pdf',
+  '河北镁泰镁质材料有限公司_数电票（增值税专用发票）_25132000000231481309.pdf',
+  '河北镁泰镁质材料有限公司_数电票（增值税专用发票）_25132000000224101489.pdf',
+  '河北镁泰镁质材料有限公司_数电票（普通发票）_25132000000052316914.pdf',
+  '河北镁泰镁质材料有限公司_数电发票（增值税专用发票）_25132000000239711893.pdf',
+  '河北镁泰镁质材料有限公司_数电发票（增值税专用发票）_25132000000239578649.pdf',
+  '河北镁泰镁质材料有限公司_数电发票（增值税专用发票）_25132000000239615949.pdf',
+  '河北镁泰镁质材料有限公司_数电发票（增值税专用发票）_25132000000239607501.pdf',
+]
+
 const dirs = [
   '/Users/mac/Downloads/1.25日',
   '/Users/mac/Downloads',
   '/Users/mac/Library/Containers/com.tencent.xinWeChat/Data/Documents/xwechat_files/wxid_7qtugkm66ffd22_7707/msg/file/2026-06',
 ]
 
-const files = new Set()
+const files = new Set(TEMPLATE_FILES.map((f) => `/Users/mac/Downloads/${f}`))
 for (const dir of dirs) {
   const names = await fs.readdir(dir).catch(() => [])
   for (const n of names) {
@@ -490,7 +538,7 @@ for (const filePath of files) {
     }
   }
 
-  if (new RegExp(`${ISSUER_LABEL}${ISSUER_INVOICE_NO}`).test(text)) {
+  if (shouldUseDigitalLineItemParser(text)) {
     const line = parseDigitalLineItem(text)
     if (!line?.item_name || line.item_name === '—') issues.push('缺明细项目名称')
     if (!line?.unit) issues.push('缺明细单位')

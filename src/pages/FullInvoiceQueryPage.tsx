@@ -34,6 +34,7 @@ import {
 import { exportInvoicesToExcel } from '../lib/invoiceExcelExport'
 import {
   fetchAllInvoiceRecordsForExport,
+  fetchInvoiceRecordsByIds,
   fetchInvoiceRecordsForDisplay,
   INVOICE_QUERY_DISPLAY_LIMIT,
 } from '../lib/invoiceRecordQuery'
@@ -155,13 +156,18 @@ export function FullInvoiceQueryPage() {
     (mode: 'selected' | 'all') => {
       void (async () => {
         if (mode === 'selected') {
-          const target = rows.filter((r) => selectedRowKeys.includes(r.id))
-          if (target.length === 0) {
+          if (selectedRowKeys.length === 0) {
             void message.warning('没有可导出的发票')
             return
           }
           setExporting(true)
           try {
+            const { data: target, error } = await fetchInvoiceRecordsByIds(selectedRowKeys)
+            if (error) throw error
+            if (target.length === 0) {
+              void message.warning('没有可导出的发票')
+              return
+            }
             await exportInvoicesToExcel(target, '全量发票查询导出结果.xlsx')
             void message.success(`已导出 ${target.length} 张发票`)
           } catch (e: unknown) {

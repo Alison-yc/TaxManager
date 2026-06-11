@@ -31,8 +31,8 @@ export type ReparseAllInvoiceResult = {
 
 export type ReparseMode = 'full' | 'missing'
 
-const REPARSE_FETCH_BATCH = 1000
-const DEFAULT_REPARSE_CONCURRENCY = 4
+const REPARSE_FETCH_BATCH = 50
+const DEFAULT_REPARSE_CONCURRENCY = 1
 
 type InvoiceRecordForReparse = Pick<
   InvoiceRecordRow,
@@ -133,6 +133,7 @@ function listMissingLineItemFieldLabels(row: InvoiceRecordForReparse): string[] 
     if (!hasFilledText(item.item_name)) {
       missing.add(LINE_ITEM_FIELD_LABELS.item_name)
     }
+    if (!hasFilledText(item.spec)) missing.add(LINE_ITEM_FIELD_LABELS.spec)
     if (!hasFilledText(item.unit)) missing.add(LINE_ITEM_FIELD_LABELS.unit)
     if (!hasMoney(item.quantity)) missing.add(LINE_ITEM_FIELD_LABELS.quantity)
     if (!hasMoney(item.unit_price)) missing.add(LINE_ITEM_FIELD_LABELS.unit_price)
@@ -322,24 +323,25 @@ async function runWithConcurrency<T>(
   await Promise.all(Array.from({ length: workers }, () => runWorker()))
 }
 
-async function fetchAllInvoiceRecordsForReparse(): Promise<InvoiceRecordForReparse[]> {
-  const rows: InvoiceRecordForReparse[] = []
-  let from = 0
+async function fetchInvoiceRecordBatch(
+  from: number,
+  to: number,
+): Promise<InvoiceRecordForReparse[]> {
+  const { data, error } = await supabase
+    .from('invoice_records')
+    .select(REPARSE_SELECT)
+    .order('created_at', { ascending: true })
+    .range(from, to)
+  if (error) throw new Error(error.message)
+  return (data ?? []) as InvoiceRecordForReparse[]
+}
 
-  while (true) {
-    const { data, error } = await supabase
-      .from('invoice_records')
-      .select(REPARSE_SELECT)
-      .order('created_at', { ascending: true })
-      .range(from, from + REPARSE_FETCH_BATCH - 1)
-    if (error) throw new Error(error.message)
-    const batch = (data ?? []) as InvoiceRecordForReparse[]
-    rows.push(...batch)
-    if (batch.length < REPARSE_FETCH_BATCH) break
-    from += REPARSE_FETCH_BATCH
-  }
-
-  return rows
+async function countInvoiceRecordsForReparse(): Promise<number> {
+  const { count, error } = await supabase
+    .from('invoice_records')
+    .select('id', { count: 'exact', head: true })
+  if (error) throw new Error(error.message)
+  return count ?? 0
 }
 
 export async function reparseInvoiceRecord(
@@ -399,58 +401,73 @@ export async function reparseInvoiceRecord(
 export async function reparseAllInvoiceRecords(options?: {
   mode?: ReparseMode
   concurrency?: number
-  onProgress?: (done: number, total: number, stats: { skipped: number; pending: number }) => void
+  onProgress?: (
+    done: number,
+    total: number,
+    stats: { skipped: number; pending: number; reparseDone: number; reparseTotal: number },
+  ) => void
 }): Promise<ReparseAllInvoiceResult> {
   const mode = options?.mode ?? 'missing'
+  const concurrency = options?.concurrency ?? DEFAULT_REPARSE_CONCURRENCY
   resetReparseFailureLog()
-  const rows = await fetchAllInvoiceRecordsForReparse()
-  const items: ReparseInvoiceResult[] = new Array(rows.length)
-  const toReparse: { row: InvoiceRecordForReparse; index: number }[] = []
 
-  rows.forEach((row, index) => {
-    if (!shouldReparseInvoiceRecord(row, mode)) {
-      items[index] = {
-        id: row.id,
-        digital_invoice_no: row.digital_invoice_no,
-        source_file_name: row.source_file_name,
-        status: 'skipped',
-        message: '字段已完整',
-      }
-      return
-    }
-    toReparse.push({ row, index })
-  })
-
-  const skipped = rows.length - toReparse.length
-  let done = skipped
+  const total = await countInvoiceRecordsForReparse()
+  let done = 0
+  let success = 0
+  let skipped = 0
+  let failed = 0
+  let reparseTotal = 0
+  let reparseDone = 0
+  const failureItems: ReparseInvoiceResult[] = []
 
   const reportProgress = () => {
-    options?.onProgress?.(done, rows.length, {
+    options?.onProgress?.(done, total, {
       skipped,
-      pending: toReparse.length,
+      pending: Math.max(reparseTotal - reparseDone, 0),
+      reparseDone,
+      reparseTotal,
     })
   }
 
   reportProgress()
 
-  await runWithConcurrency(
-    toReparse,
-    options?.concurrency ?? DEFAULT_REPARSE_CONCURRENCY,
-    async ({ row, index }) => {
-      items[index] = await reparseInvoiceRecord(row, {
+  for (let from = 0; from < total; from += REPARSE_FETCH_BATCH) {
+    const batch = await fetchInvoiceRecordBatch(from, from + REPARSE_FETCH_BATCH - 1)
+    const toReparse: InvoiceRecordForReparse[] = []
+
+    for (const row of batch) {
+      if (shouldReparseInvoiceRecord(row, mode)) {
+        toReparse.push(row)
+      } else {
+        skipped += 1
+        done += 1
+      }
+    }
+
+    reparseTotal += toReparse.length
+    reportProgress()
+
+    await runWithConcurrency(toReparse, concurrency, async (row) => {
+      const result = await reparseInvoiceRecord(row, {
         requireComplete: mode === 'missing',
       })
+      reparseDone += 1
       done += 1
+      if (result.status === 'success') {
+        success += 1
+      } else if (result.status === 'failed') {
+        failed += 1
+        failureItems.push(result)
+      }
       reportProgress()
-    },
-  )
+    })
+  }
 
-  const resolved = items.filter(Boolean)
   return {
-    total: rows.length,
-    success: resolved.filter((x) => x.status === 'success').length,
-    skipped: resolved.filter((x) => x.status === 'skipped').length,
-    failed: resolved.filter((x) => x.status === 'failed').length,
-    items: resolved,
+    total,
+    success,
+    skipped,
+    failed,
+    items: failureItems,
   }
 }

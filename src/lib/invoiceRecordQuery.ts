@@ -70,17 +70,34 @@ export function applyInvoiceRecordFilters(
   return q;
 }
 
+/** 列表页展示字段（不含 content 明细，避免数千张发票占用 GB 级内存） */
+export const INVOICE_LIST_SELECT =
+  "id, created_at, auth_user_id, digital_invoice_no, invoice_code, invoice_number, query_type, invoice_source, invoice_type, invoice_status, is_positive, risk_level, seller_name, seller_tax_id, buyer_name, buyer_tax_id, issue_date, amount, tax_amount, total_amount, business_type, issuer, remark, source_file_name, storage_path";
+
 /** 列表页查询：最多返回 INVOICE_QUERY_DISPLAY_LIMIT 条 */
 export async function fetchInvoiceRecordsForDisplay(
   filters: InvoiceQueryFilters,
 ): Promise<{ data: InvoiceRecordRow[]; error: Error | null }> {
   let q = supabase
     .from("invoice_records")
-    .select("*")
+    .select(INVOICE_LIST_SELECT)
     .order("issue_date", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false });
   q = applyInvoiceRecordFilters(q, filters);
   const { data, error } = await q.range(0, INVOICE_QUERY_DISPLAY_LIMIT - 1);
+  if (error) return { data: [], error: new Error(error.message) };
+  return { data: (data ?? []) as InvoiceRecordRow[], error: null };
+}
+
+/** 按 id 拉取完整记录（含 content），用于勾选导出等需要明细的场景 */
+export async function fetchInvoiceRecordsByIds(
+  ids: string[],
+): Promise<{ data: InvoiceRecordRow[]; error: Error | null }> {
+  if (ids.length === 0) return { data: [], error: null };
+  const { data, error } = await supabase
+    .from("invoice_records")
+    .select("*")
+    .in("id", ids);
   if (error) return { data: [], error: new Error(error.message) };
   return { data: (data ?? []) as InvoiceRecordRow[], error: null };
 }

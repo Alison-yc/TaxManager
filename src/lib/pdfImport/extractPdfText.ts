@@ -1,16 +1,21 @@
 import { loadPdfFromFile } from './loadPdfDocument'
+import type * as pdfjsLib from 'pdfjs-dist'
 
 export async function extractPdfTextFromDocument(
-  pdf: Awaited<ReturnType<typeof loadPdfFromFile>>,
+  pdf: pdfjsLib.PDFDocumentProxy,
 ): Promise<string> {
   const parts: string[] = []
   for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
     const page = await pdf.getPage(pageNum)
-    const content = await page.getTextContent()
-    const pageText = content.items
-      .map((item) => ('str' in item ? item.str : ''))
-      .join(' ')
-    parts.push(pageText)
+    try {
+      const content = await page.getTextContent()
+      const pageText = content.items
+        .map((item) => ('str' in item ? item.str : ''))
+        .join(' ')
+      parts.push(pageText)
+    } finally {
+      page.cleanup()
+    }
   }
   return parts.join('\n')
 }
@@ -18,19 +23,31 @@ export async function extractPdfTextFromDocument(
 export async function extractPdfTextAndPageCount(
   file: File,
 ): Promise<{ text: string; pageCount: number }> {
-  const pdf = await loadPdfFromFile(file)
-  const text = await extractPdfTextFromDocument(pdf)
-  return { text, pageCount: pdf.numPages }
+  const { pdf, destroy } = await loadPdfFromFile(file)
+  try {
+    const text = await extractPdfTextFromDocument(pdf)
+    return { text, pageCount: pdf.numPages }
+  } finally {
+    await destroy()
+  }
 }
 
 export async function extractPdfText(file: File): Promise<string> {
-  const pdf = await loadPdfFromFile(file)
-  return extractPdfTextFromDocument(pdf)
+  const { pdf, destroy } = await loadPdfFromFile(file)
+  try {
+    return await extractPdfTextFromDocument(pdf)
+  } finally {
+    await destroy()
+  }
 }
 
 export async function getPdfPageCount(file: File): Promise<number> {
-  const pdf = await loadPdfFromFile(file)
-  return pdf.numPages
+  const { pdf, destroy } = await loadPdfFromFile(file)
+  try {
+    return pdf.numPages
+  } finally {
+    await destroy()
+  }
 }
 
 function pickFirst(text: string, patterns: RegExp[]): string | null {

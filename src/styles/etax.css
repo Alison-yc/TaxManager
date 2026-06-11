@@ -3606,9 +3606,15 @@
   min-height: 680px;
 }
 
+/* 申报/财报 PDF：去掉阅读器式灰边，内容区全宽白底铺满 */
+.etax-record-preview-frame.etax-declaration-pdf-preview.vat-preview-frame {
+  padding: 0;
+  background: #fff;
+}
+
 .etax-declaration-pdf-preview {
   padding: 0;
-  background: #f5f5f5;
+  background: #fff;
 }
 
 .etax-declaration-pdf-preview .etax-pdf-preview-wrap {
@@ -3658,13 +3664,17 @@
 
 .etax-declaration-pdf-preview .etax-pdf-chromeless {
   min-height: 720px;
-  background: #f5f5f5;
-  padding: 8px 12px;
+  background: #fff;
+  padding: 0;
 }
 
 .etax-declaration-pdf-preview .etax-pdf-chromeless-page {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
   background: #fff;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+  box-shadow: none;
 }
 
 .etax-record-main-form .ant-select {

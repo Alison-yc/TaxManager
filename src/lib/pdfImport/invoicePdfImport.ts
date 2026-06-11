@@ -61,6 +61,9 @@ const COMPACT_INVOICE_FILE_RE =
 /** PDF 中「开票人」标签可能被拆成「开 票 人」 */
 const ISSUER_LABEL = '开\\s*票\\s*人[：:\\s]*'
 
+/** 开票人标签与票号之间可能插入票种/业务类型/表头占位 */
+const ISSUER_BLOCK_SKIP = '[\\s\\S]{0,1200}?'
+
 /** 税号/识别号可能被拆成逐字符空格 */
 const SPACED_TAX_ID = '((?:[0-9A-Z][\\s\\u00a0]?){15,22})'
 
@@ -81,13 +84,18 @@ function compactDigitRun(value: string): string {
   return value.replace(/[\s\u00a0]/g, '')
 }
 
-/** 开票人块中票号：连续 20 位，或逐字空格，或中间少量空格 */
-const ISSUER_INVOICE_NO =
-  '(?:\\d{20}|(?:\\d[\\s\\u00a0]?){20})(?=\\s*(?:\\d{4}|(?:\\d[\\s\\u00a0]?){4})\\s*年)'
-
 /** 中文日期：兼容 2025年01月31日、2025 年 01 月 25 日、2 0 2 5 年0 6 月0 5 日 */
 const FLEX_CN_DATE =
   '(?:\\d{4}|(?:\\d[\\s\\u00a0]?){4})\\s*年\\s*(?:\\d{1,2}|(?:\\d[\\s\\u00a0]?){1,2})\\s*月\\s*(?:\\d{1,2}|(?:\\d[\\s\\u00a0]?){1,2})\\s*日'
+
+/** ISO 日期：2025-12-03 */
+const FLEX_ISO_DATE = '\\d{4}-\\d{1,2}-\\d{1,2}'
+
+const FLEX_ISSUE_DATE = `(?:${FLEX_CN_DATE}|${FLEX_ISO_DATE})`
+
+/** 开票人块中票号：连续 20 位，或逐字空格；后接中文或 ISO 开票日期 */
+const ISSUER_INVOICE_NO =
+  `(?:\\d{20}|(?:\\d[\\s\\u00a0]?){20})(?=\\s*(?:${FLEX_ISSUE_DATE}))`
 
 /** ¥ 后金额（兼容 3 0 9 7 3 . 4 5 与 30973.45） */
 const YEN_MONEY_VALUE =
@@ -255,53 +263,147 @@ function sanitizeLineItem(item: InvoiceLineItem): InvoiceLineItem {
   }
 }
 
-/** 数电票 PDF 正文为稀疏排版，核心字段集中在「开票人：」后的数据块（销方在前、购方在后） */
-function parseDigitalInvoiceBlock(text: string): InvoiceFieldBlock | null {
+type IssuerBlockHeader = {
+  digital_invoice_no: string
+  issue_date: string | null
+  rest: string
+}
+
+function parseIssuerBlockIssueDate(raw: string): string | null {
+  return parseCnDateToIso(raw) ?? parseInvoiceDate(raw)
+}
+
+function matchIssuerBlockHeader(text: string): IssuerBlockHeader | null {
   const headerMatch = text.match(
-    new RegExp(`${ISSUER_LABEL}(${ISSUER_INVOICE_NO})\\s+(${FLEX_CN_DATE})\\s+(.*)`, 's'),
+    new RegExp(
+      `${ISSUER_LABEL}${ISSUER_BLOCK_SKIP}(${ISSUER_INVOICE_NO})\\s+(${FLEX_ISSUE_DATE})\\s+(.*)`,
+      's',
+    ),
   )
   if (!headerMatch) return null
+  return {
+    digital_invoice_no: compactDigitRun(headerMatch[1]),
+    issue_date: parseIssuerBlockIssueDate(headerMatch[2]),
+    rest: headerMatch[3],
+  }
+}
 
-  const rest = headerMatch[3]
-  const parties = rest.match(
+function compactPartyName(value: string): string {
+  return value.replace(/\s+/g, '').replace(/[（）()]/g, '')
+}
+
+function partyNameMatchesHint(partyName: string, hint: string | null | undefined): boolean {
+  if (!hint?.trim()) return false
+  const party = compactPartyName(partyName)
+  const target = compactPartyName(hint)
+  if (!party || !target) return false
+  return party.includes(target) || target.includes(party)
+}
+
+/** 开票人块默认销方在前；若与文件名销/购方不一致则交换 */
+function orientIssuerBlockParties(
+  firstName: string,
+  firstTaxId: string,
+  secondName: string,
+  secondTaxId: string,
+  hints?: InvoiceFileNameHints | null,
+): Pick<InvoiceFieldBlock, 'seller_name' | 'seller_tax_id' | 'buyer_name' | 'buyer_tax_id'> {
+  let sellerName = firstName.replace(/\s+/g, ' ').trim()
+  let sellerTaxId = firstTaxId
+  let buyerName = secondName.replace(/\s+/g, ' ').trim()
+  let buyerTaxId = secondTaxId
+
+  const secondIsSeller =
+    partyNameMatchesHint(secondName, hints?.seller_name) ||
+    partyNameMatchesHint(firstName, hints?.buyer_name)
+  const firstIsSeller =
+    partyNameMatchesHint(firstName, hints?.seller_name) ||
+    partyNameMatchesHint(secondName, hints?.buyer_name)
+
+  if (secondIsSeller && !firstIsSeller) {
+    sellerName = secondName.replace(/\s+/g, ' ').trim()
+    sellerTaxId = secondTaxId
+    buyerName = firstName.replace(/\s+/g, ' ').trim()
+    buyerTaxId = firstTaxId
+  }
+
+  return {
+    seller_name: sellerName,
+    seller_tax_id: sellerTaxId,
+    buyer_name: buyerName,
+    buyer_tax_id: buyerTaxId,
+  }
+}
+
+/** 数电票 PDF 正文为稀疏排版，核心字段集中在「开票人：」后的数据块 */
+function parseDigitalInvoiceBlock(
+  text: string,
+  hints?: InvoiceFileNameHints | null,
+): InvoiceFieldBlock | null {
+  const header = matchIssuerBlockHeader(text)
+  if (!header) return null
+
+  const parties = header.rest.match(
     new RegExp(
       `^(${PARTY_NAME})\\s+${SPACED_TAX_ID}\\s+(${PARTY_NAME})\\s+${SPACED_TAX_ID}`,
     ),
   )
   if (!parties) return null
 
-  const sellerTaxId = compactTaxId(parties[2])
-  const buyerTaxId = compactTaxId(parties[4])
-  if (!isValidTaxId(sellerTaxId) || !isValidTaxId(buyerTaxId)) return null
+  const firstTaxId = compactTaxId(parties[2])
+  const secondTaxId = compactTaxId(parties[4])
+  if (!isValidTaxId(firstTaxId) || !isValidTaxId(secondTaxId)) return null
 
-  const afterParties = rest.slice(parties[0].length)
+  const oriented = orientIssuerBlockParties(
+    parties[1],
+    firstTaxId,
+    parties[3],
+    secondTaxId,
+    hints,
+  )
+
+  const afterParties = header.rest.slice(parties[0].length)
   const yenAmounts = extractYenAmounts(afterParties)
+  if (yenAmounts.length < 2) return null
 
-  if (yenAmounts.length < 3) return null
+  const amount = yenAmounts[0]
+  const tax_amount = yenAmounts[1]
+  const total_amount =
+    yenAmounts[2] ??
+    (amount != null && tax_amount != null
+      ? Math.round((amount + tax_amount) * 100) / 100
+      : null)
 
   const issuer = extractIssuerFromText(afterParties) ?? extractIssuerFromText(text)
 
-  if (!issuer) return null
-
   return {
-    digital_invoice_no: compactDigitRun(headerMatch[1]),
-    issue_date: parseCnDateToIso(headerMatch[2]),
-    seller_name: parties[1].replace(/\s+/g, ' ').trim(),
-    seller_tax_id: sellerTaxId,
-    buyer_name: parties[3].replace(/\s+/g, ' ').trim(),
-    buyer_tax_id: buyerTaxId,
-    amount: yenAmounts[0],
-    tax_amount: yenAmounts[1],
-    total_amount: yenAmounts[2],
+    digital_invoice_no: header.digital_invoice_no,
+    issue_date: header.issue_date,
+    seller_name: oriented.seller_name,
+    seller_tax_id: oriented.seller_tax_id,
+    buyer_name: oriented.buyer_name,
+    buyer_tax_id: oriented.buyer_tax_id,
+    amount,
+    tax_amount,
+    total_amount,
     issuer,
   }
 }
 
 function extractIssueDateFromIssuerBlock(text: string): string | null {
   const m = text.match(
-    new RegExp(`${ISSUER_LABEL}${ISSUER_INVOICE_NO}\\s+(${FLEX_CN_DATE})`),
+    new RegExp(`${ISSUER_LABEL}${ISSUER_BLOCK_SKIP}${ISSUER_INVOICE_NO}\\s+(${FLEX_ISSUE_DATE})`),
   )
-  return m ? parseCnDateToIso(m[1]) : null
+  return m ? parseIssuerBlockIssueDate(m[1]) : null
+}
+
+function hasIssuerBlockInvoiceNo(text: string): boolean {
+  return new RegExp(`${ISSUER_LABEL}${ISSUER_BLOCK_SKIP}${ISSUER_INVOICE_NO}`).test(text)
+}
+
+function shouldUseDigitalLineItemParser(text: string): boolean {
+  if (hasIssuerBlockInvoiceNo(text)) return true
+  return /\*[^*]+\*[^*\n]{2,80}?\s+\d{1,2}%/.test(text)
 }
 
 function extractInvoiceTypeFromText(text: string): string | null {
@@ -345,6 +447,7 @@ function extractIssuerFromText(text: string): string | null {
   const patterns = [
     /[¥￥][^¥]+\s+([\u4e00-\u9fa5·]{2,4})\s+\*/,
     /[¥￥][^¥]+\s+([\u4e00-\u9fa5·]{2,4})(?=\s*收|$)/,
+    /开票人[：:\s]+([\u4e00-\u9fa5·]{2,8})(?=\s*(?:收|复|$|\*))/,
   ]
   for (const pattern of patterns) {
     const match = text.match(pattern)
@@ -407,7 +510,7 @@ function collectDigitalInvoiceNoCandidates(
   if (blockNo) candidates.push(compactDigitRun(blockNo))
 
   const fromIssuerBlock = text.match(
-    new RegExp(`${ISSUER_LABEL}(${ISSUER_INVOICE_NO})\\s+(${FLEX_CN_DATE})`),
+    new RegExp(`${ISSUER_LABEL}${ISSUER_BLOCK_SKIP}(${ISSUER_INVOICE_NO})`),
   )?.[1]
   if (fromIssuerBlock) candidates.push(compactDigitRun(fromIssuerBlock))
 
@@ -473,24 +576,26 @@ function extractLabeledParties(text: string): {
 } {
   const buyerBlock = text.match(
     new RegExp(
-      `购\\s*买\\s*方[\\s\\S]{0,400}?名称[：:\\s]*(${PARTY_NAME})[\\s\\S]{0,120}?(?:统一社会信用代码|纳税人识别号)[：:/\\s]*([0-9A-Z]{15,20})`,
+      `购\\s*买\\s*方[\\s\\S]{0,400}?名称[：:\\s]*(${PARTY_NAME})[\\s\\S]{0,120}?(?:统一社会信用代码|纳税人识别号)[：:/\\s]*${SPACED_TAX_ID}`,
     ),
   )
   const sellerBlock = text.match(
     new RegExp(
-      `销\\s*售\\s*方[\\s\\S]{0,400}?名称[：:\\s]*(${PARTY_NAME})[\\s\\S]{0,120}?(?:统一社会信用代码|纳税人识别号)[：:/\\s]*([0-9A-Z]{15,20})`,
+      `销\\s*售\\s*方[\\s\\S]{0,400}?名称[：:\\s]*(${PARTY_NAME})[\\s\\S]{0,120}?(?:统一社会信用代码|纳税人识别号)[：:/\\s]*${SPACED_TAX_ID}`,
     ),
   )
 
   return {
     buyer_name: buyerBlock?.[1]?.replace(/\s+/g, ' ').trim() ?? pick(text, [/购买方名称[：:\s]*([^\n\r]{2,80})/]),
     buyer_tax_id:
-      buyerBlock?.[2]?.trim() ??
-      pick(text, [/购方识别号[：:\s]*([0-9A-Z]{15,20})/, /购买方[\s\S]{0,200}?识别号[：:\s]*([0-9A-Z]{15,20})/]),
+      compactTaxId(buyerBlock?.[2] ?? '') ||
+      pick(text, [/购方识别号[：:\s]*([0-9A-Z]{15,20})/, /购买方[\s\S]{0,200}?识别号[：:\s]*([0-9A-Z]{15,20})/]) ||
+      null,
     seller_name: sellerBlock?.[1]?.replace(/\s+/g, ' ').trim() ?? pick(text, [/销售方名称[：:\s]*([^\n\r]{2,80})/]),
     seller_tax_id:
-      sellerBlock?.[2]?.trim() ??
-      pick(text, [/销方识别号[：:\s]*([0-9A-Z]{15,20})/, /销售方[\s\S]{0,200}?识别号[：:\s]*([0-9A-Z]{15,20})/]),
+      compactTaxId(sellerBlock?.[2] ?? '') ||
+      pick(text, [/销方识别号[：:\s]*([0-9A-Z]{15,20})/, /销售方[\s\S]{0,200}?识别号[：:\s]*([0-9A-Z]{15,20})/]) ||
+      null,
   }
 }
 
@@ -528,15 +633,6 @@ function extractAmountTriplet(text: string): {
   return { amount: null, tax_amount: null, total_amount: totalOnly }
 }
 
-/** 数电票「开票人」块明细：* 大类 * 品名 [规格] 税率 单位 金额 税额 数量 单价（后两项顺序可能互换） */
-const DIGITAL_LINE_ITEM_WITH_SPEC =
-  /\*\s*([^*]+?)\s*\*\s*([\u4e00-\u9fa5A-Za-z0-9（）()·\s]+?)\s+([A-Z0-9][A-Za-z0-9-]{1,30})\s+(\d{1,2}%|\*)\s+(\S+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)/
-const DIGITAL_LINE_ITEM_NO_SPEC =
-  /\*\s*([^*]+?)\s*\*\s*([\u4e00-\u9fa5A-Za-z0-9（）()·\s]+?)\s+(\d{1,2}%|\*)\s+(\S+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)/
-/** 旧版紧凑项目名（*大类*品名，无星号旁空格） */
-const DIGITAL_LINE_ITEM_LEGACY =
-  /(\*[^*]+\*[^\s%]{1,80}?)\s+(\d{1,2}%|\*)\s+([A-Za-z\u4e00-\u9fff]+)\s+([-+]?\d[\d,.]*)\s+([-+]?\d[\d,.]*)\s+([-+]?\d[\d.]*)\s+([-+]?\d[\d,.]*)/
-
 function resolveQuantityAndUnitPrice(
   amount: number | null,
   first: number | null,
@@ -568,81 +664,88 @@ function resolveQuantityAndUnitPrice(
   return { quantity: first, unit_price: second }
 }
 
+/** 明细行：*大类*品名(可含*) [规格] 税率 单位 + 四列数字（列顺序不固定） */
+const DIGITAL_LINE_ITEM_ROW =
+  /\*\s*([^*]+?)\s*\*\s*(.+?)\s+(?:(无|[A-Za-z0-9][A-Za-z0-9-]{0,40})\s+)?(\d{1,2}%|\*)\s+(\S+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)/g
+
+function moneyApproxEqual(a: number, b: number, tolerance = 0.02): boolean {
+  if (b === 0) return Math.abs(a - b) < 0.01
+  return Math.abs(a - b) / Math.abs(b) < tolerance
+}
+
+function productApproxEqual(a: number, b: number, target: number, tolerance = 0.02): boolean {
+  if (target === 0) return Math.abs(a * b) < 0.01
+  return moneyApproxEqual(a * b, target, tolerance)
+}
+
+function interpretDigitalLineItemRow(
+  match: RegExpExecArray,
+): Omit<InvoiceLineItem, 'total_amount' | 'business_type' | 'remark'> | null {
+  const item_name = `* ${match[1].trim()} * ${match[2].trim()}`
+  const spec = match[3]?.trim() || null
+  const tax_rate = match[4]?.trim() || null
+  const unit = match[5]?.trim() || null
+  const n1 = parseMoney(match[6])
+  const n2 = parseMoney(match[7])
+  const n3 = parseMoney(match[8])
+  const n4 = parseMoney(match[9])
+  if (n1 == null || n2 == null || n3 == null || n4 == null) return null
+
+  if (productApproxEqual(n1, n2, n3) || productApproxEqual(n2, n1, n3)) {
+    const { quantity, unit_price } = resolveQuantityAndUnitPrice(n3, n1, n2)
+    return {
+      item_name,
+      spec,
+      tax_rate,
+      unit,
+      amount: n3,
+      tax_amount: n4,
+      quantity,
+      unit_price,
+    }
+  }
+
+  const { quantity, unit_price } = resolveQuantityAndUnitPrice(n1, n3, n4)
+  if (
+    quantity != null &&
+    unit_price != null &&
+    productApproxEqual(unit_price, quantity, n1)
+  ) {
+    return {
+      item_name,
+      spec,
+      tax_rate,
+      unit,
+      amount: n1,
+      tax_amount: n2,
+      quantity,
+      unit_price,
+    }
+  }
+
+  return null
+}
+
 function parseDigitalLineItem(text: string, header: ParsedInvoicePdf): InvoiceLineItem[] {
   const remark = text.match(/[\d,.]+\s+([\u4e00-\u9fa5\d]{2,40})\s*$/)?.[1] ?? header.remark
+  const items: InvoiceLineItem[] = []
+  const rowPattern = new RegExp(DIGITAL_LINE_ITEM_ROW.source, 'g')
+  let match: RegExpExecArray | null
 
-  const withSpec = text.match(DIGITAL_LINE_ITEM_WITH_SPEC)
-  if (withSpec) {
-    const amount = parseMoney(withSpec[6])
-    const { quantity, unit_price } = resolveQuantityAndUnitPrice(
-      amount,
-      parseMoney(withSpec[8]),
-      parseMoney(withSpec[9]),
-    )
-    return [
+  while ((match = rowPattern.exec(text)) !== null) {
+    const parsed = interpretDigitalLineItemRow(match)
+    if (!parsed) continue
+    items.push(
       sanitizeLineItem({
-        item_name: `* ${withSpec[1].trim()} * ${withSpec[2].trim()}`,
-        spec: withSpec[3]?.trim() || null,
-        tax_rate: withSpec[4]?.trim() || null,
-        unit: withSpec[5]?.trim() || null,
-        amount,
-        tax_amount: parseMoney(withSpec[7]),
-        quantity,
-        unit_price,
+        ...parsed,
         total_amount: header.total_amount,
         business_type: header.business_type,
         remark,
       }),
-    ]
+    )
   }
 
-  const noSpec = text.match(DIGITAL_LINE_ITEM_NO_SPEC)
-  if (noSpec) {
-    const amount = parseMoney(noSpec[5])
-    const { quantity, unit_price } = resolveQuantityAndUnitPrice(
-      amount,
-      parseMoney(noSpec[7]),
-      parseMoney(noSpec[8]),
-    )
-    return [
-      sanitizeLineItem({
-        item_name: `* ${noSpec[1].trim()} * ${noSpec[2].trim()}`,
-        tax_rate: noSpec[3]?.trim() || null,
-        unit: noSpec[4]?.trim() || null,
-        amount,
-        tax_amount: parseMoney(noSpec[6]),
-        quantity,
-        unit_price,
-        total_amount: header.total_amount,
-        business_type: header.business_type,
-        remark,
-      }),
-    ]
-  }
-
-  const legacy = text.match(DIGITAL_LINE_ITEM_LEGACY)
-  if (legacy) {
-    const amount = parseMoney(legacy[4])
-    const { quantity, unit_price } = resolveQuantityAndUnitPrice(
-      amount,
-      parseMoney(legacy[6]),
-      parseMoney(legacy[7]),
-    )
-    return [
-      sanitizeLineItem({
-        item_name: legacy[1]?.trim() || null,
-        tax_rate: legacy[2]?.trim() || null,
-        unit: legacy[3]?.trim() || null,
-        amount,
-        tax_amount: parseMoney(legacy[5]),
-        quantity,
-        unit_price,
-        total_amount: header.total_amount,
-        business_type: header.business_type,
-        remark,
-      }),
-    ]
-  }
+  if (items.length > 0) return items
 
   return [
     {
@@ -657,7 +760,7 @@ function parseDigitalLineItem(text: string, header: ParsedInvoicePdf): InvoiceLi
 }
 
 function parseLineItems(text: string, header: ParsedInvoicePdf): InvoiceLineItem[] {
-  if (new RegExp(`${ISSUER_LABEL}${ISSUER_INVOICE_NO}`).test(text)) {
+  if (shouldUseDigitalLineItemParser(text)) {
     return parseDigitalLineItem(text, header)
   }
 
@@ -708,9 +811,13 @@ export async function parseInvoicePdfBytes(
 ): Promise<ParsedInvoicePdf> {
   const { loadPdfDocument } = await import('./loadPdfDocument')
   const { extractPdfTextFromDocument } = await import('./extractPdfText')
-  const pdf = await loadPdfDocument(data)
-  const text = await extractPdfTextFromDocument(pdf)
-  return parseInvoicePdfText(text, fileName)
+  const { pdf, destroy } = await loadPdfDocument(data)
+  try {
+    const text = await extractPdfTextFromDocument(pdf)
+    return parseInvoicePdfText(text, fileName)
+  } finally {
+    await destroy()
+  }
 }
 
 export function parseInvoicePdfText(text: string, fileName: string): ParsedInvoicePdf {
@@ -722,7 +829,7 @@ export function parseInvoicePdfText(text: string, fileName: string): ParsedInvoi
   if (!looksLikeInvoice) {
     throw new Error('文件内容不像电子/数电发票 PDF')
   }
-  const digitalBlock = parseDigitalInvoiceBlock(text)
+  const digitalBlock = parseDigitalInvoiceBlock(text, hints)
   const prefaceBlock = digitalBlock ? null : parsePrefaceInvoiceBlock(text)
   const pdfBlock = digitalBlock ?? prefaceBlock
   const labeledParties = extractLabeledParties(text)

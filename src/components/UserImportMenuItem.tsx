@@ -273,13 +273,19 @@ export function UserImportMenuItem() {
       const result = await reparseAllInvoiceRecords({
         mode,
         onProgress: (done, total, stats) => {
-          if (stats.pending === 0) {
-            showProgress(`${modeLabel}检查完成 ${done}/${total}（均已完整，无需解析）`);
+          if (stats.pending > 0) {
+            showProgress(
+              `${modeLabel}重新解析 ${stats.reparseDone}/${stats.reparseTotal}（共 ${total}，跳过 ${stats.skipped} 张）`,
+            );
             return;
           }
-          showProgress(
-            `${modeLabel}重新解析 ${Math.min(Math.max(done - stats.skipped, 0), stats.pending)}/${stats.pending}（共 ${total}，跳过 ${stats.skipped} 张）`,
-          );
+          if (done < total) {
+            showProgress(`正在检查 ${done}/${total}…`);
+            return;
+          }
+          if (stats.reparseTotal === 0) {
+            showProgress(`${modeLabel}检查完成 ${done}/${total}（均已完整，无需解析）`);
+          }
         },
       });
       progressRef.hide?.();
@@ -305,11 +311,12 @@ export function UserImportMenuItem() {
 
       const failures = result.items.filter((item) => item.status === "failed");
       if (failures.length > 0) {
-        const { downloadReparseFailureLog, getReparseFailureLog, logReparseFailureSummary } =
+        const { downloadReparseFailureLog, getReparseFailureLog, logReparseFailureSummary, resetReparseFailureLog } =
           await import("../lib/pdfImport/reparseFailureLog");
         const logEntries = getReparseFailureLog();
         if (logEntries.length > 0) {
           downloadReparseFailureLog(logEntries);
+          resetReparseFailureLog();
         }
         logReparseFailureSummary(failures.length);
 

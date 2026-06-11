@@ -67,8 +67,8 @@ function ChromelessPdfCanvas({ data }: { data: ArrayBuffer }) {
 
           canvas.width = Math.floor(viewport.width * outputScale)
           canvas.height = Math.floor(viewport.height * outputScale)
-          canvas.style.width = `${Math.floor(viewport.width)}px`
-          canvas.style.height = `${Math.floor(viewport.height)}px`
+          canvas.style.width = '100%'
+          canvas.style.height = 'auto'
           canvas.className = 'etax-pdf-chromeless-page'
 
           await page.render({
