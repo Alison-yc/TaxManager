@@ -89,6 +89,13 @@ export function hasValidDigitalInvoiceNo(value: string | null | undefined): bool
   return normalizeInvoiceDigits(value).length >= STANDARD_DIGITAL_INVOICE_NO_LENGTH
 }
 
+function invoiceNumberMatchesDigitalNo(row: InvoiceRecordForReparse): boolean {
+  const digitalNo = normalizeInvoiceDigits(row.digital_invoice_no)
+  const invoiceNo = normalizeInvoiceDigits(row.invoice_number)
+  if (digitalNo.length < STANDARD_DIGITAL_INVOICE_NO_LENGTH) return true
+  return invoiceNo === digitalNo
+}
+
 function getInvoiceLineItems(row: InvoiceRecordForReparse): InvoiceLineItem[] {
   const content = row.content
   if (!content || typeof content !== 'object' || !('line_items' in content)) return []
@@ -155,6 +162,7 @@ export function invoiceRecordHasMissingFields(row: InvoiceRecordForReparse): boo
 export function listMissingInvoiceFieldLabels(row: InvoiceRecordForReparse): string[] {
   const missing: string[] = []
   if (!hasValidDigitalInvoiceNo(row.digital_invoice_no)) missing.push('数电发票号码')
+  if (!invoiceNumberMatchesDigitalNo(row)) missing.push('发票号码')
   if (!hasFilledText(row.invoice_type)) missing.push('票种')
   if (!hasFilledText(row.seller_name)) missing.push('销方名称')
   if (!hasFilledText(row.seller_tax_id)) missing.push('销方识别号')
@@ -230,7 +238,16 @@ function coalesceInvoiceNumber(
     ? existing.invoice_number!.trim()
     : null
 
-  return fromParsed ?? fromExisting ?? digitalInvoiceNo
+  return digitalInvoiceNo || fromParsed || fromExisting || ''
+}
+
+function isPlaceholderLineItem(item: InvoiceLineItem): boolean {
+  return (
+    !hasFilledText(item.item_name) &&
+    !hasFilledText(item.unit) &&
+    !hasMoney(item.quantity) &&
+    !hasMoney(item.unit_price)
+  )
 }
 
 function mergeInvoiceContent(
@@ -245,10 +262,7 @@ function mergeInvoiceContent(
     return { line_items: existingItems ?? [] }
   }
   const onlyPlaceholder =
-    parsed.line_items.length === 1 &&
-    (parsed.line_items[0].item_name === '—' || !parsed.line_items[0].item_name) &&
-    parsed.amount == null &&
-    parsed.tax_amount == null
+    parsed.line_items.length === 1 && isPlaceholderLineItem(parsed.line_items[0])
   if (onlyPlaceholder && existingItems?.length) {
     return { line_items: existingItems }
   }

@@ -207,7 +207,7 @@ function parseDigitalInvoiceBlock(text) {
   }
 }
 const DIGITAL_LINE_ITEM_WITH_SPEC =
-  /\*\s*([^*]+?)\s*\*\s*([\u4e00-\u9fa5A-Za-z0-9（）()·\s]+?)\s+([A-Z0-9][A-Za-z0-9\-]{1,30})\s+(\d{1,2}%|\*)\s+(\S+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)/
+  /\*\s*([^*]+?)\s*\*\s*([\u4e00-\u9fa5A-Za-z0-9（）()·\s]+?)\s+([A-Z0-9][A-Za-z0-9-]{1,30})\s+(\d{1,2}%|\*)\s+(\S+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)/
 const DIGITAL_LINE_ITEM_NO_SPEC =
   /\*\s*([^*]+?)\s*\*\s*([\u4e00-\u9fa5A-Za-z0-9（）()·\s]+?)\s+(\d{1,2}%|\*)\s+(\S+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)/
 
@@ -327,6 +327,113 @@ async function extractText(filePath) {
   }
   return parts.join('\n')
 }
+
+function isPlaceholderFieldValue(value) {
+  const trimmed = value.trim()
+  if (!trimmed) return true
+  if (/^[—–\-－]+$/.test(trimmed)) return true
+  if (trimmed === 'null' || trimmed === 'undefined') return true
+  if (/[壹贰叁肆伍陆柒捌玖拾佰仟万亿元整角分]/.test(trimmed) && trimmed.length > 4) return true
+  return false
+}
+
+function hasFilledText(value) {
+  return typeof value === 'string' && !isPlaceholderFieldValue(value)
+}
+
+function hasMoney(value) {
+  return value != null && Number.isFinite(value)
+}
+
+function normalizeInvoiceDigits(value) {
+  return (value ?? '').replace(/\D/g, '')
+}
+
+function invoiceNumberMatchesDigitalNo(row) {
+  const digitalNo = normalizeInvoiceDigits(row.digital_invoice_no)
+  const invoiceNo = normalizeInvoiceDigits(row.invoice_number)
+  if (digitalNo.length < STANDARD_LEN) return true
+  return invoiceNo === digitalNo
+}
+
+function listMissingLineItemFieldLabels(items) {
+  if (items.length === 0) {
+    return ['货物或应税劳务名称', '规格型号', '单位', '数量', '单价']
+  }
+
+  const missing = new Set()
+  const activeLines = items.filter(
+    (item) =>
+      hasFilledText(item.item_name) ||
+      hasFilledText(item.spec) ||
+      hasFilledText(item.unit) ||
+      hasMoney(item.quantity) ||
+      hasMoney(item.unit_price) ||
+      hasMoney(item.amount),
+  )
+  const linesToCheck = activeLines.length > 0 ? activeLines : items
+
+  for (const item of linesToCheck) {
+    if (!hasFilledText(item.item_name)) missing.add('货物或应税劳务名称')
+    if (!hasFilledText(item.unit)) missing.add('单位')
+    if (!hasMoney(item.quantity)) missing.add('数量')
+    if (!hasMoney(item.unit_price)) missing.add('单价')
+  }
+
+  return [...missing]
+}
+
+function listMissingInvoiceFieldLabels(row) {
+  const missing = []
+  if (normalizeInvoiceDigits(row.digital_invoice_no).length < STANDARD_LEN) missing.push('数电发票号码')
+  if (!invoiceNumberMatchesDigitalNo(row)) missing.push('发票号码')
+  missing.push(...listMissingLineItemFieldLabels(row.line_items ?? []))
+  return missing
+}
+
+function assertMissingFieldRegression() {
+  const cases = [
+    {
+      name: '占位明细会触发重解析',
+      row: {
+        digital_invoice_no: '25132000000003577436',
+        invoice_number: '25132000000003577436',
+        line_items: [{ item_name: '—', amount: 111703.54, tax_amount: 14521.46 }],
+      },
+      expected: ['货物或应税劳务名称', '单位', '数量', '单价'],
+    },
+    {
+      name: '发票号码不等于数电票号会触发重解析',
+      row: {
+        digital_invoice_no: '25132000000003577436',
+        invoice_number: '03577436',
+        line_items: [{ item_name: '* 无机化学原料 * 氧化镁', unit: '吨', quantity: 1, unit_price: 100 }],
+      },
+      expected: ['发票号码'],
+    },
+    {
+      name: '无规格但明细完整不再触发重解析',
+      row: {
+        digital_invoice_no: '25132000000003577436',
+        invoice_number: '25132000000003577436',
+        line_items: [{ item_name: '* 无机化学原料 * 氧化镁', unit: '吨', quantity: 1, unit_price: 100 }],
+      },
+      expected: [],
+    },
+  ]
+
+  for (const c of cases) {
+    const actual = listMissingInvoiceFieldLabels(c.row)
+    const same =
+      actual.length === c.expected.length &&
+      c.expected.every((label) => actual.includes(label))
+    if (!same) {
+      throw new Error(`${c.name}: ${actual.join('、') || '(无缺失)'}，期望 ${c.expected.join('、') || '(无缺失)'}`)
+    }
+  }
+}
+
+assertMissingFieldRegression()
 
 const dirs = [
   '/Users/mac/Downloads/1.25日',

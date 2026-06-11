@@ -77,7 +77,8 @@ export async function fetchInvoiceRecordsForDisplay(
   let q = supabase
     .from("invoice_records")
     .select("*")
-    .order("issue_date", { ascending: false });
+    .order("issue_date", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false });
   q = applyInvoiceRecordFilters(q, filters);
   const { data, error } = await q.range(0, INVOICE_QUERY_DISPLAY_LIMIT - 1);
   if (error) return { data: [], error: new Error(error.message) };
@@ -96,7 +97,8 @@ export async function fetchAllInvoiceRecordsForExport(
     let q = supabase
       .from("invoice_records")
       .select("*")
-      .order("issue_date", { ascending: false });
+      .order("issue_date", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false });
     q = applyInvoiceRecordFilters(q, filters);
     const to = from + INVOICE_EXPORT_BATCH_SIZE - 1;
     const { data, error } = await q.range(from, to);
