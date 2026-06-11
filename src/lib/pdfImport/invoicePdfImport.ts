@@ -77,13 +77,13 @@ function compactDigitRun(value: string): string {
   return value.replace(/[\s\u00a0]/g, '')
 }
 
-/** 开票人块中票号（允许字符间空格，且不与紧随其后的日期粘连） */
+/** 开票人块中票号：连续 20 位，或逐字空格，或中间少量空格 */
 const ISSUER_INVOICE_NO =
-  '(?:\\d[\\s\\u00a0]?){18,22}(?=\\s*(?:\\d[\\s\\u00a0]?){4}\\s*年)'
+  '(?:\\d{20}|(?:\\d[\\s\\u00a0]?){20})(?=\\s*(?:\\d{4}|(?:\\d[\\s\\u00a0]?){4})\\s*年)'
 
-/** 允许每个数字间有空格的中文日期，如 2 0 2 5 年0 6 月0 5 日 */
-const SPACED_CN_DATE =
-  '(?:\\d[\\s\\u00a0]?){4}\\s*年(?:\\d[\\s\\u00a0]?){1,2}\\s*月(?:\\d[\\s\\u00a0]?){1,2}\\s*日'
+/** 中文日期：兼容 2025年01月31日、2025 年 01 月 25 日、2 0 2 5 年0 6 月0 5 日 */
+const FLEX_CN_DATE =
+  '(?:\\d{4}|(?:\\d[\\s\\u00a0]?){4})\\s*年\\s*(?:\\d{1,2}|(?:\\d[\\s\\u00a0]?){1,2})\\s*月\\s*(?:\\d{1,2}|(?:\\d[\\s\\u00a0]?){1,2})\\s*日'
 
 /** ¥ 后金额（兼容 3 0 9 7 3 . 4 5 与 30973.45） */
 const YEN_MONEY_VALUE =
@@ -238,7 +238,7 @@ function parseDigitalInvoiceBlock(text: string): {
   issuer: string
 } | null {
   const headerMatch = text.match(
-    new RegExp(`${ISSUER_LABEL}(${ISSUER_INVOICE_NO})\\s+(${SPACED_CN_DATE})\\s+(.*)`, 's'),
+    new RegExp(`${ISSUER_LABEL}(${ISSUER_INVOICE_NO})\\s+(${FLEX_CN_DATE})\\s+(.*)`, 's'),
   )
   if (!headerMatch) return null
 
@@ -279,7 +279,7 @@ function parseDigitalInvoiceBlock(text: string): {
 
 function extractIssueDateFromIssuerBlock(text: string): string | null {
   const m = text.match(
-    new RegExp(`${ISSUER_LABEL}${ISSUER_INVOICE_NO}\\s+(${SPACED_CN_DATE})`),
+    new RegExp(`${ISSUER_LABEL}${ISSUER_INVOICE_NO}\\s+(${FLEX_CN_DATE})`),
   )
   return m ? parseCnDateToIso(m[1]) : null
 }
@@ -324,7 +324,7 @@ function collectDigitalInvoiceNoCandidates(
   if (blockNo) candidates.push(compactDigitRun(blockNo))
 
   const fromIssuerBlock = text.match(
-    new RegExp(`${ISSUER_LABEL}(${ISSUER_INVOICE_NO})\\s+(${SPACED_CN_DATE})`),
+    new RegExp(`${ISSUER_LABEL}(${ISSUER_INVOICE_NO})\\s+(${FLEX_CN_DATE})`),
   )?.[1]
   if (fromIssuerBlock) candidates.push(compactDigitRun(fromIssuerBlock))
 

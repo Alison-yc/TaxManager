@@ -31,9 +31,9 @@ function parseMoney(text) {
 }
 
 const ISSUER_INVOICE_NO =
-  '(?:\\d[\\s\\u00a0]?){18,22}(?=\\s*(?:\\d[\\s\\u00a0]?){4}\\s*年)'
-const SPACED_CN_DATE =
-  '(?:\\d[\\s\\u00a0]?){4}\\s*年(?:\\d[\\s\\u00a0]?){1,2}\\s*月(?:\\d[\\s\\u00a0]?){1,2}\\s*日'
+  '(?:\\d{20}|(?:\\d[\\s\\u00a0]?){20})(?=\\s*(?:\\d{4}|(?:\\d[\\s\\u00a0]?){4})\\s*年)'
+const FLEX_CN_DATE =
+  '(?:\\d{4}|(?:\\d[\\s\\u00a0]?){4})\\s*年\\s*(?:\\d{1,2}|(?:\\d[\\s\\u00a0]?){1,2})\\s*月\\s*(?:\\d{1,2}|(?:\\d[\\s\\u00a0]?){1,2})\\s*日'
 const PARTY_NAME = '[\\u4e00-\\u9fa5A-Za-z0-9（）()·\\s]{2,80}?'
 const ISSUER_LABEL = '开\\s*票\\s*人[：:\\s]*'
 const SPACED_TAX_ID = '((?:[0-9A-Z][\\s\\u00a0]?){15,22})'
@@ -49,7 +49,7 @@ function extractYenAmounts(text) {
 
 function parseDigitalInvoiceBlock(text) {
   const headerMatch = text.match(
-    new RegExp(`${ISSUER_LABEL}(${ISSUER_INVOICE_NO})\\s+(${SPACED_CN_DATE})\\s+(.*)`, 's'),
+    new RegExp(`${ISSUER_LABEL}(${ISSUER_INVOICE_NO})\\s+(${FLEX_CN_DATE})\\s+(.*)`, 's'),
   )
   if (!headerMatch) return null
 
