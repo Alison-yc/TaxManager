@@ -137,6 +137,24 @@ function coalesceDigitalInvoiceNo(parsed: string, existing: string): string {
   return p.length >= e.length ? p : e
 }
 
+/** 数电发票：发票号码与数电发票号码保持一致 */
+function coalesceInvoiceNumber(
+  parsed: ParsedInvoicePdf,
+  existing: InvoiceRecordForReparse,
+  digitalInvoiceNo: string,
+): string {
+  const fromParsed = hasFilledText(parsed.invoice_number)
+    ? parsed.invoice_number!.trim()
+    : hasFilledText(parsed.digital_invoice_no)
+      ? parsed.digital_invoice_no.trim()
+      : null
+  const fromExisting = hasFilledText(existing.invoice_number)
+    ? existing.invoice_number!.trim()
+    : null
+
+  return fromParsed ?? fromExisting ?? digitalInvoiceNo
+}
+
 function mergeInvoiceContent(
   parsed: ParsedInvoicePdf,
   existing: InvoiceRecordContent | InvoiceRecordRow['content'],
@@ -168,14 +186,11 @@ export function mergeParsedInvoiceRecord(
     parsed.digital_invoice_no,
     existing.digital_invoice_no,
   )
-  const invoice_number = coalesceText(
-    parsed.invoice_number ?? parsed.digital_invoice_no,
-    existing.invoice_number ?? existing.digital_invoice_no,
-  )
+  const invoice_number = coalesceInvoiceNumber(parsed, existing, digital_invoice_no)
 
   return {
     digital_invoice_no,
-    invoice_number: invoice_number ?? digital_invoice_no,
+    invoice_number,
     invoice_source: coalesceText(parsed.invoice_source, existing.invoice_source),
     invoice_type: coalesceText(parsed.invoice_type, existing.invoice_type),
     invoice_status:
