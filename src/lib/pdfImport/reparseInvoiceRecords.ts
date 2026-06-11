@@ -1,8 +1,12 @@
 import { downloadPdfBlob } from '../pdfStorage'
 import { supabase } from '../supabase'
-import type { InvoiceRecordRow } from '../../types/database'
+import type { InvoiceRecordContent, InvoiceRecordRow } from '../../types/database'
 import { clampMoneyForDb } from './extractPdfText'
-import { parseInvoicePdfBytes, type ParsedInvoicePdf } from './invoicePdfImport'
+import {
+  parseInvoicePdfBytes,
+  STANDARD_DIGITAL_INVOICE_NO_LENGTH,
+  type ParsedInvoicePdf,
+} from './invoicePdfImport'
 
 export type ReparseInvoiceResult = {
   id: string
@@ -19,6 +23,8 @@ export type ReparseAllInvoiceResult = {
   items: ReparseInvoiceResult[]
 }
 
+export type ReparseMode = 'full' | 'missing'
+
 const REPARSE_FETCH_BATCH = 1000
 const DEFAULT_REPARSE_CONCURRENCY = 4
 
@@ -28,55 +34,166 @@ type InvoiceRecordForReparse = Pick<
   | 'storage_path'
   | 'source_file_name'
   | 'digital_invoice_no'
+  | 'invoice_number'
+  | 'invoice_source'
   | 'invoice_type'
+  | 'invoice_status'
+  | 'is_positive'
+  | 'risk_level'
   | 'seller_name'
   | 'seller_tax_id'
   | 'buyer_name'
   | 'buyer_tax_id'
   | 'issue_date'
+  | 'amount'
+  | 'tax_amount'
+  | 'total_amount'
+  | 'business_type'
   | 'issuer'
+  | 'remark'
+  | 'content'
 >
 
 const REPARSE_SELECT =
-  'id, storage_path, source_file_name, digital_invoice_no, invoice_type, seller_name, seller_tax_id, buyer_name, buyer_tax_id, issue_date, issuer'
+  'id, storage_path, source_file_name, digital_invoice_no, invoice_number, invoice_source, invoice_type, invoice_status, is_positive, risk_level, seller_name, seller_tax_id, buyer_name, buyer_tax_id, issue_date, amount, tax_amount, total_amount, business_type, issuer, remark, content'
 
 function hasFilledText(value: string | null | undefined): boolean {
   return typeof value === 'string' && value.trim().length > 0
 }
 
-/** 关键票面字段齐全则无需重新下载 PDF 解析 */
-export function invoiceRecordNeedsReparse(row: InvoiceRecordForReparse): boolean {
+function hasMoney(value: number | null | undefined): boolean {
+  return value != null && Number.isFinite(value)
+}
+
+function normalizeInvoiceDigits(value: string | null | undefined): string {
+  return (value ?? '').replace(/\D/g, '')
+}
+
+/** 数电发票号码是否达到标准 20 位 */
+export function hasValidDigitalInvoiceNo(value: string | null | undefined): boolean {
+  return normalizeInvoiceDigits(value).length >= STANDARD_DIGITAL_INVOICE_NO_LENGTH
+}
+
+/** 缺字段模式：任一关键字段缺失或票号不足 20 位则需重解析 */
+export function invoiceRecordHasMissingFields(row: InvoiceRecordForReparse): boolean {
   return !(
+    hasValidDigitalInvoiceNo(row.digital_invoice_no) &&
     hasFilledText(row.invoice_type) &&
     hasFilledText(row.seller_name) &&
     hasFilledText(row.seller_tax_id) &&
     hasFilledText(row.buyer_name) &&
     hasFilledText(row.buyer_tax_id) &&
     hasFilledText(row.issue_date) &&
-    hasFilledText(row.issuer)
+    hasFilledText(row.issuer) &&
+    hasMoney(row.amount) &&
+    hasMoney(row.tax_amount) &&
+    hasMoney(row.total_amount)
   )
 }
 
-function parsedToRowUpdate(parsed: ParsedInvoicePdf) {
+/** @deprecated 使用 invoiceRecordHasMissingFields */
+export function invoiceRecordNeedsReparse(row: InvoiceRecordForReparse): boolean {
+  return invoiceRecordHasMissingFields(row)
+}
+
+export function shouldReparseInvoiceRecord(
+  row: InvoiceRecordForReparse,
+  mode: ReparseMode,
+): boolean {
+  if (mode === 'full') return true
+  return invoiceRecordHasMissingFields(row)
+}
+
+function coalesceText(
+  parsed: string | null | undefined,
+  existing: string | null | undefined,
+): string | null {
+  if (hasFilledText(parsed)) return parsed!.trim()
+  if (hasFilledText(existing)) return existing!.trim()
+  return existing ?? null
+}
+
+function coalesceMoney(
+  parsed: number | null | undefined,
+  existing: number | null | undefined,
+): number | null {
+  const next = clampMoneyForDb(parsed)
+  if (next != null) return next
+  if (hasMoney(existing)) return existing!
+  return null
+}
+
+function coalesceDigitalInvoiceNo(parsed: string, existing: string): string {
+  const p = normalizeInvoiceDigits(parsed)
+  const e = normalizeInvoiceDigits(existing)
+  if (!p) return e || existing.trim()
+  if (!e) return p
+  if (p.length >= STANDARD_DIGITAL_INVOICE_NO_LENGTH && e.length < STANDARD_DIGITAL_INVOICE_NO_LENGTH) {
+    return p
+  }
+  if (e.length >= STANDARD_DIGITAL_INVOICE_NO_LENGTH && p.length < STANDARD_DIGITAL_INVOICE_NO_LENGTH) {
+    return e
+  }
+  return p.length >= e.length ? p : e
+}
+
+function mergeInvoiceContent(
+  parsed: ParsedInvoicePdf,
+  existing: InvoiceRecordContent | InvoiceRecordRow['content'],
+): InvoiceRecordContent {
+  const existingItems =
+    existing && typeof existing === 'object' && 'line_items' in existing
+      ? (existing as InvoiceRecordContent).line_items
+      : undefined
+  if (!parsed.line_items.length) {
+    return { line_items: existingItems ?? [] }
+  }
+  const onlyPlaceholder =
+    parsed.line_items.length === 1 &&
+    (parsed.line_items[0].item_name === '—' || !parsed.line_items[0].item_name) &&
+    parsed.amount == null &&
+    parsed.tax_amount == null
+  if (onlyPlaceholder && existingItems?.length) {
+    return { line_items: existingItems }
+  }
+  return { line_items: parsed.line_items }
+}
+
+/** 解析结果与库内已有值合并：解析有值则更新，解析为空则保留原值 */
+export function mergeParsedInvoiceRecord(
+  existing: InvoiceRecordForReparse,
+  parsed: ParsedInvoicePdf,
+) {
+  const digital_invoice_no = coalesceDigitalInvoiceNo(
+    parsed.digital_invoice_no,
+    existing.digital_invoice_no,
+  )
+  const invoice_number = coalesceText(
+    parsed.invoice_number ?? parsed.digital_invoice_no,
+    existing.invoice_number ?? existing.digital_invoice_no,
+  )
+
   return {
-    invoice_number: parsed.invoice_number,
-    invoice_source: parsed.invoice_source,
-    invoice_type: parsed.invoice_type,
-    invoice_status: parsed.invoice_status,
-    is_positive: parsed.is_positive,
-    risk_level: parsed.risk_level,
-    seller_name: parsed.seller_name,
-    seller_tax_id: parsed.seller_tax_id,
-    buyer_name: parsed.buyer_name,
-    buyer_tax_id: parsed.buyer_tax_id,
-    issue_date: parsed.issue_date,
-    amount: clampMoneyForDb(parsed.amount),
-    tax_amount: clampMoneyForDb(parsed.tax_amount),
-    total_amount: clampMoneyForDb(parsed.total_amount),
-    business_type: parsed.business_type,
-    issuer: parsed.issuer,
-    remark: parsed.remark,
-    content: { line_items: parsed.line_items },
+    digital_invoice_no,
+    invoice_number: invoice_number ?? digital_invoice_no,
+    invoice_source: coalesceText(parsed.invoice_source, existing.invoice_source),
+    invoice_type: coalesceText(parsed.invoice_type, existing.invoice_type),
+    invoice_status:
+      coalesceText(parsed.invoice_status, existing.invoice_status) ?? '正常',
+    is_positive: coalesceText(parsed.is_positive, existing.is_positive) ?? '是',
+    risk_level: coalesceText(parsed.risk_level, existing.risk_level) ?? '正常',
+    seller_name: coalesceText(parsed.seller_name, existing.seller_name),
+    seller_tax_id: coalesceText(parsed.seller_tax_id, existing.seller_tax_id),
+    buyer_name: coalesceText(parsed.buyer_name, existing.buyer_name),
+    buyer_tax_id: coalesceText(parsed.buyer_tax_id, existing.buyer_tax_id),
+    issue_date: coalesceText(parsed.issue_date, existing.issue_date),
+    amount: coalesceMoney(parsed.amount, existing.amount),
+    tax_amount: coalesceMoney(parsed.tax_amount, existing.tax_amount),
+    total_amount: coalesceMoney(parsed.total_amount, existing.total_amount),
+    business_type: coalesceText(parsed.business_type, existing.business_type),
+    issuer: coalesceText(parsed.issuer, existing.issuer),
+    remark: coalesceText(parsed.remark, existing.remark),
+    content: mergeInvoiceContent(parsed, existing.content),
   }
 }
 
@@ -119,14 +236,14 @@ async function fetchAllInvoiceRecordsForReparse(): Promise<InvoiceRecordForRepar
 }
 
 export async function reparseInvoiceRecord(
-  row: Pick<InvoiceRecordRow, 'id' | 'storage_path' | 'source_file_name' | 'digital_invoice_no'>,
+  row: InvoiceRecordForReparse,
 ): Promise<ReparseInvoiceResult> {
   try {
     const blob = await downloadPdfBlob(row.storage_path)
     const parsed = await parseInvoicePdfBytes(await blob.arrayBuffer(), row.source_file_name)
     const { error } = await supabase
       .from('invoice_records')
-      .update(parsedToRowUpdate(parsed))
+      .update(mergeParsedInvoiceRecord(row, parsed))
       .eq('id', row.id)
     if (error) {
       return {
@@ -148,15 +265,17 @@ export async function reparseInvoiceRecord(
 }
 
 export async function reparseAllInvoiceRecords(options?: {
+  mode?: ReparseMode
   concurrency?: number
   onProgress?: (done: number, total: number, stats: { skipped: number; pending: number }) => void
 }): Promise<ReparseAllInvoiceResult> {
+  const mode = options?.mode ?? 'missing'
   const rows = await fetchAllInvoiceRecordsForReparse()
   const items: ReparseInvoiceResult[] = new Array(rows.length)
   const toReparse: { row: InvoiceRecordForReparse; index: number }[] = []
 
   rows.forEach((row, index) => {
-    if (!invoiceRecordNeedsReparse(row)) {
+    if (!shouldReparseInvoiceRecord(row, mode)) {
       items[index] = {
         id: row.id,
         digital_invoice_no: row.digital_invoice_no,

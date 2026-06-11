@@ -54,8 +54,16 @@ const INVOICE_FILE_RE =
 const ALT_INVOICE_FILE_RE =
   /^(.+?)_数电票[（(]([^）)]+)[）)]_(\d{20})\.pdf$/i
 
-/** 票面公司名常含空格，如「北威 ( 重庆 ) 科技股份有限公司」 */
-const PARTY_NAME = '[\\u4e00-\\u9fa5A-Za-z0-9（）()·\\s]{2,80}?'
+/** 数电发票号码标准长度（如 25132000000155822857） */
+export const STANDARD_DIGITAL_INVOICE_NO_LENGTH = 20
+
+/** PDF.js 可能在票号中间插入空格，仅压缩指定片段内的数字间隙 */
+function compactDigitRun(value: string): string {
+  return value.replace(/[\s\u00a0]/g, '')
+}
+
+/** 开票人块中票号与日期之间的数字段（允许中间空格） */
+const ISSUER_INVOICE_NO = '(?:\\d[\\s\\u00a0]?){18,28}?'
 
 export function parseInvoiceFileName(fileName: string): {
   digital_invoice_no: string
@@ -135,15 +143,16 @@ function parseDigitalInvoiceBlock(text: string): {
   total_amount: number | null
   issuer: string
 } | null {
+  const compact = text
   const money = '[-+]?\\d[\\d,.]*'
-  const block = text.match(
+  const block = compact.match(
     new RegExp(
-      `开票人[：:\\s]*(\\d{10,30})\\s+(\\d{4}\\s*年\\s*\\d{1,2}\\s*月\\s*\\d{1,2}\\s*日)\\s+(${PARTY_NAME})\\s+([0-9A-Z]{15,20})\\s+(${PARTY_NAME})\\s+([0-9A-Z]{15,20})\\s*[¥￥]\\s*(${money})\\s*[¥￥]\\s*(${money})\\s+.+?[¥￥]\\s*(${money})\\s+([\\u4e00-\\u9fa5·]{2,20})`,
+      `开票人[：:\\s]*(${ISSUER_INVOICE_NO})\\s+(\\d{4}\\s*年\\s*\\d{1,2}\\s*月\\s*\\d{1,2}\\s*日)\\s+(${PARTY_NAME})\\s+([0-9A-Z]{15,20})\\s+(${PARTY_NAME})\\s+([0-9A-Z]{15,20})\\s*[¥￥]\\s*(${money})\\s*[¥￥]\\s*(${money})\\s+.+?[¥￥]\\s*(${money})\\s+([\\u4e00-\\u9fa5·]{2,20})`,
     ),
   )
   if (!block) return null
   return {
-    digital_invoice_no: block[1],
+    digital_invoice_no: compactDigitRun(block[1]),
     issue_date: parseCnDateToIso(block[2]),
     seller_name: block[3].replace(/\s+/g, ' ').trim(),
     seller_tax_id: block[4],
@@ -157,7 +166,9 @@ function parseDigitalInvoiceBlock(text: string): {
 }
 
 function extractIssueDateFromIssuerBlock(text: string): string | null {
-  const m = text.match(/开票人[：:\s]*\d{10,30}\s+(\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日)/)
+  const m = text.match(
+    new RegExp(`开票人[：:\\s]*${ISSUER_INVOICE_NO}\\s+(\\d{4}\\s*年\\s*\\d{1,2}\\s*月\\s*\\d{1,2}\\s*日)`),
+  )
   return m ? parseCnDateToIso(m[1]) : null
 }
 
@@ -170,25 +181,59 @@ function extractIssuerFromTotals(text: string): string | null {
   )
 }
 
-function extractDigitalInvoiceNo(text: string): string | null {
+/** 票面公司名常含空格，如「北威 ( 重庆 ) 科技股份有限公司」 */
+const PARTY_NAME = '[\\u4e00-\\u9fa5A-Za-z0-9（）()·\\s]{2,80}?'
+
+function collectDigitalInvoiceNoCandidates(
+  text: string,
+  fileName: string,
+  blockNo?: string | null,
+): string[] {
+  const candidates: string[] = []
+
+  if (blockNo) candidates.push(compactDigitRun(blockNo))
+
+  const fromIssuerBlock = text.match(
+    new RegExp(`开票人[：:\\s]*(${ISSUER_INVOICE_NO})\\s+(\\d{4}\\s*年\\s*\\d{1,2}\\s*月\\s*\\d{1,2}\\s*日)`),
+  )?.[1]
+  if (fromIssuerBlock) candidates.push(compactDigitRun(fromIssuerBlock))
+
   const fromLabel = pick(text, [
-    /发票号码[：:\s]*(\d{10,30})/,
-    /数电发票号码[：:\s]*(\d{10,30})/,
+    /发票号码[：:\s]*((?:\d[\s\u00a0]?){18,28})/,
+    /数电发票号码[：:\s]*((?:\d[\s\u00a0]?){18,28})/,
   ])
-  if (fromLabel) return fromLabel
+  if (fromLabel) candidates.push(compactDigitRun(fromLabel))
 
-  const fromIssuer = text.match(/开票人[：:\s]*(\d{10,30})/)?.[1]
-  if (fromIssuer) return fromIssuer
+  candidates.push(...(text.match(/\d{20}/g) ?? []))
 
-  const candidates = text.match(/\d{20}/g) ?? []
-  if (candidates.length > 0) return candidates[0] ?? null
+  const fromName = parseInvoiceFileName(fileName)?.digital_invoice_no
+  if (fromName) candidates.push(fromName)
+  const fromAltName = parseAltInvoiceFileName(fileName)?.digital_invoice_no
+  if (fromAltName) candidates.push(fromAltName)
 
-  const longNums = text.match(/\d{10,30}/g) ?? []
-  return longNums.find((n) => n.length >= 18) ?? longNums[0] ?? null
+  const fromFile = fileName.match(/(\d{20})/)?.[1]
+  if (fromFile) candidates.push(fromFile)
+
+  return [...new Set(candidates.filter((n) => n.length >= 18 && n.length <= 22))]
 }
 
-function extractInvoiceNoFromFileName(fileName: string): string | null {
-  return fileName.match(/(\d{20})/)?.[1] ?? fileName.match(/(\d{10,30})/)?.[1] ?? null
+/** 优先 20 位完整票号，其次取更长者（修复 PDF 数字被空格截断） */
+export function resolveDigitalInvoiceNo(
+  text: string,
+  fileName: string,
+  blockNo?: string | null,
+): string | null {
+  const candidates = collectDigitalInvoiceNoCandidates(text, fileName, blockNo)
+  if (candidates.length === 0) return null
+
+  candidates.sort((a, b) => {
+    const aOk = a.length === STANDARD_DIGITAL_INVOICE_NO_LENGTH
+    const bOk = b.length === STANDARD_DIGITAL_INVOICE_NO_LENGTH
+    if (aOk && !bOk) return -1
+    if (!aOk && bOk) return 1
+    return b.length - a.length
+  })
+  return candidates[0] ?? null
 }
 
 function extractLabeledParties(text: string): {
@@ -198,18 +243,22 @@ function extractLabeledParties(text: string): {
   seller_tax_id: string | null
 } {
   const buyerBlock = text.match(
-    /购\s*买\s*方[\s\S]{0,400}?名称[：:\s]*([\u4e00-\u9fa5（）()·]{2,50})[\s\S]{0,120}?(?:统一社会信用代码|纳税人识别号)[：:/\s]*([0-9A-Z]{15,20})/,
+    new RegExp(
+      `购\\s*买\\s*方[\\s\\S]{0,400}?名称[：:\\s]*(${PARTY_NAME})[\\s\\S]{0,120}?(?:统一社会信用代码|纳税人识别号)[：:/\\s]*([0-9A-Z]{15,20})`,
+    ),
   )
   const sellerBlock = text.match(
-    /销\s*售\s*方[\s\S]{0,400}?名称[：:\s]*([\u4e00-\u9fa5（）()·]{2,50})[\s\S]{0,120}?(?:统一社会信用代码|纳税人识别号)[：:/\s]*([0-9A-Z]{15,20})/,
+    new RegExp(
+      `销\\s*售\\s*方[\\s\\S]{0,400}?名称[：:\\s]*(${PARTY_NAME})[\\s\\S]{0,120}?(?:统一社会信用代码|纳税人识别号)[：:/\\s]*([0-9A-Z]{15,20})`,
+    ),
   )
 
   return {
-    buyer_name: buyerBlock?.[1]?.trim() ?? pick(text, [/购买方名称[：:\s]*([^\n\r]{2,80})/]),
+    buyer_name: buyerBlock?.[1]?.replace(/\s+/g, ' ').trim() ?? pick(text, [/购买方名称[：:\s]*([^\n\r]{2,80})/]),
     buyer_tax_id:
       buyerBlock?.[2]?.trim() ??
       pick(text, [/购方识别号[：:\s]*([0-9A-Z]{15,20})/, /购买方[\s\S]{0,200}?识别号[：:\s]*([0-9A-Z]{15,20})/]),
-    seller_name: sellerBlock?.[1]?.trim() ?? pick(text, [/销售方名称[：:\s]*([^\n\r]{2,80})/]),
+    seller_name: sellerBlock?.[1]?.replace(/\s+/g, ' ').trim() ?? pick(text, [/销售方名称[：:\s]*([^\n\r]{2,80})/]),
     seller_tax_id:
       sellerBlock?.[2]?.trim() ??
       pick(text, [/销方识别号[：:\s]*([0-9A-Z]{15,20})/, /销售方[\s\S]{0,200}?识别号[：:\s]*([0-9A-Z]{15,20})/]),
@@ -270,7 +319,7 @@ function parseDigitalLineItem(text: string, header: ParsedInvoicePdf): InvoiceLi
 }
 
 function parseLineItems(text: string, header: ParsedInvoicePdf): InvoiceLineItem[] {
-  if (/开票人[：:\s]*\d{10,30}/.test(text)) {
+  if (new RegExp(`开票人[：:\\s]*${ISSUER_INVOICE_NO}`).test(text)) {
     return parseDigitalLineItem(text, header)
   }
 
@@ -345,13 +394,7 @@ export function parseInvoicePdfText(text: string, fileName: string): ParsedInvoi
     null
   const invoice_type = normalizeInvoiceType(rawInvoiceType)
 
-  const digitalNo =
-    digitalBlock?.digital_invoice_no ??
-    extractDigitalInvoiceNo(text) ??
-    fromName?.digital_invoice_no ??
-    fromAltName?.digital_invoice_no ??
-    extractInvoiceNoFromFileName(fileName) ??
-    null
+  const digitalNo = resolveDigitalInvoiceNo(text, fileName, digitalBlock?.digital_invoice_no)
 
   if (!digitalNo) {
     throw new Error('无法从 PDF 中识别数电发票号码，请确认文件为电子/数电发票')
@@ -362,10 +405,14 @@ export function parseInvoicePdfText(text: string, fileName: string): ParsedInvoi
     /开票日期[：:\s]*(\d{4}-\d{1,2}-\d{1,2})/,
   ])
 
+  const invoice_number =
+    pick(text, [/发票号码[：:\s]*((?:\d[\s\u00a0]?){18,28})/])?.replace(/[\s\u00a0]/g, '') ??
+    digitalNo
+
   const header: ParsedInvoicePdf = digitalBlock
     ? {
         digital_invoice_no: digitalNo,
-        invoice_number: pick(text, [/发票号码[：:\s]*(\d{10,30})/]),
+        invoice_number,
         buyer_name: digitalBlock.buyer_name,
         seller_name: digitalBlock.seller_name,
         buyer_tax_id: digitalBlock.buyer_tax_id,
@@ -391,7 +438,7 @@ export function parseInvoicePdfText(text: string, fileName: string): ParsedInvoi
       }
     : {
         digital_invoice_no: digitalNo,
-        invoice_number: pick(text, [/发票号码[：:\s]*(\d{10,30})/]),
+        invoice_number,
         buyer_name: labeledParties.buyer_name ?? fromName?.buyer_name ?? null,
         seller_name: labeledParties.seller_name ?? fromAltName?.seller_name ?? null,
         buyer_tax_id: labeledParties.buyer_tax_id,

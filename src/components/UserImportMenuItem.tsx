@@ -253,7 +253,7 @@ export function UserImportMenuItem() {
     }
   }
 
-  async function runReparseAllInvoices() {
+  async function runReparseAllInvoices(mode: 'full' | 'missing') {
     setBusy(true);
     const progressRef: { hide?: () => void } = {};
     const showProgress = (text: string) => {
@@ -264,18 +264,21 @@ export function UserImportMenuItem() {
       };
     };
 
+    const modeLabel = mode === 'full' ? '全量' : '缺字段';
+
     try {
-      showProgress("正在检查发票数据…");
+      showProgress(`正在检查发票（${modeLabel}）…`);
       const { reparseAllInvoiceRecords } =
         await import("../lib/pdfImport/reparseInvoiceRecords");
       const result = await reparseAllInvoiceRecords({
+        mode,
         onProgress: (done, total, stats) => {
           if (stats.pending === 0) {
-            showProgress(`检查完成 ${done}/${total}（均已完整，无需解析）`);
+            showProgress(`${modeLabel}检查完成 ${done}/${total}（均已完整，无需解析）`);
             return;
           }
           showProgress(
-            `重新解析 ${Math.min(done - stats.skipped, stats.pending)}/${stats.pending}（共 ${total}，跳过 ${stats.skipped} 张已完整）`,
+            `${modeLabel}重新解析 ${Math.min(Math.max(done - stats.skipped, 0), stats.pending)}/${stats.pending}（共 ${total}，跳过 ${stats.skipped} 张）`,
           );
         },
       });
@@ -293,11 +296,11 @@ export function UserImportMenuItem() {
       if (result.failed === 0 && result.success === 0 && result.skipped === result.total) {
         void message.info(`全部 ${result.total} 张发票字段已完整，无需重新解析`);
       } else if (result.failed === 0 && result.success > 0) {
-        void message.success(`重新解析完成：${summary}`);
+        void message.success(`${modeLabel}重新解析完成：${summary}`);
       } else if (result.success > 0 || result.skipped > 0) {
-        void message.warning(`重新解析完成：${summary}`);
+        void message.warning(`${modeLabel}重新解析完成：${summary}`);
       } else {
-        void message.error(`重新解析失败：${summary || `共 ${result.failed} 张`}`);
+        void message.error(`${modeLabel}重新解析失败：${summary || `共 ${result.failed} 张`}`);
       }
 
       const failures = result.items.filter((item) => item.status === "failed");
@@ -352,9 +355,14 @@ export function UserImportMenuItem() {
       ),
     },
     {
-      key: "invoice-reparse",
-      label: "重新解析已导入发票",
-      onClick: () => void runReparseAllInvoices(),
+      key: "invoice-reparse-missing",
+      label: "重新解析缺字段发票",
+      onClick: () => void runReparseAllInvoices("missing"),
+    },
+    {
+      key: "invoice-reparse-full",
+      label: "全量重新解析发票",
+      onClick: () => void runReparseAllInvoices("full"),
     },
     {
       key: "tax-payment-cert-pdf",
