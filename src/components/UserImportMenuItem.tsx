@@ -253,6 +253,62 @@ export function UserImportMenuItem() {
     }
   }
 
+  async function runReparseAllInvoices() {
+    setBusy(true);
+    const progressRef: { hide?: () => void } = {};
+    const showProgress = (text: string) => {
+      progressRef.hide?.();
+      const closer = message.loading(text, 0);
+      progressRef.hide = () => {
+        closer();
+      };
+    };
+
+    try {
+      showProgress("正在重新解析发票…");
+      const { reparseAllInvoiceRecords } =
+        await import("../lib/pdfImport/reparseInvoiceRecords");
+      const result = await reparseAllInvoiceRecords({
+        onProgress: (done, total) => {
+          showProgress(`正在重新解析 ${done}/${total} 张发票…`);
+        },
+      });
+      progressRef.hide?.();
+      progressRef.hide = undefined;
+
+      if (result.failed === 0) {
+        void message.success(`重新解析完成：成功 ${result.success} 张`);
+      } else if (result.success > 0) {
+        void message.warning(
+          `重新解析完成：成功 ${result.success} 张，失败 ${result.failed} 张`,
+        );
+      } else {
+        void message.error(`重新解析失败：共 ${result.failed} 张`);
+      }
+
+      const failures = result.items.filter((item) => item.status === "failed");
+      if (failures.length > 0) {
+        const preview = failures
+          .slice(0, 3)
+          .map((item) => `${item.digital_invoice_no}：${item.message ?? "未知错误"}`)
+          .join("；");
+        void message.error(preview, 8);
+      }
+
+      if (result.success > 0) {
+        window.dispatchEvent(new Event(INVOICE_IMPORTED_EVENT));
+      }
+    } catch (error: unknown) {
+      progressRef.hide?.();
+      void message.error(
+        error instanceof Error ? error.message : "重新解析失败，请重试",
+      );
+    } finally {
+      progressRef.hide?.();
+      setBusy(false);
+    }
+  }
+
   function openPicker(kind: ImportKind) {
     setPendingKind(kind);
     window.setTimeout(() => inputRef.current?.click(), 0);
@@ -280,6 +336,11 @@ export function UserImportMenuItem() {
           导入 PDF 发票文件夹
         </label>
       ),
+    },
+    {
+      key: "invoice-reparse",
+      label: "重新解析已导入发票",
+      onClick: () => void runReparseAllInvoices(),
     },
     {
       key: "tax-payment-cert-pdf",

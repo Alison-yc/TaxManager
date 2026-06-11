@@ -49,7 +49,13 @@ export type ParsedInvoicePdf = {
 }
 
 const INVOICE_FILE_RE =
-  /^dzfp_(\d{10,30})_(.+?)_(\d{14})(?:\[单一发票\])?\.pdf$/i
+  /^dzfp_(\d{10,30})_(.+?)_(?:[\d,.]+_)?(\d{4}-\d{2}-\d{2}|\d{14})(?:\[单一发票\])?(?:\s*\(\d+\))?\.pdf$/i
+
+const ALT_INVOICE_FILE_RE =
+  /^(.+?)_数电票[（(]([^）)]+)[）)]_(\d{20})\.pdf$/i
+
+/** 票面公司名常含空格，如「北威 ( 重庆 ) 科技股份有限公司」 */
+const PARTY_NAME = '[\\u4e00-\\u9fa5A-Za-z0-9（）()·\\s]{2,80}?'
 
 export function parseInvoiceFileName(fileName: string): {
   digital_invoice_no: string
@@ -60,13 +66,35 @@ export function parseInvoiceFileName(fileName: string): {
   if (!m) return null
   return {
     digital_invoice_no: m[1],
-    buyer_name: m[2] || null,
+    buyer_name: m[2]?.trim() || null,
     issue_stamp: m[3] || null,
   }
 }
 
+export function parseAltInvoiceFileName(fileName: string): {
+  digital_invoice_no: string
+  seller_name: string | null
+  invoice_type: string | null
+} | null {
+  const m = fileName.match(ALT_INVOICE_FILE_RE)
+  if (!m) return null
+  const ticketLabel = m[2]?.trim() ?? ''
+  const invoice_type = ticketLabel.includes('专用')
+    ? '数电发票（增值税专用发票）'
+    : ticketLabel.includes('普通')
+      ? '数电发票（普通发票）'
+      : normalizeInvoiceType(`电子发票（${ticketLabel}）`)
+  return {
+    digital_invoice_no: m[3],
+    seller_name: m[1]?.trim() || null,
+    invoice_type,
+  }
+}
+
 function stampToDateOnly(stamp: string | null): string | null {
-  if (!stamp || stamp.length < 8) return null
+  if (!stamp) return null
+  if (/^\d{4}-\d{2}-\d{2}$/.test(stamp)) return stamp
+  if (stamp.length < 8) return null
   return `${stamp.slice(0, 4)}-${stamp.slice(4, 6)}-${stamp.slice(6, 8)}`
 }
 
@@ -94,7 +122,7 @@ function sanitizeLineItem(item: InvoiceLineItem): InvoiceLineItem {
   }
 }
 
-/** 数电票 PDF 正文为稀疏排版，核心字段集中在「开票人：」后的数据块 */
+/** 数电票 PDF 正文为稀疏排版，核心字段集中在「开票人：」后的数据块（销方在前、购方在后） */
 function parseDigitalInvoiceBlock(text: string): {
   digital_invoice_no: string
   issue_date: string | null
@@ -110,22 +138,36 @@ function parseDigitalInvoiceBlock(text: string): {
   const money = '[-+]?\\d[\\d,.]*'
   const block = text.match(
     new RegExp(
-      `开票人[：:\\s]*(\\d{10,30})\\s+(\\d{4}\\s*年\\s*\\d{1,2}\\s*月\\s*\\d{1,2}\\s*日)\\s+([\\u4e00-\\u9fa5（）()·]{2,50}?)\\s+([0-9A-Z]{15,20})\\s+([\\u4e00-\\u9fa5（）()·]{2,50}?)\\s+([0-9A-Z]{15,20})\\s*[¥￥]\\s*(${money})\\s*[¥￥]\\s*(${money})\\s+.+?[¥￥]\\s*(${money})\\s+([\\u4e00-\\u9fa5·]{2,20})`,
+      `开票人[：:\\s]*(\\d{10,30})\\s+(\\d{4}\\s*年\\s*\\d{1,2}\\s*月\\s*\\d{1,2}\\s*日)\\s+(${PARTY_NAME})\\s+([0-9A-Z]{15,20})\\s+(${PARTY_NAME})\\s+([0-9A-Z]{15,20})\\s*[¥￥]\\s*(${money})\\s*[¥￥]\\s*(${money})\\s+.+?[¥￥]\\s*(${money})\\s+([\\u4e00-\\u9fa5·]{2,20})`,
     ),
   )
   if (!block) return null
   return {
     digital_invoice_no: block[1],
     issue_date: parseCnDateToIso(block[2]),
-    buyer_name: block[3],
-    buyer_tax_id: block[4],
-    seller_name: block[5],
-    seller_tax_id: block[6],
+    seller_name: block[3].replace(/\s+/g, ' ').trim(),
+    seller_tax_id: block[4],
+    buyer_name: block[5].replace(/\s+/g, ' ').trim(),
+    buyer_tax_id: block[6],
     amount: parseMoney(block[7]),
     tax_amount: parseMoney(block[8]),
     total_amount: parseMoney(block[9]),
     issuer: block[10],
   }
+}
+
+function extractIssueDateFromIssuerBlock(text: string): string | null {
+  const m = text.match(/开票人[：:\s]*\d{10,30}\s+(\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日)/)
+  return m ? parseCnDateToIso(m[1]) : null
+}
+
+function extractIssuerFromTotals(text: string): string | null {
+  return (
+    pick(text, [
+      /[¥￥]\s*[-+]?\d[\d,.]*\s+([\u4e00-\u9fa5·]{2,20})\s+\*/,
+      /[¥￥]\s*[-+]?\d[\d,.]*\s+([\u4e00-\u9fa5·]{2,20})\s*[\d,.]/,
+    ]) ?? null
+  )
 }
 
 function extractDigitalInvoiceNo(text: string): string | null {
@@ -269,8 +311,24 @@ function parseLineItems(text: string, header: ParsedInvoicePdf): InvoiceLineItem
 }
 
 export async function parseInvoicePdf(file: File): Promise<ParsedInvoicePdf> {
-  const fromName = parseInvoiceFileName(file.name)
   const text = await extractPdfText(file)
+  return parseInvoicePdfText(text, file.name)
+}
+
+export async function parseInvoicePdfBytes(
+  data: ArrayBuffer,
+  fileName: string,
+): Promise<ParsedInvoicePdf> {
+  const { loadPdfDocument } = await import('./loadPdfDocument')
+  const { extractPdfTextFromDocument } = await import('./extractPdfText')
+  const pdf = await loadPdfDocument(data)
+  const text = await extractPdfTextFromDocument(pdf)
+  return parseInvoicePdfText(text, fileName)
+}
+
+export function parseInvoicePdfText(text: string, fileName: string): ParsedInvoicePdf {
+  const fromName = parseInvoiceFileName(fileName)
+  const fromAltName = parseAltInvoiceFileName(fileName)
   const looksLikeInvoice = /电子发票|数电发票|发票号码|开票日期|购\s*买\s*方|销\s*售\s*方/.test(
     text,
   )
@@ -282,14 +340,17 @@ export async function parseInvoicePdf(file: File): Promise<ParsedInvoicePdf> {
   const amountTriplet = extractAmountTriplet(text)
 
   const rawInvoiceType =
-    pick(text, [/(数电发票（[^）]+）)/, /(电子发票（[^）]+）)/, /(增值税专用发票)/]) ?? null
+    pick(text, [/(数电发票（[^）]+）)/, /(电子发票（[^）]+）)/, /(增值税专用发票)/]) ??
+    fromAltName?.invoice_type ??
+    null
   const invoice_type = normalizeInvoiceType(rawInvoiceType)
 
   const digitalNo =
     digitalBlock?.digital_invoice_no ??
     extractDigitalInvoiceNo(text) ??
     fromName?.digital_invoice_no ??
-    extractInvoiceNoFromFileName(file.name) ??
+    fromAltName?.digital_invoice_no ??
+    extractInvoiceNoFromFileName(fileName) ??
     null
 
   if (!digitalNo) {
@@ -332,10 +393,11 @@ export async function parseInvoicePdf(file: File): Promise<ParsedInvoicePdf> {
         digital_invoice_no: digitalNo,
         invoice_number: pick(text, [/发票号码[：:\s]*(\d{10,30})/]),
         buyer_name: labeledParties.buyer_name ?? fromName?.buyer_name ?? null,
-        seller_name: labeledParties.seller_name,
+        seller_name: labeledParties.seller_name ?? fromAltName?.seller_name ?? null,
         buyer_tax_id: labeledParties.buyer_tax_id,
         seller_tax_id: labeledParties.seller_tax_id,
         issue_date:
+          extractIssueDateFromIssuerBlock(text) ??
           parseInvoiceDate(issueDateRaw) ??
           stampToDateOnly(fromName?.issue_stamp ?? null),
         invoice_type,
@@ -343,7 +405,7 @@ export async function parseInvoicePdf(file: File): Promise<ParsedInvoicePdf> {
         is_positive: '是',
         risk_level: '正常',
         invoice_source: '电子发票服务平台',
-        issuer: pick(text, [/开票人[：:\s]*([\u4e00-\u9fa5·]{2,20})/]),
+        issuer: extractIssuerFromTotals(text) ?? pick(text, [/开票人[：:\s]*([\u4e00-\u9fa5·]{2,20})/]),
         amount: amountTriplet.amount,
         tax_amount: amountTriplet.tax_amount,
         total_amount: amountTriplet.total_amount,
