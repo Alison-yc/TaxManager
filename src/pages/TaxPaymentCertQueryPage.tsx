@@ -43,7 +43,7 @@ type FilterShape = {
   paymentFrom?: Dayjs
   paymentTo?: Dayjs
   isReprint: string
-  collectionItem: string
+  collectionItems: string[]
   isElectronicRefund: string
   identity: string
   inspectionItem: string
@@ -73,7 +73,7 @@ export function TaxPaymentCertQueryPage() {
   const [applied, setApplied] = useState<FilterShape>(() => ({
     queryMethod: '税（费）属期',
     isReprint: '全部',
-    collectionItem: '全部',
+    collectionItems: [],
     isElectronicRefund: '否',
     identity: '本企业/本人',
     inspectionItem: '全部',
@@ -350,7 +350,7 @@ export function TaxPaymentCertQueryPage() {
               initialValues={{
                 queryMethod: '税（费）属期',
                 isReprint: '全部',
-                collectionItem: '全部',
+                collectionItems: [],
                 isElectronicRefund: '否',
                 identity: '本企业/本人',
                 inspectionItem: '全部',
@@ -364,7 +364,7 @@ export function TaxPaymentCertQueryPage() {
                   paymentFrom: v.paymentFrom,
                   paymentTo: v.paymentTo,
                   isReprint: v.isReprint,
-                  collectionItem: v.collectionItem,
+                  collectionItems: v.collectionItems ?? [],
                   isElectronicRefund: v.isElectronicRefund,
                   identity: v.identity,
                   inspectionItem: v.inspectionItem,
@@ -395,8 +395,14 @@ export function TaxPaymentCertQueryPage() {
                   </Form.Item>
                 </Col>
                 <Col xs={24} lg={8}>
-                  <Form.Item name="collectionItem" label="征收项目">
-                    <Select options={TAX_PAYMENT_CERT_COLLECTION_OPTIONS} />
+                  <Form.Item name="collectionItems" label="征收项目">
+                    <Select
+                      mode="multiple"
+                      allowClear
+                      placeholder="请选择"
+                      maxTagCount="responsive"
+                      options={TAX_PAYMENT_CERT_COLLECTION_OPTIONS}
+                    />
                   </Form.Item>
                 </Col>
                 <Col xs={24} lg={8}>
