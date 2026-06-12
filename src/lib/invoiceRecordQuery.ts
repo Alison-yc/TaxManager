@@ -102,6 +102,23 @@ export async function fetchInvoiceRecordsByIds(
   return { data: (data ?? []) as InvoiceRecordRow[], error: null };
 }
 
+export async function fetchInvoiceDigitalInvoiceNosByIds(
+  ids: string[],
+): Promise<{ data: string[]; error: Error | null }> {
+  if (ids.length === 0) return { data: [], error: null };
+  const { data, error } = await supabase
+    .from("invoice_records")
+    .select("digital_invoice_no")
+    .in("id", ids);
+  if (error) return { data: [], error: new Error(error.message) };
+  return {
+    data: (data ?? [])
+      .map((row) => String(row.digital_invoice_no ?? "").replace(/\D/g, ""))
+      .filter(Boolean),
+    error: null,
+  };
+}
+
 /** 导出：按当前筛选条件分页拉取全部匹配发票 */
 export async function fetchAllInvoiceRecordsForExport(
   filters: InvoiceQueryFilters,
@@ -130,4 +147,35 @@ export async function fetchAllInvoiceRecordsForExport(
   }
 
   return all;
+}
+
+export async function fetchAllInvoiceDigitalInvoiceNosForExport(
+  filters: InvoiceQueryFilters,
+  options?: { onProgress?: (loaded: number) => void },
+): Promise<string[]> {
+  const all: string[] = [];
+  let from = 0;
+
+  while (true) {
+    let q = supabase
+      .from("invoice_records")
+      .select("digital_invoice_no")
+      .order("issue_date", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false });
+    q = applyInvoiceRecordFilters(q, filters);
+    const to = from + INVOICE_EXPORT_BATCH_SIZE - 1;
+    const { data, error } = await q.range(from, to);
+    if (error) throw new Error(error.message);
+
+    const batch = (data ?? [])
+      .map((row) => String(row.digital_invoice_no ?? "").replace(/\D/g, ""))
+      .filter(Boolean);
+    all.push(...batch);
+    options?.onProgress?.(all.length);
+
+    if ((data ?? []).length < INVOICE_EXPORT_BATCH_SIZE) break;
+    from += INVOICE_EXPORT_BATCH_SIZE;
+  }
+
+  return [...new Set(all)];
 }

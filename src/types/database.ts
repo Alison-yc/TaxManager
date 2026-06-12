@@ -79,6 +79,18 @@ export type InvoiceRecordRow = {
   content: InvoiceRecordContent | Json | null
 }
 
+export type InvoiceFullExcelBaselineRow = {
+  id: string
+  created_at: string
+  updated_at: string
+  auth_user_id: string
+  storage_path: string
+  source_file_name: string
+  sheet_count: number
+  row_count: number
+  content: Json | null
+}
+
 export type ImportedPdfContent = {
   importVersion: 3
   importSource: 'pdf'

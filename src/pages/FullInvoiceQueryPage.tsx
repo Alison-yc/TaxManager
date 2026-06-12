@@ -31,10 +31,14 @@ import {
   INVOICE_STATUS_OPTIONS,
   INVOICE_TYPE_OPTIONS,
 } from '../constants/invoiceQuery'
-import { exportInvoicesToExcel } from '../lib/invoiceExcelExport'
 import {
-  fetchAllInvoiceRecordsForExport,
-  fetchInvoiceRecordsByIds,
+  exportInvoiceFullExcelByDigitalNos,
+  exportInvoiceFullExcelByIssueDateRange,
+  exportOriginalInvoiceFullExcelBaseline,
+} from '../lib/invoiceBaselineExcelExport'
+import {
+  fetchAllInvoiceDigitalInvoiceNosForExport,
+  fetchInvoiceDigitalInvoiceNosByIds,
   fetchInvoiceRecordsForDisplay,
   INVOICE_QUERY_DISPLAY_LIMIT,
 } from '../lib/invoiceRecordQuery'
@@ -83,6 +87,26 @@ function invoiceRiskTagClass(level?: string | null): string {
   if (v === '正常') return 'etax-invoice-risk-tag etax-invoice-risk-tag--normal'
   if (v.includes('疑') || v.includes('风险')) return 'etax-invoice-risk-tag etax-invoice-risk-tag--warn'
   return 'etax-invoice-risk-tag etax-invoice-risk-tag--muted'
+}
+
+function hasDateFilter(filters: FilterShape): boolean {
+  return Boolean(filters.issueFrom || filters.issueTo)
+}
+
+function hasNonDateExportFilter(filters: FilterShape): boolean {
+  return (
+    filters.invoiceSource !== '全部' ||
+    filters.invoiceType !== '全部' ||
+    filters.invoiceStatus !== '全部' ||
+    filters.isPositive !== '全部' ||
+    Boolean(filters.digitalNo.trim()) ||
+    Boolean(filters.invoiceCode.trim()) ||
+    Boolean(filters.invoiceNumber.trim()) ||
+    Boolean(filters.counterpartyTaxId.trim()) ||
+    Boolean(filters.counterpartyName.trim()) ||
+    filters.amountFrom != null ||
+    filters.amountTo != null
+  )
 }
 
 export function FullInvoiceQueryPage() {
@@ -155,29 +179,6 @@ export function FullInvoiceQueryPage() {
   const exportRows = useCallback(
     (mode: 'selected' | 'all') => {
       void (async () => {
-        if (mode === 'selected') {
-          if (selectedRowKeys.length === 0) {
-            void message.warning('没有可导出的发票')
-            return
-          }
-          setExporting(true)
-          try {
-            const { data: target, error } = await fetchInvoiceRecordsByIds(selectedRowKeys)
-            if (error) throw error
-            if (target.length === 0) {
-              void message.warning('没有可导出的发票')
-              return
-            }
-            await exportInvoicesToExcel(target, '全量发票查询导出结果.xlsx')
-            void message.success(`已导出 ${target.length} 张发票`)
-          } catch (e: unknown) {
-            void message.error(e instanceof Error ? e.message : String(e))
-          } finally {
-            setExporting(false)
-          }
-          return
-        }
-
         setExporting(true)
         const progressRef: { hide?: () => void } = {}
         const showProgress = (text: string) => {
@@ -192,24 +193,72 @@ export function FullInvoiceQueryPage() {
           progressRef.hide = undefined
         }
 
+        if (mode === 'selected') {
+          if (selectedRowKeys.length === 0) {
+            void message.warning('没有可导出的发票')
+            setExporting(false)
+            return
+          }
+          try {
+            showProgress('正在读取选中发票号码…')
+            const { data: digitalNos, error } = await fetchInvoiceDigitalInvoiceNosByIds(selectedRowKeys)
+            if (error) throw error
+            if (digitalNos.length === 0) {
+              void message.warning('没有可导出的发票')
+              return
+            }
+            showProgress(`正在从全量 Excel 筛选 ${digitalNos.length} 张发票…`)
+            const result = await exportInvoiceFullExcelByDigitalNos(digitalNos)
+            clearProgress()
+            void message.success(`已导出 ${result.rowCount} 条 Excel 数据`)
+          } catch (e: unknown) {
+            clearProgress()
+            void message.error(e instanceof Error ? e.message : String(e))
+          } finally {
+            clearProgress()
+            setExporting(false)
+          }
+          return
+        }
+
         try {
-          showProgress('正在加载发票数据…')
-          const target = await fetchAllInvoiceRecordsForExport(applied, {
+          const dateOnly = hasDateFilter(applied) && !hasNonDateExportFilter(applied)
+          const noExportFilters = !hasDateFilter(applied) && !hasNonDateExportFilter(applied)
+
+          if (noExportFilters) {
+            showProgress('正在下载全量发票 Excel…')
+            await exportOriginalInvoiceFullExcelBaseline()
+            clearProgress()
+            void message.success('已导出全量发票 Excel')
+            return
+          }
+
+          if (dateOnly) {
+            showProgress('正在按开票日期筛选全量 Excel…')
+            const result = await exportInvoiceFullExcelByIssueDateRange({
+              issueFrom: applied.issueFrom,
+              issueTo: applied.issueTo,
+            })
+            clearProgress()
+            void message.success(`已导出 ${result.rowCount} 条 Excel 数据`)
+            return
+          }
+
+          showProgress('正在按查询条件读取发票号码…')
+          const digitalNos = await fetchAllInvoiceDigitalInvoiceNosForExport(applied, {
             onProgress: (loaded) => {
-              showProgress(`正在加载 ${loaded} 条发票…`)
+              showProgress(`正在读取 ${loaded} 个发票号码…`)
             },
           })
-          clearProgress()
-
-          if (target.length === 0) {
+          if (digitalNos.length === 0) {
             void message.warning('没有可导出的发票')
             return
           }
 
-          showProgress(`正在生成 Excel（${target.length} 张）…`)
-          await exportInvoicesToExcel(target, '全量发票查询导出结果.xlsx')
+          showProgress(`正在从全量 Excel 筛选 ${digitalNos.length} 张发票…`)
+          const result = await exportInvoiceFullExcelByDigitalNos(digitalNos)
           clearProgress()
-          void message.success(`已导出 ${target.length} 张发票`)
+          void message.success(`已导出 ${result.rowCount} 条 Excel 数据`)
         } catch (e: unknown) {
           clearProgress()
           void message.error(e instanceof Error ? e.message : String(e))
@@ -219,7 +268,7 @@ export function FullInvoiceQueryPage() {
         }
       })()
     },
-    [applied, rows, selectedRowKeys],
+    [applied, selectedRowKeys],
   )
 
   const handleDeleteRecord = useCallback(

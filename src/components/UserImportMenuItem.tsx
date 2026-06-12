@@ -13,6 +13,7 @@ const FOLDER_INPUT_ID = "invoice-folder-import-input";
 
 type ImportKind =
   | "excel"
+  | "invoice-full-excel"
   | "invoice-pdf"
   | "invoice-pdf-folder"
   | "declaration-pdf"
@@ -46,6 +47,8 @@ export function UserImportMenuItem() {
   > = {
     excel:
       ".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel",
+    "invoice-full-excel":
+      ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "invoice-pdf": ".pdf,application/pdf",
     "declaration-pdf": ".pdf,application/pdf",
     "financial-pdf": ".pdf,application/pdf",
@@ -189,6 +192,17 @@ export function UserImportMenuItem() {
         return;
       }
 
+      if (pendingKind === "invoice-full-excel") {
+        const { uploadInvoiceFullExcelBaseline } = await import(
+          "../lib/invoiceFullExcelBaseline"
+        );
+        const row = await uploadInvoiceFullExcelBaseline(file);
+        void message.success(
+          `全量发票信息 Excel 已更新：${row.sheet_count} 个工作表，${row.row_count} 条数据`,
+        );
+        return;
+      }
+
       if (pendingKind === "tax-payment-cert-pdf") {
         const { uploadTaxPaymentCertPdfFile } =
           await import("../lib/pdfImport/taxPaymentCertPdfImport");
@@ -255,100 +269,6 @@ export function UserImportMenuItem() {
     }
   }
 
-  async function runReparseAllInvoices(mode: 'full' | 'missing') {
-    setBusy(true);
-    const progressRef: { hide?: () => void } = {};
-    const showProgress = (text: string) => {
-      progressRef.hide?.();
-      const closer = message.loading(text, 0);
-      progressRef.hide = () => {
-        closer();
-      };
-    };
-
-    const modeLabel = mode === 'full' ? '全量' : '缺字段';
-
-    try {
-      showProgress(`正在检查发票（${modeLabel}）…`);
-      const { reparseAllInvoiceRecords } =
-        await import("../lib/pdfImport/reparseInvoiceRecords");
-      const result = await reparseAllInvoiceRecords({
-        mode,
-        onProgress: (done, total, stats) => {
-          if (stats.pending > 0) {
-            showProgress(
-              `${modeLabel}重新解析 ${stats.reparseDone}/${stats.reparseTotal}（共 ${total}，跳过 ${stats.skipped} 张）`,
-            );
-            return;
-          }
-          if (done < total) {
-            showProgress(`正在检查 ${done}/${total}…`);
-            return;
-          }
-          if (stats.reparseTotal === 0) {
-            showProgress(`${modeLabel}检查完成 ${done}/${total}（均已完整，无需解析）`);
-          }
-        },
-      });
-      progressRef.hide?.();
-      progressRef.hide = undefined;
-
-      const summary = [
-        result.success > 0 ? `成功 ${result.success} 张` : "",
-        result.skipped > 0 ? `跳过 ${result.skipped} 张（已完整）` : "",
-        result.failed > 0 ? `失败 ${result.failed} 张` : "",
-      ]
-        .filter(Boolean)
-        .join("，");
-
-      if (result.failed === 0 && result.success === 0 && result.skipped === result.total) {
-        void message.info(`全部 ${result.total} 张发票字段已完整，无需重新解析`);
-      } else if (result.failed === 0 && result.success > 0) {
-        void message.success(`${modeLabel}重新解析完成：${summary}`);
-      } else if (result.success > 0 || result.skipped > 0) {
-        void message.warning(`${modeLabel}重新解析完成：${summary}`);
-      } else {
-        void message.error(`${modeLabel}重新解析失败：${summary || `共 ${result.failed} 张`}`);
-      }
-
-      const failures = result.items.filter((item) => item.status === "failed");
-      if (failures.length > 0) {
-        const { downloadReparseFailureLog, getReparseFailureLog, logReparseFailureSummary, resetReparseFailureLog } =
-          await import("../lib/pdfImport/reparseFailureLog");
-        const logEntries = getReparseFailureLog();
-        if (logEntries.length > 0) {
-          downloadReparseFailureLog(logEntries);
-          resetReparseFailureLog();
-        }
-        logReparseFailureSummary(failures.length);
-
-        const preview = failures
-          .slice(0, 3)
-          .map(
-            (item) =>
-              `${item.digital_invoice_no}${item.source_file_name ? `（${item.source_file_name}）` : ""}：${item.message ?? "未知错误"}`,
-          )
-          .join("；");
-        void message.error(
-          `${preview}${failures.length > 3 ? ` 等共 ${failures.length} 张；失败清单已下载` : "；失败清单已下载"}`,
-          10,
-        );
-      }
-
-      if (result.success > 0) {
-        window.dispatchEvent(new Event(INVOICE_IMPORTED_EVENT));
-      }
-    } catch (error: unknown) {
-      progressRef.hide?.();
-      void message.error(
-        error instanceof Error ? error.message : "重新解析失败，请重试",
-      );
-    } finally {
-      progressRef.hide?.();
-      setBusy(false);
-    }
-  }
-
   function openPicker(kind: ImportKind) {
     setPendingKind(kind);
     window.setTimeout(() => inputRef.current?.click(), 0);
@@ -378,14 +298,9 @@ export function UserImportMenuItem() {
       ),
     },
     {
-      key: "invoice-reparse-missing",
-      label: "重新解析缺字段发票",
-      onClick: () => void runReparseAllInvoices("missing"),
-    },
-    {
-      key: "invoice-reparse-full",
-      label: "全量重新解析发票",
-      onClick: () => void runReparseAllInvoices("full"),
+      key: "invoice-full-excel",
+      label: "更新全量发票信息excel表格",
+      onClick: () => openPicker("invoice-full-excel"),
     },
     {
       key: "invoice-numbers-maintain",
