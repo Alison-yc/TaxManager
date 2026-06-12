@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Button } from 'antd'
+import { Button, Spin } from 'antd'
 import { PdfEmbedViewer } from '../components/PdfEmbedViewer'
-import { exportAndPersistTaxPaymentCert } from '../lib/taxPaymentCertExport'
+import {
+  downloadTaxPaymentCert,
+  refreshTaxPaymentCertIssueDate,
+} from '../lib/taxPaymentCertExport'
 import { supabase } from '../lib/supabase'
 import type { TaxPaymentCertRecordRow } from '../types/database'
 
@@ -12,25 +15,60 @@ export function TaxPaymentCertRecordPreview() {
   const [searchParams] = useSearchParams()
   const [row, setRow] = useState<TaxPaymentCertRecordRow | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [warning, setWarning] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [preparing, setPreparing] = useState(true)
+  const [previewData, setPreviewData] = useState<ArrayBuffer | null>(null)
+  const [previewBlob, setPreviewBlob] = useState<Blob | null>(null)
+  const loadGenRef = useRef(0)
 
   useEffect(() => {
+    const gen = ++loadGenRef.current
     let cancelled = false
+
     async function run() {
       if (!id) return
+      setPreparing(true)
+      setError(null)
+      setWarning(null)
+      setRow(null)
+      setPreviewData(null)
+      setPreviewBlob(null)
+
       const { data, error: qErr } = await supabase
         .from('tax_payment_certificate_records')
         .select('*')
         .eq('id', id)
         .maybeSingle()
-      if (cancelled) return
+      if (cancelled || gen !== loadGenRef.current) return
       if (qErr) {
         setError(qErr.message)
-        setRow(null)
+        setPreparing(false)
         return
       }
-      setRow(data as TaxPaymentCertRecordRow | null)
+      if (!data) {
+        setError('未找到该完税证明记录')
+        setPreparing(false)
+        return
+      }
+
+      try {
+        const result = await refreshTaxPaymentCertIssueDate(data as TaxPaymentCertRecordRow)
+        if (cancelled || gen !== loadGenRef.current) return
+
+        const buffer = await result.previewBlob.arrayBuffer()
+        setRow({ ...(data as TaxPaymentCertRecordRow), issue_date: result.issueDate })
+        setPreviewBlob(result.previewBlob)
+        setPreviewData(buffer)
+        if (result.warning) setWarning(result.warning)
+      } catch (e: unknown) {
+        if (cancelled || gen !== loadGenRef.current) return
+        setError(e instanceof Error ? e.message : String(e))
+      } finally {
+        if (!cancelled && gen === loadGenRef.current) setPreparing(false)
+      }
     }
+
     void run()
     return () => {
       cancelled = true
@@ -39,10 +77,9 @@ export function TaxPaymentCertRecordPreview() {
 
   useEffect(() => {
     const download = searchParams.get('download')
-    if (download !== '1' || !row) return
-    void exportAndPersistTaxPaymentCert(row)
-      .then(({ issueDate }) => {
-        setRow((prev) => (prev ? { ...prev, issue_date: issueDate } : prev))
+    if (download !== '1' || !row || preparing) return
+    void downloadTaxPaymentCert(row, previewBlob ?? undefined)
+      .then(() => {
         if (searchParams.get('return') === 'query') {
           navigate('/tax-payment-cert/query?restoreQuery=export', { replace: true })
         }
@@ -50,15 +87,14 @@ export function TaxPaymentCertRecordPreview() {
       .catch((e: unknown) => {
         setError(e instanceof Error ? e.message : String(e))
       })
-  }, [navigate, row, searchParams])
+  }, [navigate, preparing, previewBlob, row, searchParams])
 
   async function handleExport() {
     if (!row) return
     setBusy(true)
     setError(null)
     try {
-      const { issueDate } = await exportAndPersistTaxPaymentCert(row)
-      setRow((prev) => (prev ? { ...prev, issue_date: issueDate } : prev))
+      await downloadTaxPaymentCert(row, previewBlob ?? undefined)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -96,14 +132,20 @@ export function TaxPaymentCertRecordPreview() {
       </div>
 
       {error && <p className="err banner">{error}</p>}
-      {!row && !error && <p className="muted">加载中…</p>}
+      {warning && <p className="warn banner">{warning}</p>}
+      {preparing && (
+        <div className="etax-pdf-preview-loading">
+          <Spin description="正在更新填发日期并加载预览…" />
+        </div>
+      )}
 
-      {row && (
+      {row && previewData && !preparing && (
         <section className="etax-record-workbench">
           <div className="no-print etax-record-toolbar">
             <div className="etax-record-main-form">
               <span>完税证明号码：{row.certificate_no}</span>
               {row.taxpayer_name && <span> · {row.taxpayer_name}</span>}
+              {row.issue_date && <span> · 填发日期 {row.issue_date}</span>}
             </div>
             <Button size="small" onClick={() => void handleExport()} loading={busy}>
               导出
@@ -111,8 +153,8 @@ export function TaxPaymentCertRecordPreview() {
           </div>
           <div className="vat-preview-frame etax-record-preview-frame etax-pdf-preview-shell">
             <PdfEmbedViewer
-              storagePath={row.storage_path}
               fileName={row.source_file_name}
+              pdfData={previewData}
               reloadKey={row.issue_date ?? row.created_at}
               showDownload={false}
             />

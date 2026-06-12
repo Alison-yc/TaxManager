@@ -220,7 +220,9 @@ export function FullInvoiceQueryPage() {
             showProgress("正在生成文件…");
             const result = await exportInvoiceFullExcelByDigitalNos(digitalNos);
             clearProgress();
-            void message.success(result.rowCount > 0 ? "导出完成" : "未匹配到可导出的数据");
+            void message.success(
+              result.rowCount > 0 ? "导出完成" : "未匹配到可导出的数据",
+            );
           } catch (e: unknown) {
             clearProgress();
             void message.error(e instanceof Error ? e.message : String(e));
@@ -252,7 +254,9 @@ export function FullInvoiceQueryPage() {
               issueTo: applied.issueTo,
             });
             clearProgress();
-            void message.success(result.rowCount > 0 ? "导出完成" : "未匹配到可导出的数据");
+            void message.success(
+              result.rowCount > 0 ? "导出完成" : "未匹配到可导出的数据",
+            );
             return;
           }
 
@@ -273,7 +277,9 @@ export function FullInvoiceQueryPage() {
           showProgress("正在生成文件…");
           const result = await exportInvoiceFullExcelByDigitalNos(digitalNos);
           clearProgress();
-          void message.success(result.rowCount > 0 ? "导出完成" : "未匹配到可导出的数据");
+          void message.success(
+            result.rowCount > 0 ? "导出完成" : "未匹配到可导出的数据",
+          );
         } catch (e: unknown) {
           clearProgress();
           void message.error(e instanceof Error ? e.message : String(e));

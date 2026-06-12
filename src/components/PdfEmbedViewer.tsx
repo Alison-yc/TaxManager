@@ -21,6 +21,8 @@ type Props = {
   chromeless?: boolean
   /** 变更时强制重新拉取 Storage PDF（如导出后填发日期已更新） */
   reloadKey?: string | null
+  /** 内存 PDF 数据；提供时优先展示，避免改写后再次请求 Storage */
+  pdfData?: ArrayBuffer | null
   onDownload?: () => void | Promise<void>
   className?: string
 }
@@ -126,6 +128,7 @@ export function PdfEmbedViewer({
   showDownload = true,
   chromeless = true,
   reloadKey,
+  pdfData,
   onDownload,
   className = '',
 }: Props) {
@@ -136,7 +139,7 @@ export function PdfEmbedViewer({
 
   const useDirectUrl = iframeUrl !== undefined
   const displayUrl = useDirectUrl ? iframeUrl : signedUrl
-  const pdfLoadKey = `${storagePath ?? iframeUrl ?? ''}::${reloadKey ?? ''}`
+  const pdfLoadKey = `${storagePath ?? iframeUrl ?? ''}::${reloadKey ?? ''}::${pdfData?.byteLength ?? 0}`
 
   useEffect(() => {
     if (chromeless || useDirectUrl || !storagePath) return
@@ -155,6 +158,11 @@ export function PdfEmbedViewer({
 
   useEffect(() => {
     if (!chromeless) return
+    if (pdfData) {
+      setError(null)
+      setLoadedPdf({ key: pdfLoadKey, data: pdfData.slice(0) })
+      return
+    }
     if (useDirectUrl && !iframeUrl) return
     if (!useDirectUrl && !storagePath) return
 
@@ -177,7 +185,7 @@ export function PdfEmbedViewer({
     return () => {
       alive = false
     }
-  }, [chromeless, storagePath, iframeUrl, useDirectUrl, pdfLoadKey])
+  }, [chromeless, storagePath, iframeUrl, useDirectUrl, pdfLoadKey, pdfData])
 
   async function handleDownload() {
     setBusy(true)

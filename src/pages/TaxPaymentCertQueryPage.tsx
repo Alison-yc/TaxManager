@@ -30,7 +30,7 @@ import {
   TAX_PAYMENT_CERT_REPRINT_OPTIONS,
   TAX_PAYMENT_CERT_TABS,
 } from '../constants/taxPaymentCertQuery'
-import { exportAndPersistTaxPaymentCert } from '../lib/taxPaymentCertExport'
+import { downloadTaxPaymentCert } from '../lib/taxPaymentCertExport'
 import { supabase } from '../lib/supabase'
 import type { TaxPaymentCertRecordRow } from '../types/database'
 
@@ -183,10 +183,9 @@ export function TaxPaymentCertQueryPage() {
     setExporting(true)
     try {
       for (const row of selected) {
-        await exportAndPersistTaxPaymentCert(row)
+        await downloadTaxPaymentCert(row)
       }
-      await loadRef.current()
-      void message.success(`已导出 ${selected.length} 份完税证明 PDF，填发日期已更新为今天`)
+      void message.success(`已导出 ${selected.length} 份完税证明 PDF`)
     } catch (e: unknown) {
       void message.error(e instanceof Error ? e.message : String(e))
     } finally {

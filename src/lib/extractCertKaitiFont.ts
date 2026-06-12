@@ -1,44 +1,14 @@
 const FZKTJW_MARKER = /FZKTJW--GB1-0[\s\S]{0,220}?\/FontFile2\s+(\d+)\s+\d+\s+R/
 
-function findLastIndex(bytes: Uint8Array, token: Uint8Array): number {
-  let last = -1
-  outer: for (let i = 0; i <= bytes.length - token.length; i++) {
-    for (let j = 0; j < token.length; j++) {
-      if (bytes[i + j] !== token[j]) continue outer
-    }
-    last = i
-  }
-  return last
-}
-
 function readLengthObject(bytes: Uint8Array, objNum: number): number | null {
-  const marker = new TextEncoder().encode(`${objNum} 0 obj`)
-  const start = findLastIndex(bytes, marker)
-  if (start < 0) return null
-
-  const endToken = new TextEncoder().encode('endobj')
-  let end = -1
-  for (let i = start; i <= bytes.length - endToken.length; i++) {
-    let matched = true
-    for (let j = 0; j < endToken.length; j++) {
-      if (bytes[i + j] !== endToken[j]) {
-        matched = false
-        break
-      }
-    }
-    if (matched) {
-      end = i
-      break
-    }
+  const text = new TextDecoder('latin1').decode(bytes)
+  const re = new RegExp(`${objNum} 0 obj\\s*\\r?\\n\\s*(\\d+)\\s*\\r?\\n`, 'g')
+  let match: RegExpExecArray | null = null
+  let last: RegExpExecArray | null = null
+  while ((match = re.exec(text)) !== null) {
+    last = match
   }
-  if (end < 0) return null
-
-  const body = bytes.subarray(start, end)
-  const newline = body.indexOf(0x0a)
-  if (newline < 0) return null
-  const valueText = new TextDecoder('latin1').decode(body.subarray(newline + 1))
-  const match = valueText.match(/(\d+)/)
-  return match ? Number(match[1]) : null
+  return last ? Number(last[1]) : null
 }
 
 function extractCompressedStreamAt(bytes: Uint8Array, start: number): Uint8Array | null {
@@ -134,8 +104,12 @@ export async function extractCertKaitiFontBytes(data: ArrayBuffer): Promise<Uint
   const compressed = extractCompressedStreamAt(bytes, streamOffset)
   if (!compressed) return null
 
-  const inflated = await inflateDeflate(compressed)
-  const length1 = readLengthObject(bytes, length1ObjNum)
-  if (!length1 || length1 <= 0 || length1 > inflated.length) return null
-  return inflated.subarray(0, length1)
+  try {
+    const inflated = await inflateDeflate(compressed)
+    const length1 = readLengthObject(bytes, length1ObjNum)
+    if (!length1 || length1 <= 0 || length1 > inflated.length) return null
+    return inflated.subarray(0, length1)
+  } catch {
+    return null
+  }
 }
