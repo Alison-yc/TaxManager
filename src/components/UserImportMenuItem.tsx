@@ -14,6 +14,7 @@ const FOLDER_INPUT_ID = "invoice-folder-import-input";
 type ImportKind =
   | "excel"
   | "invoice-full-excel"
+  | "invoice-full-excel-increment"
   | "invoice-pdf"
   | "invoice-pdf-folder"
   | "declaration-pdf"
@@ -47,6 +48,8 @@ export function UserImportMenuItem() {
     excel:
       ".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel",
     "invoice-full-excel":
+      ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "invoice-full-excel-increment":
       ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "invoice-pdf": ".pdf,application/pdf",
     "declaration-pdf": ".pdf,application/pdf",
@@ -201,6 +204,17 @@ export function UserImportMenuItem() {
         return;
       }
 
+      if (pendingKind === "invoice-full-excel-increment") {
+        const { mergeInvoiceFullExcelBaseline } = await import(
+          "../lib/invoiceFullExcelBaseline"
+        );
+        const result = await mergeInvoiceFullExcelBaseline(file);
+        void message.success(
+          `全量发票信息 Excel 已增量更新：新增 ${result.added} 条，更新 ${result.updated} 条，当前共 ${result.baseline.row_count} 条数据`,
+        );
+        return;
+      }
+
       if (pendingKind === "tax-payment-cert-pdf") {
         const { uploadTaxPaymentCertPdfFile } =
           await import("../lib/pdfImport/taxPaymentCertPdfImport");
@@ -299,6 +313,11 @@ export function UserImportMenuItem() {
       key: "invoice-full-excel",
       label: "更新全量发票信息excel表格",
       onClick: () => openPicker("invoice-full-excel"),
+    },
+    {
+      key: "invoice-full-excel-increment",
+      label: "增量更新全量发票信息excel表格",
+      onClick: () => openPicker("invoice-full-excel-increment"),
     },
     {
       key: "invoice-numbers-maintain",
