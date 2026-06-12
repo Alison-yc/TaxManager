@@ -19,6 +19,8 @@ type Props = {
   showDownload?: boolean
   /** 纯内容展示，不使用浏览器 PDF 阅读器工具栏 */
   chromeless?: boolean
+  /** 变更时强制重新拉取 Storage PDF（如导出后填发日期已更新） */
+  reloadKey?: string | null
   onDownload?: () => void | Promise<void>
   className?: string
 }
@@ -123,6 +125,7 @@ export function PdfEmbedViewer({
   fileName,
   showDownload = true,
   chromeless = true,
+  reloadKey,
   onDownload,
   className = '',
 }: Props) {
@@ -133,7 +136,7 @@ export function PdfEmbedViewer({
 
   const useDirectUrl = iframeUrl !== undefined
   const displayUrl = useDirectUrl ? iframeUrl : signedUrl
-  const pdfLoadKey = storagePath ?? iframeUrl ?? ''
+  const pdfLoadKey = `${storagePath ?? iframeUrl ?? ''}::${reloadKey ?? ''}`
 
   useEffect(() => {
     if (chromeless || useDirectUrl || !storagePath) return

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button } from 'antd'
 import { PdfEmbedViewer } from '../components/PdfEmbedViewer'
-import { downloadPdfFile } from '../lib/pdfStorage'
+import { exportAndPersistTaxPaymentCert } from '../lib/taxPaymentCertExport'
 import { supabase } from '../lib/supabase'
 import type { TaxPaymentCertRecordRow } from '../types/database'
 
@@ -40,8 +40,9 @@ export function TaxPaymentCertRecordPreview() {
   useEffect(() => {
     const download = searchParams.get('download')
     if (download !== '1' || !row) return
-    void downloadPdfFile(row.storage_path, row.source_file_name)
-      .then(() => {
+    void exportAndPersistTaxPaymentCert(row)
+      .then(({ issueDate }) => {
+        setRow((prev) => (prev ? { ...prev, issue_date: issueDate } : prev))
         if (searchParams.get('return') === 'query') {
           navigate('/tax-payment-cert/query?restoreQuery=export', { replace: true })
         }
@@ -56,7 +57,8 @@ export function TaxPaymentCertRecordPreview() {
     setBusy(true)
     setError(null)
     try {
-      await downloadPdfFile(row.storage_path, row.source_file_name)
+      const { issueDate } = await exportAndPersistTaxPaymentCert(row)
+      setRow((prev) => (prev ? { ...prev, issue_date: issueDate } : prev))
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -111,6 +113,7 @@ export function TaxPaymentCertRecordPreview() {
             <PdfEmbedViewer
               storagePath={row.storage_path}
               fileName={row.source_file_name}
+              reloadKey={row.issue_date ?? row.created_at}
               showDownload={false}
             />
           </div>
