@@ -209,7 +209,7 @@ export function FullInvoiceQueryPage() {
             return;
           }
           try {
-            showProgress("正在读取选中发票号码…");
+            showProgress("正在准备导出…");
             const { data: digitalNos, error } =
               await fetchInvoiceDigitalInvoiceNosByIds(selectedRowKeys);
             if (error) throw error;
@@ -217,10 +217,10 @@ export function FullInvoiceQueryPage() {
               void message.warning("没有可导出的发票");
               return;
             }
-            showProgress(`正在导出 ${digitalNos.length} 张发票…`);
+            showProgress("正在生成文件…");
             const result = await exportInvoiceFullExcelByDigitalNos(digitalNos);
             clearProgress();
-            void message.success(`已导出 ${result.rowCount} 条 Excel 数据`);
+            void message.success(result.rowCount > 0 ? "导出完成" : "未匹配到可导出的数据");
           } catch (e: unknown) {
             clearProgress();
             void message.error(e instanceof Error ? e.message : String(e));
@@ -238,30 +238,30 @@ export function FullInvoiceQueryPage() {
             !hasDateFilter(applied) && !hasNonDateExportFilter(applied);
 
           if (noExportFilters) {
-            showProgress("正在下载全量发票 Excel…");
+            showProgress("正在准备导出…");
             await exportOriginalInvoiceFullExcelBaseline();
             clearProgress();
-            void message.success("已导出全量发票 Excel");
+            void message.success("导出完成");
             return;
           }
 
           if (dateOnly) {
-            showProgress("正在按开票日期筛选全量 Excel…");
+            showProgress("正在生成文件…");
             const result = await exportInvoiceFullExcelByIssueDateRange({
               issueFrom: applied.issueFrom,
               issueTo: applied.issueTo,
             });
             clearProgress();
-            void message.success(`已导出 ${result.rowCount} 条 Excel 数据`);
+            void message.success(result.rowCount > 0 ? "导出完成" : "未匹配到可导出的数据");
             return;
           }
 
-          showProgress("正在按查询条件读取发票号码…");
+          showProgress("正在准备导出…");
           const digitalNos = await fetchAllInvoiceDigitalInvoiceNosForExport(
             applied,
             {
               onProgress: (loaded) => {
-                showProgress(`正在读取 ${loaded} 个发票号码…`);
+                showProgress(loaded > 0 ? "正在整理数据…" : "正在准备导出…");
               },
             },
           );
@@ -270,10 +270,10 @@ export function FullInvoiceQueryPage() {
             return;
           }
 
-          showProgress(`正在导出 ${digitalNos.length} 张发票…`);
+          showProgress("正在生成文件…");
           const result = await exportInvoiceFullExcelByDigitalNos(digitalNos);
           clearProgress();
-          void message.success(`已导出 ${result.rowCount} 条 Excel 数据`);
+          void message.success(result.rowCount > 0 ? "导出完成" : "未匹配到可导出的数据");
         } catch (e: unknown) {
           clearProgress();
           void message.error(e instanceof Error ? e.message : String(e));

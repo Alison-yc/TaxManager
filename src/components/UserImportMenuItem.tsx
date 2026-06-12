@@ -35,9 +35,8 @@ export function UserImportMenuItem() {
   const folderInputRef = useRef<HTMLInputElement>(null);
   const folderImportingRef = useRef(false);
   const [busy, setBusy] = useState(false);
-  const [importProgress, setImportProgress] = useState<ImportProgressState | null>(
-    null,
-  );
+  const [importProgress, setImportProgress] =
+    useState<ImportProgressState | null>(null);
   const [pendingKind, setPendingKind] = useState<ImportKind>("excel");
   const [numbersMaintainOpen, setNumbersMaintainOpen] = useState(false);
 
@@ -89,8 +88,8 @@ export function UserImportMenuItem() {
     const pdfCount = files.filter((file) =>
       file.name.toLowerCase().endsWith(".pdf"),
     ).length;
-    setImportProgress((prev) =>
-      prev ?? { done: 0, total: pdfCount, phase: "preparing" },
+    setImportProgress(
+      (prev) => prev ?? { done: 0, total: pdfCount, phase: "preparing" },
     );
 
     let destroyLoading: MessageType | undefined;
@@ -193,9 +192,8 @@ export function UserImportMenuItem() {
       }
 
       if (pendingKind === "invoice-full-excel") {
-        const { uploadInvoiceFullExcelBaseline } = await import(
-          "../lib/invoiceFullExcelBaseline"
-        );
+        const { uploadInvoiceFullExcelBaseline } =
+          await import("../lib/invoiceFullExcelBaseline");
         const row = await uploadInvoiceFullExcelBaseline(file);
         void message.success(
           `全量发票信息 Excel 已更新：${row.sheet_count} 个工作表，${row.row_count} 条数据`,
@@ -332,7 +330,10 @@ export function UserImportMenuItem() {
           ref={folderInputRef}
           type="file"
           className="hidden-file-input hidden-file-input--pickable"
-          {...({ webkitdirectory: "", directory: "" } as React.InputHTMLAttributes<HTMLInputElement>)}
+          {...({
+            webkitdirectory: "",
+            directory: "",
+          } as React.InputHTMLAttributes<HTMLInputElement>)}
           multiple
           tabIndex={-1}
           onChange={(e) => void handleFolder(e)}
@@ -402,7 +403,11 @@ export function UserImportMenuItem() {
           ref={inputRef}
           type="file"
           className="hidden-file-input hidden-file-input--pickable"
-          accept={acceptByKind[pendingKind === "invoice-pdf-folder" ? "invoice-pdf" : pendingKind]}
+          accept={
+            acceptByKind[
+              pendingKind === "invoice-pdf-folder" ? "invoice-pdf" : pendingKind
+            ]
+          }
           multiple={pendingKind === "invoice-pdf"}
           aria-hidden
           tabIndex={-1}
