@@ -28,7 +28,8 @@ type IssueDateRegion = {
   fontSize: number
 }
 
-const CERT_KAITI_FALLBACK_FONT_URL = '/fonts/CertKaiTi.ttf'
+// 使用 Vite 的 BASE_URL 确保部署时路径正确
+const CERT_KAITI_FALLBACK_FONT_URL = `${import.meta.env.BASE_URL}fonts/CertKaiTi.ttf`
 
 let cachedFallbackFontBytes: ArrayBuffer | null = null
 
