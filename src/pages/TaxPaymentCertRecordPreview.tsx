@@ -1,111 +1,123 @@
-import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Button, Spin } from 'antd'
-import { PdfEmbedViewer } from '../components/PdfEmbedViewer'
+import { useEffect, useRef, useState } from "react";
+import {
+  Link,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
+import { Button, Spin } from "antd";
+import { PdfEmbedViewer } from "../components/PdfEmbedViewer";
 import {
   downloadTaxPaymentCert,
   refreshTaxPaymentCertIssueDate,
-} from '../lib/taxPaymentCertExport'
-import { supabase } from '../lib/supabase'
-import type { TaxPaymentCertRecordRow } from '../types/database'
+} from "../lib/taxPaymentCertExport";
+import { supabase } from "../lib/supabase";
+import type { TaxPaymentCertRecordRow } from "../types/database";
 
 export function TaxPaymentCertRecordPreview() {
-  const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const [row, setRow] = useState<TaxPaymentCertRecordRow | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [warning, setWarning] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-  const [preparing, setPreparing] = useState(true)
-  const [previewData, setPreviewData] = useState<ArrayBuffer | null>(null)
-  const [previewBlob, setPreviewBlob] = useState<Blob | null>(null)
-  const loadGenRef = useRef(0)
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [row, setRow] = useState<TaxPaymentCertRecordRow | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [preparing, setPreparing] = useState(true);
+  const [previewData, setPreviewData] = useState<ArrayBuffer | null>(null);
+  const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
+  const loadGenRef = useRef(0);
 
   useEffect(() => {
-    const gen = ++loadGenRef.current
-    let cancelled = false
+    const gen = ++loadGenRef.current;
+    let cancelled = false;
 
     async function run() {
-      if (!id) return
-      setPreparing(true)
-      setError(null)
-      setWarning(null)
-      setRow(null)
-      setPreviewData(null)
-      setPreviewBlob(null)
+      if (!id) return;
+      setPreparing(true);
+      setError(null);
+      setWarning(null);
+      setRow(null);
+      setPreviewData(null);
+      setPreviewBlob(null);
 
       const { data, error: qErr } = await supabase
-        .from('tax_payment_certificate_records')
-        .select('*')
-        .eq('id', id)
-        .maybeSingle()
-      if (cancelled || gen !== loadGenRef.current) return
+        .from("tax_payment_certificate_records")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+      if (cancelled || gen !== loadGenRef.current) return;
       if (qErr) {
-        setError(qErr.message)
-        setPreparing(false)
-        return
+        setError(qErr.message);
+        setPreparing(false);
+        return;
       }
       if (!data) {
-        setError('未找到该完税证明记录')
-        setPreparing(false)
-        return
+        setError("未找到该完税证明记录");
+        setPreparing(false);
+        return;
       }
 
       try {
-        const result = await refreshTaxPaymentCertIssueDate(data as TaxPaymentCertRecordRow)
-        if (cancelled || gen !== loadGenRef.current) return
+        const result = await refreshTaxPaymentCertIssueDate(
+          data as TaxPaymentCertRecordRow,
+        );
+        if (cancelled || gen !== loadGenRef.current) return;
 
-        const buffer = await result.previewBlob.arrayBuffer()
-        setRow({ ...(data as TaxPaymentCertRecordRow), issue_date: result.issueDate })
-        setPreviewBlob(result.previewBlob)
-        setPreviewData(buffer)
-        if (result.warning) setWarning(result.warning)
+        const buffer = await result.previewBlob.arrayBuffer();
+        setRow({
+          ...(data as TaxPaymentCertRecordRow),
+          issue_date: result.issueDate,
+        });
+        setPreviewBlob(result.previewBlob);
+        setPreviewData(buffer);
+        if (result.warning) setWarning(result.warning);
       } catch (e: unknown) {
-        if (cancelled || gen !== loadGenRef.current) return
-        setError(e instanceof Error ? e.message : String(e))
+        if (cancelled || gen !== loadGenRef.current) return;
+        setError(e instanceof Error ? e.message : String(e));
       } finally {
-        if (!cancelled && gen === loadGenRef.current) setPreparing(false)
+        if (!cancelled && gen === loadGenRef.current) setPreparing(false);
       }
     }
 
-    void run()
+    void run();
     return () => {
-      cancelled = true
-    }
-  }, [id])
+      cancelled = true;
+    };
+  }, [id]);
 
   useEffect(() => {
-    const download = searchParams.get('download')
-    if (download !== '1' || !row || preparing) return
+    const download = searchParams.get("download");
+    if (download !== "1" || !row || preparing) return;
     void downloadTaxPaymentCert(row, previewBlob ?? undefined)
       .then(() => {
-        if (searchParams.get('return') === 'query') {
-          navigate('/tax-payment-cert/query?restoreQuery=export', { replace: true })
+        if (searchParams.get("return") === "query") {
+          navigate("/tax-payment-cert/query?restoreQuery=export", {
+            replace: true,
+          });
         }
       })
       .catch((e: unknown) => {
-        setError(e instanceof Error ? e.message : String(e))
-      })
-  }, [navigate, preparing, previewBlob, row, searchParams])
+        setError(e instanceof Error ? e.message : String(e));
+      });
+  }, [navigate, preparing, previewBlob, row, searchParams]);
 
   async function handleExport() {
-    if (!row) return
-    setBusy(true)
-    setError(null)
+    if (!row) return;
+    setBusy(true);
+    setError(null);
     try {
-      await downloadTaxPaymentCert(row, previewBlob ?? undefined)
+      await downloadTaxPaymentCert(row, previewBlob ?? undefined);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
-      setBusy(false)
+      setBusy(false);
     }
   }
 
-  const backTo = '/tax-payment-cert/query'
-  const restore = searchParams.get('restoreQuery')
+  const backTo = "/tax-payment-cert/query";
+  const restore = searchParams.get("restoreQuery");
 
-  if (!id) return <p className="muted">缺少记录 ID</p>
+  if (!id) return <p className="muted">缺少记录 ID</p>;
 
   return (
     <div className="etax-record-preview-page">
@@ -135,7 +147,7 @@ export function TaxPaymentCertRecordPreview() {
       {warning && <p className="warn banner">{warning}</p>}
       {preparing && (
         <div className="etax-pdf-preview-loading">
-          <Spin description="正在更新填发日期并加载预览…" />
+          <Spin description="加载中…" />
         </div>
       )}
 
@@ -147,7 +159,11 @@ export function TaxPaymentCertRecordPreview() {
               {row.taxpayer_name && <span> · {row.taxpayer_name}</span>}
               {row.issue_date && <span> · 填发日期 {row.issue_date}</span>}
             </div>
-            <Button size="small" onClick={() => void handleExport()} loading={busy}>
+            <Button
+              size="small"
+              onClick={() => void handleExport()}
+              loading={busy}
+            >
               导出
             </Button>
           </div>
@@ -162,5 +178,5 @@ export function TaxPaymentCertRecordPreview() {
         </section>
       )}
     </div>
-  )
+  );
 }
