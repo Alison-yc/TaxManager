@@ -21,7 +21,7 @@ export const TAX_PAYMENT_CERT_IDENTITY_OPTIONS = [
   { value: '本企业/本人', label: '本企业/本人' },
 ]
 
-/** 查询页「征收项目」展示用（不参与实际筛选） */
+/** 查询页「征收项目」：对应完税证明明细行税种，导入时去重写入 collection_items */
 export const TAX_PAYMENT_CERT_COLLECTION_ITEMS = [
   '增值税',
   '消费税',
@@ -43,6 +43,7 @@ export const TAX_PAYMENT_CERT_COLLECTION_ITEMS = [
   '契税',
   '环境保护税',
   '文化事业建设费',
+  '其他收入',
 ] as const
 
 export const TAX_PAYMENT_CERT_COLLECTION_OPTIONS = TAX_PAYMENT_CERT_COLLECTION_ITEMS.map((label) => ({

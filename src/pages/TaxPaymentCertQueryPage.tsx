@@ -116,6 +116,15 @@ export function TaxPaymentCertQueryPage() {
       }
     }
 
+    const collectionItems = applied.collectionItems ?? []
+    if (collectionItems.length > 0) {
+      const selected = new Set(collectionItems)
+      list = list.filter((r) => {
+        const items = r.collection_items ?? []
+        return items.some((item) => selected.has(item))
+      })
+    }
+
     setRows(list)
     setLoading(false)
   }, [applied])

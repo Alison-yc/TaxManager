@@ -50,7 +50,7 @@ function sliceCertBody(normalized: string): string {
 function parseCertLines(normalized: string, certificateNo: string): TaxPaymentCertLine[] {
   const body = sliceCertBody(normalized)
   const lineRe =
-    /(\d{15,20})\s+([\u4e00-\u9fa5]+(?:税|附加|收入|所得))\s+([\u4e00-\u9fa5]+?)\s+(\d{4}-\d{2}-\d{2})\s*至\s*(\d{4}-\d{2}-\d{2})\s+(\d{4}-\d{2}-\d{2})\s+([\d,.]+)/g
+    /(\d{15,20})\s+([\u4e00-\u9fa5]+(?:税|附加|收入|所得|费|金))\s+(.+?)\s+(\d{4}-\d{2}-\d{2})\s*至\s*(\d{4}-\d{2}-\d{2})\s+(\d{4}-\d{2}-\d{2})\s+([\d,.]+)/g
 
   const lines: TaxPaymentCertLine[] = []
   let match: RegExpExecArray | null
@@ -70,6 +70,16 @@ function parseCertLines(normalized: string, certificateNo: string): TaxPaymentCe
   return lines
 }
 
+/** 从明细行提取去重后的税种（征收项目），一张完税证明可含多项 */
+export function extractCollectionItemsFromLines(lines: TaxPaymentCertLine[]): string[] {
+  const set = new Set<string>()
+  for (const line of lines) {
+    const taxType = line.tax_type?.trim()
+    if (taxType) set.add(taxType)
+  }
+  return [...set]
+}
+
 function buildFallbackLine(
   normalized: string,
   certificateNo: string,
@@ -77,7 +87,7 @@ function buildFallbackLine(
 ): TaxPaymentCertLine | null {
   const body = sliceCertBody(normalized)
   const fallbackRe =
-    /(\d{15,20})\s+([\u4e00-\u9fa5]+(?:税|附加|收入|所得))\s+([\u4e00-\u9fa5]+?)\s+(\d{4}-\d{2}-\d{2})\s*至\s*(\d{4}-\d{2}-\d{2})\s+(\d{4}-\d{2}-\d{2})\s+([\d,.]+)/
+    /(\d{15,20})\s+([\u4e00-\u9fa5]+(?:税|附加|收入|所得|费|金))\s+(.+?)\s+(\d{4}-\d{2}-\d{2})\s*至\s*(\d{4}-\d{2}-\d{2})\s+(\d{4}-\d{2}-\d{2})\s+([\d,.]+)/
   const match = body.match(fallbackRe)
   if (!match || match[1] === certificateNo) return null
   return {
@@ -178,6 +188,7 @@ export async function uploadTaxPaymentCertPdfFile(
     const firstLine = parsed.lines[0]
     const importId = crypto.randomUUID()
     const actualAmount = clampMoneyForDb(parsed.total_amount ?? firstLine.actual_amount)
+    const collectionItems = extractCollectionItemsFromLines(parsed.lines)
 
     const row = {
       import_id: importId,
@@ -198,6 +209,7 @@ export async function uploadTaxPaymentCertPdfFile(
       remark: parsed.remark,
       source_file_name: file.name,
       storage_path: storagePath,
+      collection_items: collectionItems,
       content: { lines: parsed.lines, total_amount: parsed.total_amount },
     }
 

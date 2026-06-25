@@ -147,4 +147,6 @@ export type TaxPaymentCertRecordRow = {
   source_file_name: string
   storage_path: string
   content: Json | null
+  /** 明细行税种（征收项目）去重列表 */
+  collection_items?: string[] | null
 }
