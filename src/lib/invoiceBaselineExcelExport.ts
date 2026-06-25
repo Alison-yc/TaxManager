@@ -2,6 +2,9 @@ import ExcelJS from 'exceljs'
 import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
 import { downloadInvoiceFullExcelBaselineBlob } from './invoiceFullExcelBaseline'
+import { yieldToMain } from './yieldToMain'
+
+const FILTER_YIELD_EVERY = 400
 
 const DEFAULT_EXPORT_FILE_NAME = '全量发票查询导出结果.xlsx'
 
@@ -12,6 +15,19 @@ type DateRange = {
 
 type ExportResult = {
   rowCount: number
+}
+
+export type InvoiceExcelExportProgress = {
+  phase: 'loading' | 'filtering' | 'writing'
+  sheetName?: string
+  sheetIndex?: number
+  sheetCount?: number
+  processed?: number
+  total?: number
+}
+
+type ExportOptions = {
+  onProgress?: (progress: InvoiceExcelExportProgress) => void
 }
 
 function safeFileName(fileName: string): string {
@@ -96,20 +112,49 @@ function renumberSheet(ws: ExcelJS.Worksheet): void {
   }
 }
 
-function deleteRowsNotMatching(
+/** 从底部逐行删除不匹配数据；分段让出主线程，避免大数据量导出时页面卡死 */
+async function filterWorksheetRows(
   ws: ExcelJS.Worksheet,
   predicate: (row: ExcelJS.Row) => boolean,
-): number {
+  onProgress?: (processed: number, total: number) => void,
+): Promise<number> {
+  const dataRowCount = Math.max(ws.rowCount - 1, 0)
+  if (dataRowCount === 0) return 0
+
+  const rowsToDelete: number[] = []
   let kept = 0
-  for (let rowNumber = ws.rowCount; rowNumber >= 2; rowNumber -= 1) {
+  let processed = 0
+
+  for (let rowNumber = 2; rowNumber <= ws.rowCount; rowNumber += 1) {
     const row = ws.getRow(rowNumber)
     if (row.hasValues && predicate(row)) {
       kept += 1
-      continue
+    } else {
+      rowsToDelete.push(rowNumber)
     }
-    ws.spliceRows(rowNumber, 1)
+    processed += 1
+    if (processed % FILTER_YIELD_EVERY === 0) {
+      onProgress?.(processed, dataRowCount)
+      await yieldToMain()
+    }
   }
+
+  if (rowsToDelete.length === 0) {
+    onProgress?.(dataRowCount, dataRowCount)
+    return kept
+  }
+
+  for (let index = rowsToDelete.length - 1; index >= 0; index -= 1) {
+    ws.spliceRows(rowsToDelete[index], 1)
+    const deleted = rowsToDelete.length - index
+    if (deleted % FILTER_YIELD_EVERY === 0) {
+      onProgress?.(dataRowCount, dataRowCount)
+      await yieldToMain()
+    }
+  }
+
   renumberSheet(ws)
+  onProgress?.(dataRowCount, dataRowCount)
   return kept
 }
 
@@ -131,20 +176,54 @@ export async function exportOriginalInvoiceFullExcelBaseline(): Promise<void> {
 export async function exportInvoiceFullExcelByDigitalNos(
   digitalInvoiceNos: Iterable<string>,
   fileName = DEFAULT_EXPORT_FILE_NAME,
+  options?: ExportOptions,
 ): Promise<ExportResult> {
-  const nos = new Set([...digitalInvoiceNos].map(normalizeDigitalInvoiceNo).filter(Boolean))
+  const nos = new Set<string>()
+  for (const raw of digitalInvoiceNos) {
+    const no = normalizeDigitalInvoiceNo(raw)
+    if (no) nos.add(no)
+  }
   if (nos.size === 0) throw new Error('没有可导出的数电发票号码')
 
+  options?.onProgress?.({ phase: 'loading' })
+  await yieldToMain()
   const { wb } = await loadBaselineWorkbook()
+  const worksheets = wb.worksheets
   let totalKept = 0
-  for (const ws of wb.worksheets) {
+
+  for (let sheetIndex = 0; sheetIndex < worksheets.length; sheetIndex += 1) {
+    const ws = worksheets[sheetIndex]
     const noCol = findHeaderColumn(ws, '数电发票号码')
     if (!noCol) throw new Error(`工作表「${ws.name}」缺少「数电发票号码」列`)
-    totalKept += deleteRowsNotMatching(ws, (row) =>
-      nos.has(normalizeDigitalInvoiceNo(row.getCell(noCol).value)),
+
+    options?.onProgress?.({
+      phase: 'filtering',
+      sheetName: ws.name,
+      sheetIndex: sheetIndex + 1,
+      sheetCount: worksheets.length,
+      processed: 0,
+      total: Math.max(ws.rowCount - 1, 0),
+    })
+
+    totalKept += await filterWorksheetRows(
+      ws,
+      (row) => nos.has(normalizeDigitalInvoiceNo(row.getCell(noCol).value)),
+      (processed, total) => {
+        options?.onProgress?.({
+          phase: 'filtering',
+          sheetName: ws.name,
+          sheetIndex: sheetIndex + 1,
+          sheetCount: worksheets.length,
+          processed,
+          total,
+        })
+      },
     )
+    await yieldToMain()
   }
 
+  options?.onProgress?.({ phase: 'writing' })
+  await yieldToMain()
   await downloadWorkbook(wb, fileName)
   return { rowCount: totalKept }
 }
@@ -152,6 +231,7 @@ export async function exportInvoiceFullExcelByDigitalNos(
 export async function exportInvoiceFullExcelByIssueDateRange(
   range: DateRange,
   fileName = DEFAULT_EXPORT_FILE_NAME,
+  options?: ExportOptions,
 ): Promise<ExportResult> {
   const from = range.issueFrom?.startOf('day')
   const to = range.issueTo?.endOf('day')
@@ -160,20 +240,51 @@ export async function exportInvoiceFullExcelByIssueDateRange(
     return { rowCount: 0 }
   }
 
+  options?.onProgress?.({ phase: 'loading' })
+  await yieldToMain()
   const { wb } = await loadBaselineWorkbook()
+  const worksheets = wb.worksheets
   let totalKept = 0
-  for (const ws of wb.worksheets) {
+
+  for (let sheetIndex = 0; sheetIndex < worksheets.length; sheetIndex += 1) {
+    const ws = worksheets[sheetIndex]
     const issueCol = findHeaderColumn(ws, '开票日期')
     if (!issueCol) throw new Error(`工作表「${ws.name}」缺少「开票日期」列`)
-    totalKept += deleteRowsNotMatching(ws, (row) => {
-      const issueDate = parseIssueDate(row.getCell(issueCol).value)
-      if (!issueDate) return false
-      if (from && issueDate.isBefore(from)) return false
-      if (to && issueDate.isAfter(to)) return false
-      return true
+
+    options?.onProgress?.({
+      phase: 'filtering',
+      sheetName: ws.name,
+      sheetIndex: sheetIndex + 1,
+      sheetCount: worksheets.length,
+      processed: 0,
+      total: Math.max(ws.rowCount - 1, 0),
     })
+
+    totalKept += await filterWorksheetRows(
+      ws,
+      (row) => {
+        const issueDate = parseIssueDate(row.getCell(issueCol).value)
+        if (!issueDate) return false
+        if (from && issueDate.isBefore(from)) return false
+        if (to && issueDate.isAfter(to)) return false
+        return true
+      },
+      (processed, total) => {
+        options?.onProgress?.({
+          phase: 'filtering',
+          sheetName: ws.name,
+          sheetIndex: sheetIndex + 1,
+          sheetCount: worksheets.length,
+          processed,
+          total,
+        })
+      },
+    )
+    await yieldToMain()
   }
 
+  options?.onProgress?.({ phase: 'writing' })
+  await yieldToMain()
   await downloadWorkbook(wb, fileName)
   return { rowCount: totalKept }
 }

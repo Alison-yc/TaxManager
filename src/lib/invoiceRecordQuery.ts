@@ -1,5 +1,6 @@
 import type { Dayjs } from "dayjs";
 import { supabase } from "./supabase";
+import { yieldToMain } from "./yieldToMain";
 import type { InvoiceRecordRow } from "../types/database";
 
 /** 列表查询最多展示条数（Supabase 默认上限） */
@@ -175,7 +176,8 @@ export async function fetchAllInvoiceDigitalInvoiceNosForExport(
 
     if ((data ?? []).length < INVOICE_EXPORT_BATCH_SIZE) break;
     from += INVOICE_EXPORT_BATCH_SIZE;
+    await yieldToMain();
   }
 
-  return [...new Set(all)];
+  return all;
 }
