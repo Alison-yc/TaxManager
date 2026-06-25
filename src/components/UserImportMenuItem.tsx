@@ -7,6 +7,7 @@ import type { MessageType } from "antd/es/message/interface";
 import { INVOICE_IMPORTED_EVENT } from "../constants/invoiceQuery";
 import { TAX_PAYMENT_CERT_IMPORTED_EVENT } from "../constants/taxPaymentCertQuery";
 import type { InvoiceBatchImportResult } from "../lib/pdfImport/invoicePdfBatchImport";
+import type { TaxPaymentCertBatchImportResult } from "../lib/pdfImport/taxPaymentCertPdfBatchImport";
 import { InvoiceNumbersMaintainModal } from "./InvoiceNumbersMaintainModal";
 
 const FOLDER_INPUT_ID = "invoice-folder-import-input";
@@ -25,6 +26,7 @@ type ImportProgressState = {
   done: number;
   total: number;
   phase: "preparing" | "importing";
+  subject: "invoice" | "tax-payment-cert";
 };
 
 /**
@@ -57,11 +59,14 @@ export function UserImportMenuItem() {
     "tax-payment-cert-pdf": ".pdf,application/pdf",
   };
 
-  function showBatchImportResult(result: InvoiceBatchImportResult) {
+  function showBatchImportResult(
+    result: InvoiceBatchImportResult | TaxPaymentCertBatchImportResult,
+    unit: "张" | "份" = "张",
+  ) {
     const parts: string[] = [];
-    if (result.success > 0) parts.push(`成功 ${result.success} 张`);
-    if (result.skipped > 0) parts.push(`跳过 ${result.skipped} 张（已存在）`);
-    if (result.failed > 0) parts.push(`失败 ${result.failed} 张`);
+    if (result.success > 0) parts.push(`成功 ${result.success} ${unit}`);
+    if (result.skipped > 0) parts.push(`跳过 ${result.skipped} ${unit}（已存在）`);
+    if (result.failed > 0) parts.push(`失败 ${result.failed} ${unit}`);
 
     const summary = parts.length > 0 ? parts.join("，") : "未处理任何文件";
 
@@ -87,12 +92,70 @@ export function UserImportMenuItem() {
     }
   }
 
+  async function runTaxPaymentCertBatchImport(files: File[]) {
+    const pdfCount = files.filter((file) =>
+      file.name.toLowerCase().endsWith(".pdf"),
+    ).length;
+    setImportProgress(
+      (prev) =>
+        prev ?? { done: 0, total: pdfCount, phase: "preparing", subject: "tax-payment-cert" },
+    );
+
+    let destroyLoading: MessageType | undefined;
+    const showProgress = (text: string) => {
+      destroyLoading?.();
+      destroyLoading = message.loading(text, 0);
+    };
+
+    try {
+      const { collectTaxPaymentCertPdfFiles, uploadTaxPaymentCertPdfBatch } =
+        await import("../lib/pdfImport/taxPaymentCertPdfBatchImport");
+      const pdfs = collectTaxPaymentCertPdfFiles(files);
+      if (pdfs.length === 0) {
+        void message.error("未找到 PDF 完税证明文件");
+        return;
+      }
+
+      setImportProgress({
+        done: 0,
+        total: pdfs.length,
+        phase: "importing",
+        subject: "tax-payment-cert",
+      });
+      showProgress(`正在导入 0/${pdfs.length} 份完税证明…`);
+
+      const result = await uploadTaxPaymentCertPdfBatch(pdfs, {
+        onProgress: (done, total) => {
+          setImportProgress({ done, total, phase: "importing", subject: "tax-payment-cert" });
+          showProgress(`正在导入 ${done}/${total} 份完税证明…`);
+        },
+      });
+
+      destroyLoading?.();
+      destroyLoading = undefined;
+      showBatchImportResult(result, "份");
+      if (result.success > 0) {
+        window.dispatchEvent(new Event(TAX_PAYMENT_CERT_IMPORTED_EVENT));
+        navigate("/tax-payment-cert/query");
+      }
+    } catch (error: unknown) {
+      destroyLoading?.();
+      destroyLoading = undefined;
+      void message.error(
+        error instanceof Error ? error.message : "批量导入失败，请重试",
+      );
+    } finally {
+      destroyLoading?.();
+      setImportProgress(null);
+    }
+  }
+
   async function runInvoiceBatchImport(files: File[]) {
     const pdfCount = files.filter((file) =>
       file.name.toLowerCase().endsWith(".pdf"),
     ).length;
     setImportProgress(
-      (prev) => prev ?? { done: 0, total: pdfCount, phase: "preparing" },
+      (prev) => prev ?? { done: 0, total: pdfCount, phase: "preparing", subject: "invoice" },
     );
 
     let destroyLoading: MessageType | undefined;
@@ -110,12 +173,12 @@ export function UserImportMenuItem() {
         return;
       }
 
-      setImportProgress({ done: 0, total: pdfs.length, phase: "importing" });
+      setImportProgress({ done: 0, total: pdfs.length, phase: "importing", subject: "invoice" });
       showProgress(`正在导入 0/${pdfs.length} 张发票…`);
 
       const result = await uploadInvoicePdfBatch(pdfs, {
         onProgress: (done, total) => {
-          setImportProgress({ done, total, phase: "importing" });
+          setImportProgress({ done, total, phase: "importing", subject: "invoice" });
           showProgress(`正在导入 ${done}/${total} 张发票…`);
         },
       });
@@ -168,6 +231,7 @@ export function UserImportMenuItem() {
             total: files.filter((f) => f.name.toLowerCase().endsWith(".pdf"))
               .length,
             phase: "preparing",
+            subject: "invoice",
           });
         });
         await runInvoiceBatchImport(files);
@@ -216,16 +280,29 @@ export function UserImportMenuItem() {
       }
 
       if (pendingKind === "tax-payment-cert-pdf") {
-        const { uploadTaxPaymentCertPdfFile } =
-          await import("../lib/pdfImport/taxPaymentCertPdfImport");
-        const r = await uploadTaxPaymentCertPdfFile(file);
-        if (r.ok === false) {
-          void message.error(r.message);
+        if (files.length === 1) {
+          const { uploadTaxPaymentCertPdfFile } =
+            await import("../lib/pdfImport/taxPaymentCertPdfImport");
+          const r = await uploadTaxPaymentCertPdfFile(file);
+          if (r.ok === false) {
+            void message.error(r.message);
+            return;
+          }
+          void message.success("税收完税证明 PDF 导入成功");
+          window.dispatchEvent(new Event(TAX_PAYMENT_CERT_IMPORTED_EVENT));
+          navigate("/tax-payment-cert/query");
           return;
         }
-        void message.success("税收完税证明 PDF 导入成功");
-        window.dispatchEvent(new Event(TAX_PAYMENT_CERT_IMPORTED_EVENT));
-        navigate("/tax-payment-cert/query");
+        flushSync(() => {
+          setImportProgress({
+            done: 0,
+            total: files.filter((f) => f.name.toLowerCase().endsWith(".pdf"))
+              .length,
+            phase: "preparing",
+            subject: "tax-payment-cert",
+          });
+        });
+        await runTaxPaymentCertBatchImport(files);
         return;
       }
 
@@ -269,6 +346,7 @@ export function UserImportMenuItem() {
         done: 0,
         total: pdfCount,
         phase: "preparing",
+        subject: "invoice",
       });
     });
 
@@ -365,14 +443,20 @@ export function UserImportMenuItem() {
             className="invoice-import-overlay"
             role="status"
             aria-live="polite"
-            aria-label="发票导入进度"
+            aria-label={
+              importProgress.subject === "tax-payment-cert"
+                ? "完税证明导入进度"
+                : "发票导入进度"
+            }
           >
             <div className="invoice-import-overlay-card">
               <Spin size="large" />
               <p className="invoice-import-overlay-title">
                 {importProgress.phase === "preparing"
                   ? "正在准备导入…"
-                  : "正在导入发票"}
+                  : importProgress.subject === "tax-payment-cert"
+                    ? "正在导入完税证明"
+                    : "正在导入发票"}
               </p>
               <p className="invoice-import-overlay-progress">
                 {importProgress.phase === "preparing"
@@ -381,7 +465,7 @@ export function UserImportMenuItem() {
               </p>
               <p className="invoice-import-overlay-hint">
                 {importProgress.total > 1
-                  ? `共 ${importProgress.total} 张，批量导入可能需要 1～3 分钟，请勿关闭页面`
+                  ? `共 ${importProgress.total} ${importProgress.subject === "tax-payment-cert" ? "份" : "张"}，批量导入可能需要 1～3 分钟，请勿关闭页面`
                   : "请勿关闭页面"}
               </p>
             </div>
@@ -427,7 +511,9 @@ export function UserImportMenuItem() {
               pendingKind === "invoice-pdf-folder" ? "invoice-pdf" : pendingKind
             ]
           }
-          multiple={pendingKind === "invoice-pdf"}
+          multiple={
+            pendingKind === "invoice-pdf" || pendingKind === "tax-payment-cert-pdf"
+          }
           aria-hidden
           tabIndex={-1}
           onChange={(e) => void handleFile(e)}
