@@ -117,6 +117,61 @@ function detectDeclarationPdf(
   throw new Error('无法识别申报 PDF 类型，请使用支持的申报表或财务报表 PDF 文件名')
 }
 
+async function sha256Hex(data: ArrayBuffer): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', data)
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
+}
+
+async function hasDuplicateDeclarationPdf(
+  category: ImportCategory,
+  fileHash: string,
+  row: Record<string, unknown>,
+): Promise<{ ok: true; duplicate: boolean } | { ok: false; message: string }> {
+  const { data: hashDup, error: hashErr } = await supabase
+    .from('form_data')
+    .select('id')
+    .eq('source_type', 'pdf')
+    .eq('import_category', category)
+    .filter('content->pdf->>fileHash', 'eq', fileHash)
+    .limit(1)
+  if (hashErr) return { ok: false, message: `重复校验失败：${hashErr.message}` }
+  if (hashDup && hashDup.length > 0) return { ok: true, duplicate: true }
+
+  let q = supabase
+    .from('form_data')
+    .select('id')
+    .eq('source_type', 'pdf')
+    .eq('import_category', category)
+    .eq('form_code', String(row.form_code ?? ''))
+    .eq('correction_type', String(row.correction_type ?? ''))
+    .eq('void_flag', String(row.void_flag ?? ''))
+
+  const nullableKeys = [
+    'credit_code',
+    'tax_period_start',
+    'tax_period_end',
+    'declaration_date',
+    'tax_amount_due',
+  ] as const
+
+  for (const key of nullableKeys) {
+    const value = row[key]
+    if (value == null) {
+      q = q.is(key, null)
+    } else {
+      q = q.eq(key, value as never)
+    }
+  }
+
+  const { data: fieldDup, error: fieldErr } = await q.limit(1)
+  if (fieldErr) return { ok: false, message: `重复校验失败：${fieldErr.message}` }
+  if (fieldDup && fieldDup.length > 0) return { ok: true, duplicate: true }
+
+  return { ok: true, duplicate: false }
+}
+
 export async function uploadDeclarationPdfFile(
   file: File,
   category: ImportCategory,
@@ -127,16 +182,11 @@ export async function uploadDeclarationPdfFile(
   }
 
   try {
+    const fileBytes = await file.arrayBuffer()
+    const fileHash = await sha256Hex(fileBytes)
     const { text, pageCount } = await extractPdfTextAndPageCount(file)
     const detected = detectDeclarationPdf(file.name, category, text)
     const extracted = extractDeclarationFieldsFromText(text)
-
-    const recordId = crypto.randomUUID()
-    const { storagePath } = await uploadPdfFile(
-      category === 'financial' ? 'financial' : 'declarations',
-      file,
-      `${recordId}.pdf`,
-    )
 
     const declaration_index = {
       form_code: detected.form_code,
@@ -151,6 +201,40 @@ export async function uploadDeclarationPdfFile(
       tax_amount_due: clampMoneyForDb(extracted.tax_amount_due),
     }
 
+    const duplicateCheck = await hasDuplicateDeclarationPdf(
+      category,
+      fileHash,
+      {
+        form_code: declaration_index.form_code,
+        correction_type: declaration_index.correction_type,
+        void_flag: declaration_index.void_flag,
+        credit_code: declaration_index.credit_code,
+        tax_period_start: declaration_index.tax_period_start,
+        tax_period_end: declaration_index.tax_period_end,
+        declaration_date: declaration_index.declaration_date,
+        tax_amount_due: declaration_index.tax_amount_due,
+      },
+    )
+    if (!duplicateCheck.ok) {
+      return { ok: false, message: duplicateCheck.message }
+    }
+    if (duplicateCheck.duplicate) {
+      return {
+        ok: false,
+        message:
+          category === 'financial'
+            ? '该财务报表 PDF 已导入，请勿重复上传'
+            : '该申报表 PDF 已导入，请勿重复上传',
+      }
+    }
+
+    const recordId = crypto.randomUUID()
+    const { storagePath } = await uploadPdfFile(
+      category === 'financial' ? 'financial' : 'declarations',
+      file,
+      `${recordId}.pdf`,
+    )
+
     const content: ImportedPdfContent = {
       importVersion: 3,
       importSource: 'pdf',
@@ -158,6 +242,7 @@ export async function uploadDeclarationPdfFile(
         fileName: file.name,
         storagePath,
         pageCount,
+        fileHash,
       },
       declaration_index,
       summary: extracted.taxpayer_name ?? detected.summary,

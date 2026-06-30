@@ -98,6 +98,8 @@ export type ImportedPdfContent = {
     fileName: string
     storagePath: string
     pageCount?: number
+    /** SHA-256 hex，用于导入去重 */
+    fileHash?: string
   }
   declaration_index?: {
     form_code: string

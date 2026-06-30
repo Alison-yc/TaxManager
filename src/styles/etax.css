@@ -3340,6 +3340,10 @@
   border-bottom: 1px solid #edf1f6;
 }
 
+.etax-record-workbench:has(.etax-chromeless-pdf-preview) .etax-record-toolbar {
+  padding-bottom: 6px;
+}
+
 .etax-record-main-form {
   display: inline-flex;
   align-items: center;
@@ -3608,7 +3612,8 @@
 
 /* PDF 纯内容预览：白底留白，内容不溢出背景 */
 .etax-record-preview-frame.etax-chromeless-pdf-preview.vat-preview-frame {
-  padding: 20px 28px 24px;
+  padding: 0 28px 20px;
+  margin-top: -6px;
   background: #fff;
   box-sizing: border-box;
   overflow: hidden;
@@ -3621,7 +3626,8 @@
 }
 
 .etax-chromeless-pdf-preview .etax-pdf-preview-wrap {
-  min-height: 720px;
+  min-height: 0;
+  height: auto;
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -3664,18 +3670,20 @@
 }
 
 .etax-chromeless-pdf-preview .etax-pdf-chromeless-wrap {
-  min-height: 720px;
+  min-height: 0;
+  flex: 0 0 auto;
   box-sizing: border-box;
   overflow: hidden;
 }
 
 .etax-chromeless-pdf-preview .etax-pdf-chromeless {
-  min-height: 720px;
+  min-height: 0;
+  flex: 0 0 auto;
   background: #fff;
   padding: 0;
   box-sizing: border-box;
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: visible;
 }
 
 .etax-chromeless-pdf-preview .etax-pdf-chromeless-page {
