@@ -411,6 +411,43 @@ export function UserImportMenuItem() {
     });
   }
 
+  function previewExcelDeclarationRepair() {
+    setBusy(true);
+    const destroyLoading = message.loading("正在预览历史 Excel 修复影响…", 0);
+    void import("../lib/formDataExcelRepair")
+      .then(({ previewImportedExcelDeclarationRepairs }) =>
+        previewImportedExcelDeclarationRepairs(),
+      )
+      .then((result) => {
+        destroyLoading();
+        const summary = `扫描 ${result.scanned} 条，将更新 ${result.willUpdate} 条，跳过 ${result.willSkip} 条`;
+        if (result.failed > 0) {
+          void message.error(
+            `预览完成但有失败：${summary}，失败 ${result.failed} 条。${result.errors[0] ?? ""}`,
+            8,
+          );
+          return;
+        }
+        void message.info(
+          `预览完成：${summary}，税号将修复 ${result.creditCodeWillRepair} 条，纳税人名称将修复 ${result.taxpayerNameWillRepair} 条`,
+          8,
+        );
+        if (result.unrepairableCreditCode > 0) {
+          void message.warning(
+            `${result.unrepairableCreditCode} 条税号不在已确认错值映射内，需手工核对。`,
+            8,
+          );
+        }
+      })
+      .catch((error: unknown) => {
+        destroyLoading();
+        void message.error(
+          error instanceof Error ? error.message : "预览失败，请稍后重试",
+        );
+      })
+      .finally(() => setBusy(false));
+  }
+
   const menuItems: MenuProps["items"] = [
     {
       key: "excel",
@@ -448,6 +485,11 @@ export function UserImportMenuItem() {
       key: "invoice-numbers-maintain",
       label: "指定票号批量维护",
       onClick: () => setNumbersMaintainOpen(true),
+    },
+    {
+      key: "preview-repair-excel-declaration-indexes",
+      label: "预览历史 Excel 修复影响（不修改）",
+      onClick: previewExcelDeclarationRepair,
     },
     {
       key: "repair-excel-declaration-indexes",

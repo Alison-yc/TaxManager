@@ -88,7 +88,7 @@ export async function uploadFormDataFromExcelFile(
     if (!isValidUnifiedSocialCreditCode(parsed.declaration_index.credit_code)) {
       return {
         ok: false,
-        message: `纳税人识别号（统一社会信用代码）校验失败：${parsed.declaration_index.credit_code}。该单元格可能被 Excel 按数字存储导致末位变成 0，请将税号单元格改为文本后重新导入。`,
+        message: `纳税人识别号（统一社会信用代码）校验失败：${parsed.declaration_index.credit_code}。该单元格可能被 Excel 按数字存储导致精度丢失，请将税号单元格改为文本后重新导入。`,
       }
     }
     const row = flattenDeclarationForInsert(content, parsed.declaration_index)
