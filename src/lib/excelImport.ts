@@ -1,6 +1,9 @@
 import * as XLSX from 'xlsx'
 import type { Json } from '../types/database'
-import { extractDeclarationIndexFromGrid } from './declarationIndex'
+import {
+  extractDeclarationIndexFromGrid,
+  repairUnifiedSocialCreditCode,
+} from './declarationIndex'
 
 /** 与 xlsx 写入兼容的单元格值 */
 export type GridCell = string | number | boolean
@@ -53,6 +56,37 @@ function pickDisplaySummary(firstRow: Record<string, unknown>): string {
     parts.push(vals.slice(0, 2).join(' · ') || '(无摘要)')
   }
   return parts[0]?.slice(0, 120) ?? '(导入数据)'
+}
+
+function compactText(text: string): string {
+  return text.replace(/\s/g, '')
+}
+
+function cellToText(cell: GridCell | undefined): string {
+  if (cell === undefined || cell === null) return ''
+  return String(cell).trim()
+}
+
+function updateValueRightOfLabel(
+  grid: GridCell[][],
+  labelPattern: RegExp,
+  value: string,
+  maxRows = 14,
+): boolean {
+  for (let r = 0; r < Math.min(maxRows, grid.length); r++) {
+    const row = grid[r] ?? []
+    for (let c = 0; c < row.length; c++) {
+      const label = compactText(cellToText(row[c]))
+      if (!labelPattern.test(label)) continue
+
+      for (let j = c + 1; j < row.length; j++) {
+        if (!cellToText(row[j])) continue
+        row[j] = value
+        return true
+      }
+    }
+  }
+  return false
 }
 
 function sheetToGrid(sheet: XLSX.WorkSheet): {
@@ -137,6 +171,15 @@ export function parseExcelFile(buffer: ArrayBuffer, fileName: string): Json {
     rows.length > 0 ? pickDisplaySummary(rows[0]) : '（空表或未识别数据）'
 
   const declaration_index = extractDeclarationIndexFromGrid(grid, sheet)
+  const repairedCreditCode = repairUnifiedSocialCreditCode(declaration_index.credit_code)
+  if (repairedCreditCode && repairedCreditCode !== declaration_index.credit_code) {
+    declaration_index.credit_code = repairedCreditCode
+    updateValueRightOfLabel(
+      grid,
+      /纳税人识别号|统一社会信用代码/,
+      repairedCreditCode,
+    )
+  }
 
   const payload: ImportedExcelContent = {
     importVersion: 2,

@@ -1,6 +1,9 @@
 import { parseExcelFile } from './excelImport'
 import type { ImportedExcelContent } from './excelImport'
-import { flattenDeclarationForInsert } from './declarationIndex'
+import {
+  flattenDeclarationForInsert,
+  isValidUnifiedSocialCreditCode,
+} from './declarationIndex'
 import { supabase } from './supabase'
 import type { Json } from '../types/database'
 
@@ -82,9 +85,15 @@ export async function uploadFormDataFromExcelFile(
         message: '无法从 Excel 提取申报检索字段（请使用支持的增值税一般纳税人申报表模版）',
       }
     }
+    if (!isValidUnifiedSocialCreditCode(parsed.declaration_index.credit_code)) {
+      return {
+        ok: false,
+        message: `纳税人识别号（统一社会信用代码）校验失败：${parsed.declaration_index.credit_code}。该单元格可能被 Excel 按数字存储导致末位变成 0，请将税号单元格改为文本后重新导入。`,
+      }
+    }
     const row = flattenDeclarationForInsert(content, parsed.declaration_index)
     const duplicated = await hasIdenticalImportedForm(row, content)
-    if (!duplicated.ok) {
+    if (duplicated.ok === false) {
       return { ok: false, message: duplicated.message }
     }
     if (duplicated.duplicate) {

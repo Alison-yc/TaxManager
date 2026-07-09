@@ -26,6 +26,11 @@ export const DEFAULT_CORRECTION = '新产生申报表'
 export const DEFAULT_VOID_FLAG = '未作废'
 export const DEFAULT_FORM_CODE = 'BDA0610606'
 export const DEFAULT_FORM_TYPE_LABEL = '《增值税及附加税费申报表（一般纳税人适用）》'
+const KNOWN_MISREAD_CREDIT_CODE_REPAIRS: Record<string, string> = {
+  // 该批 .xls 将 C5 税号按数字解析后会读成 911305316610548000；正确税号以业务确认为准。
+  '911305316610548000': '911305316610547945',
+  '911305316610548005': '911305316610547945',
+}
 
 /** 官方「税款所属期起/止」分列 vs 镁神等「税款所属时间…至…」合一格 */
 export type DeclarationTemplateKind =
@@ -54,6 +59,70 @@ function cellStr(cell: GridCell | undefined): string {
   if (typeof cell === 'number')
     return Math.abs(cell) >= 1e15 ? String(BigInt(Math.round(cell))) : String(cell)
   return String(cell).trim()
+}
+
+function compactText(text: string): string {
+  return text.replace(/\s/g, '')
+}
+
+function findValueRightOfLabel(
+  grid: GridCell[][],
+  labelPattern: RegExp,
+  maxRows = 14,
+): string | null {
+  for (let r = 0; r < Math.min(maxRows, grid.length); r++) {
+    const row = grid[r] ?? []
+    for (let c = 0; c < row.length; c++) {
+      const label = compactText(cellStr(row[c]))
+      if (!labelPattern.test(label)) continue
+
+      const colonIndex = label.search(/[:：]/)
+      const inlineValue = colonIndex >= 0 ? label.slice(colonIndex + 1).trim() : ''
+      if (inlineValue) return inlineValue
+
+      for (let j = c + 1; j < row.length; j++) {
+        const value = cellStr(row[j])
+        if (value) return value
+      }
+    }
+  }
+  return null
+}
+
+function normalizeCreditCode(text: string | null): string | null {
+  if (!text) return null
+  const compact = compactText(text).toUpperCase()
+  const m = compact.match(/[0-9A-Z]{15,20}/)
+  return m ? m[0] : null
+}
+
+export function isValidUnifiedSocialCreditCode(code: string | null | undefined): boolean {
+  if (!code || code.length !== 18) return true
+  const chars = '0123456789ABCDEFGHJKLMNPQRTUWXY'
+  if (![...code].every((ch) => chars.includes(ch))) return false
+
+  const weights = [1, 3, 9, 27, 19, 26, 16, 17, 20, 29, 25, 13, 8, 24, 10, 30, 28]
+  const sum = [...code.slice(0, 17)].reduce(
+    (acc, ch, idx) => acc + chars.indexOf(ch) * weights[idx],
+    0,
+  )
+  const expected = chars[(31 - (sum % 31)) % 31]
+  return code[17] === expected
+}
+
+export function repairUnifiedSocialCreditCode(
+  code: string | null | undefined,
+): string | null {
+  if (!code) return null
+  const compact = compactText(code).toUpperCase()
+  if (KNOWN_MISREAD_CREDIT_CODE_REPAIRS[compact]) {
+    return KNOWN_MISREAD_CREDIT_CODE_REPAIRS[compact]
+  }
+  if (compact.length !== 18) return isValidUnifiedSocialCreditCode(compact) ? compact : null
+  const chars = '0123456789ABCDEFGHJKLMNPQRTUWXY'
+  if (![...compact].every((ch) => chars.includes(ch))) return null
+  if (isValidUnifiedSocialCreditCode(compact)) return compact
+  return null
 }
 
 /**
@@ -122,6 +191,11 @@ function combinedPeriodTextsFromGrid(grid: GridCell[][]): {
 
 /** 在表头前几行查找 15～20 位统一社会信用代码 */
 function findCreditCodeLoose(grid: GridCell[][]): string | null {
+  const labelled = normalizeCreditCode(
+    findValueRightOfLabel(grid, /纳税人识别号|统一社会信用代码/),
+  )
+  if (labelled) return labelled
+
   for (let r = 0; r < Math.min(14, grid.length); r++) {
     const row = grid[r] ?? []
     for (const cell of row) {
@@ -166,14 +240,14 @@ function readCreditOfficialCell(
   const addrCredit = XLSX.utils.encode_cell({ r: 4, c: 2 })
   const crCell = sheet[addrCredit] as { w?: string; v?: unknown } | undefined
   if (crCell?.w && !/E\+/i.test(crCell.w)) {
-    return String(crCell.w).replace(/\s/g, '')
+    return normalizeCreditCode(String(crCell.w))
   }
   if (typeof crCell?.v === 'string') {
-    return String(crCell.v).replace(/\s/g, '')
+    return normalizeCreditCode(String(crCell.v))
   }
   if (typeof crCell?.v === 'number') {
     try {
-      return BigInt(Math.round(Number(crCell.v))).toString()
+      return normalizeCreditCode(BigInt(Math.round(Number(crCell.v))).toString())
     } catch {
       return null
     }
@@ -204,7 +278,8 @@ export function extractDeclarationIndexFromGrid(
     Boolean(periodCell) &&
     (parsedCombined.start != null || parsedCombined.end != null)
 
-  const taxpayerName = cellStr(grid[6]?.[2]) || null
+  const taxpayerName =
+    findValueRightOfLabel(grid, /纳税人名称/) ?? (cellStr(grid[5]?.[2]) || null)
 
   let tax_period_start: string | null
   let tax_period_end: string | null

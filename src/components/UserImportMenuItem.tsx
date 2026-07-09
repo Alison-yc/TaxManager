@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { Dropdown, Spin, message } from "antd";
+import { Dropdown, Modal, Spin, message } from "antd";
 import type { MenuProps } from "antd";
 import type { MessageType } from "antd/es/message/interface";
 import { INVOICE_IMPORTED_EVENT } from "../constants/invoiceQuery";
@@ -364,6 +364,53 @@ export function UserImportMenuItem() {
     window.setTimeout(() => inputRef.current?.click(), 0);
   }
 
+  function repairExcelDeclarationIndexes() {
+    Modal.confirm({
+      title: "修复历史 Excel 申报表识别字段",
+      content:
+        "将基于已保存的 Excel 网格重新计算纳税人名称、纳税人识别号、税款所属期等检索字段；原始 Excel 文件未保存在数据库中，税号只会按已确认错值映射修复。",
+      okText: "开始修复",
+      cancelText: "取消",
+      async onOk() {
+        setBusy(true);
+        const destroyLoading = message.loading("正在修复历史 Excel 申报表…", 0);
+        try {
+          const { repairImportedExcelDeclarationIndexes } = await import(
+            "../lib/formDataExcelRepair"
+          );
+          const result = await repairImportedExcelDeclarationIndexes();
+          destroyLoading();
+
+          const summary = `扫描 ${result.scanned} 条，更新 ${result.updated} 条，跳过 ${result.skipped} 条`;
+          if (result.failed > 0) {
+            void message.error(
+              `修复完成但有失败：${summary}，失败 ${result.failed} 条。${result.errors[0] ?? ""}`,
+              8,
+            );
+          } else {
+            void message.success(
+              `修复完成：${summary}，税号修复 ${result.creditCodeRepaired} 条，纳税人名称修复 ${result.taxpayerNameRepaired} 条`,
+              8,
+            );
+          }
+          if (result.unrepairableCreditCode > 0) {
+            void message.warning(
+              `${result.unrepairableCreditCode} 条税号不在已确认错值映射内，请重新上传原始 Excel 或手工核对。`,
+              8,
+            );
+          }
+        } catch (error: unknown) {
+          destroyLoading();
+          void message.error(
+            error instanceof Error ? error.message : "修复失败，请稍后重试",
+          );
+        } finally {
+          setBusy(false);
+        }
+      },
+    });
+  }
+
   const menuItems: MenuProps["items"] = [
     {
       key: "excel",
@@ -401,6 +448,11 @@ export function UserImportMenuItem() {
       key: "invoice-numbers-maintain",
       label: "指定票号批量维护",
       onClick: () => setNumbersMaintainOpen(true),
+    },
+    {
+      key: "repair-excel-declaration-indexes",
+      label: "修复历史 Excel 申报表识别字段",
+      onClick: repairExcelDeclarationIndexes,
     },
     {
       key: "tax-payment-cert-pdf",
