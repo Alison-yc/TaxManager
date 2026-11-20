@@ -13,11 +13,7 @@ import { isImportedPdfContent, type FormDataRow } from '../types/database'
 type PreviewVariant = 'declaration' | 'financial'
 
 function buildMainFormLabel(row: FormDataRow | null, fallback: string): string {
-  const code = row?.form_code?.trim()
   const label = row?.form_type_label?.trim()
-  if (code && label) {
-    return label.startsWith(code) ? label : `${code} ${label}`
-  }
   return label || fallback
 }
 
