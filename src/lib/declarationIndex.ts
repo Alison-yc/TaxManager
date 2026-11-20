@@ -38,9 +38,11 @@ const KNOWN_MISREAD_CREDIT_CODE_REPAIRS: Record<string, string> = {
 export type DeclarationTemplateKind =
   | 'official_split_cells'
   | 'combined_period_in_cell'
+  | 'compact_main_table'
+  | 'unknown'
 
 function cnDateToIso(s: string): string | null {
-  const t = s.trim()
+  const t = compactText(s)
   const m = t.match(/^(\d{4})年(\d{1,2})月(\d{1,2})日?$/)
   if (!m) return null
   const y = Number(m[1])
@@ -50,6 +52,16 @@ function cnDateToIso(s: string): string | null {
   const dt = new Date(Date.UTC(y, mo - 1, d))
   if (dt.getUTCMonth() !== mo - 1) return null
   return `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+}
+
+function parseDateFromText(text: string): string | null {
+  const compact = compactText(text)
+  const cn = compact.match(/(\d{4})年(\d{1,2})月(\d{1,2})日?/)
+  if (cn) return isoFromYmdParts(cn[1], cn[2], cn[3])
+
+  const ymd = compact.match(/(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/)
+  if (!ymd) return null
+  return isoFromYmdParts(ymd[1], ymd[2], ymd[3])
 }
 
 function isoFromYmdParts(y: string, mo: string, d: string): string | null {
@@ -134,9 +146,9 @@ function parseCombinedTaxPeriod(text: string): {
   start: string | null
   end: string | null
 } {
-  const compact = text.replace(/\s/g, '')
+  const compact = compactText(text)
   const m = compact.match(
-    /税款所属时间[:：]?(\d{4})年(\d{1,2})月(\d{1,2})日[至到](\d{4})年(\d{1,2})月(\d{1,2})日/,
+    /税款所属(?:时间|期间)[:：]?(?:自)?(\d{4})年(\d{1,2})月(\d{1,2})日?[至到](?:自)?(\d{4})年(\d{1,2})月(\d{1,2})日?/,
   )
   if (!m) return { start: null, end: null }
   return {
@@ -147,10 +159,9 @@ function parseCombinedTaxPeriod(text: string): {
 
 /** 从含「填表日期：2024年01月10日」的单元格取申报日 */
 function parseFillDateFromCell(text: string): string | null {
-  const compact = text.replace(/\s/g, '')
-  const m = compact.match(/填表日期[:：](\d{4})年(\d{1,2})月(\d{1,2})日/)
-  if (!m) return null
-  return isoFromYmdParts(m[1], m[2], m[3])
+  const compact = compactText(text)
+  const m = compact.match(/(?:填表日期|申报日期)[:：]?(.*)$/)
+  return m ? parseDateFromText(m[1]) : null
 }
 
 function parseFillDateFromScan(grid: GridCell[][]): string | null {
@@ -177,7 +188,7 @@ function combinedPeriodTextsFromGrid(grid: GridCell[][]): {
     for (const cell of row) {
       const s = cellStr(cell)
       if (
-        /税款所属时间/.test(s) &&
+        /税款所属(?:时间|期间)/.test(s) &&
         (/至/.test(s) || /到/.test(s)) &&
         /\d{4}年/.test(s)
       ) {
@@ -214,12 +225,15 @@ function findCreditCodeLoose(grid: GridCell[][]): string | null {
 function parseAmountLoose(v: GridCell | undefined): number | null {
   const s = cellStr(v).replace(/,/g, '').replace(/\s/g, '')
   if (!s || s === '——' || s === '—' || s === '-') return null
+  // 栏次公式（例如 34＝24-28-29、0C02=0B20-0C01）不是金额，不能用 parseFloat
+  // 读取，否则会被误识别成 34 或 0。
+  if (!/^-?(?:\d+\.\d+|\d+)$/.test(s)) return null
   const n = parseFloat(s)
   return Number.isFinite(n) ? n : null
 }
 
 function extractMainTaxDueRow(row: GridCell[]): number | null {
-  const idx = row.findIndex((c) => /本期应补\s*[（(]退[）)]税额/.test(cellStr(c)))
+  const idx = row.findIndex((c) => /(?:本期)?应补\s*[（(]\s*退\s*[）)]\s*税额/.test(cellStr(c)))
   if (idx < 0) return null
   for (let j = idx + 1; j < row.length; j++) {
     const n = parseAmountLoose(row[j])
@@ -234,6 +248,37 @@ function extractTaxDueFromVATGrid(grid: GridCell[][]): number | null {
     if (n != null) return n
   }
   return null
+}
+
+function findTopText(grid: GridCell[][], maxRows = 16): string {
+  return grid
+    .slice(0, Math.min(maxRows, grid.length))
+    .flatMap((row) => row.map((cell) => cellStr(cell)))
+    .filter(Boolean)
+    .join(' ')
+}
+
+function findTopLabeledValue(text: string, pattern: RegExp): string | null {
+  const match = text.match(pattern)
+  return match?.[1]?.trim() || null
+}
+
+function findFormTitle(grid: GridCell[][]): string {
+  const cells = grid
+    .slice(0, 4)
+    .flatMap((row) => row.map((cell) => cellStr(cell)))
+  const title = cells.find((cell) => /增值税.*申报表/.test(compactText(cell)))
+  return title ?? cells.find((cell) => /申报表/.test(compactText(cell))) ?? ''
+}
+
+function detectPreviewHeaderRows(grid: GridCell[][]): number {
+  // 镁神导出的 HTML Excel 只有标题、期间、纳税人三行元信息；第 4 行已经是表头。
+  // 官方/历史 Excel 的第 4 行仍是“金额单位/说明”等顶部信息，继续沿用 4 行。
+  const rowIndex = grid.slice(0, 8).findIndex((row) => {
+    const text = row.map((cell) => compactText(cellStr(cell))).join(' ')
+    return /项目/.test(text) && /栏次/.test(text)
+  })
+  return rowIndex === 3 ? 3 : Math.min(4, grid.length)
 }
 
 function readCreditOfficialCell(
@@ -266,22 +311,32 @@ export function extractDeclarationIndexFromGrid(
   grid: GridCell[][],
   sheet: XLSX.WorkSheet,
 ): DeclarationIndexFlat {
-  const formTitle = [cellStr(grid[0]?.[0]), cellStr(grid[1]?.[0])]
-    .filter(Boolean)
-    .join(' ')
-  const form_type_label =
-    formTitle.length > 0 ? formTitle : DEFAULT_FORM_TYPE_LABEL
+  const formTitle = findFormTitle(grid)
+  const compactTitle = compactText(formTitle)
+  const form_type_label = /增值税.*申报表/.test(compactTitle)
+    ? DEFAULT_FORM_TYPE_LABEL
+    : formTitle || DEFAULT_FORM_TYPE_LABEL
 
   const tax_amount_due = extractTaxDueFromVATGrid(grid)
 
+  const topText = findTopText(grid)
   const { periodCell, fillCell } = combinedPeriodTextsFromGrid(grid)
   const parsedCombined = periodCell ? parseCombinedTaxPeriod(periodCell) : { start: null, end: null }
-  const useCombined =
-    Boolean(periodCell) &&
-    (parsedCombined.start != null || parsedCombined.end != null)
+  const periodFromTop = parsedCombined.start || parsedCombined.end
+    ? parsedCombined
+    : parseCombinedTaxPeriod(topText)
+  const useCombined = Boolean(periodFromTop.start || periodFromTop.end)
 
   const taxpayerName =
     findValueRightOfLabel(grid, /纳税人名称/) ?? (cellStr(grid[5]?.[2]) || null)
+
+  const detectedFormCode =
+    findTopLabeledValue(topText, /\b(BDA\d{6,})\b/i)?.toUpperCase() ?? DEFAULT_FORM_CODE
+  const detectedCorrection =
+    findTopLabeledValue(topText, /(?:更正类型|申报类型)[:：]?\s*(新产生申报表|被更正的申报表|更正后新产生的申报表（全量模式）|更正申报)/) ??
+    DEFAULT_CORRECTION
+  const detectedVoidFlag =
+    findTopLabeledValue(topText, /作废标志[:：]?\s*(已作废|未作废)/) ?? DEFAULT_VOID_FLAG
 
   let tax_period_start: string | null
   let tax_period_end: string | null
@@ -290,9 +345,11 @@ export function extractDeclarationIndexFromGrid(
   let template_kind: DeclarationTemplateKind
 
   if (useCombined) {
-    template_kind = 'combined_period_in_cell'
-    tax_period_start = parsedCombined.start
-    tax_period_end = parsedCombined.end
+    template_kind = detectPreviewHeaderRows(grid) === 3
+      ? 'compact_main_table'
+      : 'combined_period_in_cell'
+    tax_period_start = periodFromTop.start
+    tax_period_end = periodFromTop.end
     declaration_date =
       (fillCell ? parseFillDateFromCell(fillCell) : null) ??
       parseFillDateFromScan(grid)
@@ -302,21 +359,48 @@ export function extractDeclarationIndexFromGrid(
     credit_code = readCreditOfficialCell(sheet)
     if (!credit_code) credit_code = findCreditCodeLoose(grid)
 
-    const pStartCn = cellStr(grid[7]?.[2])
-    const pEndCn = cellStr(grid[7]?.[5])
-    const fillCn = cellStr(grid[7]?.[8])
-    tax_period_start = pStartCn ? cnDateToIso(pStartCn) : null
-    tax_period_end = pEndCn ? cnDateToIso(pEndCn) : null
-    declaration_date = fillCn ? cnDateToIso(fillCn) : null
+    const topRows = grid.slice(0, 12)
+    const dateCells = topRows.flatMap((row) => row.map((cell) => cellStr(cell)))
+    const period = dateCells
+      .map((cell) => parseCombinedTaxPeriod(cell))
+      .find((value) => value.start || value.end)
+    tax_period_start = period?.start ?? null
+    tax_period_end = period?.end ?? null
+    declaration_date = dateCells
+      .map((cell) => parseFillDateFromCell(cell))
+      .find((value): value is string => Boolean(value)) ?? null
+
+    // 旧官方模板将起、止、填表日期放在同一行的不同单元格中，标签可能被合并单元格隐藏。
+    // 只接受同一行中连续出现的日期，避免把业务数据行里的年份误当作所属期。
+    for (const row of topRows) {
+      const rowDates = row
+        .map((cell) => parseDateFromText(cellStr(cell)))
+        .filter((value): value is string => Boolean(value))
+      if (rowDates.length >= 2) {
+        tax_period_start = tax_period_start ?? rowDates[0]
+        tax_period_end = tax_period_end ?? rowDates[1]
+        declaration_date = declaration_date ?? rowDates[2] ?? null
+        break
+      }
+    }
+
+    // 兼容未来仍使用“起/止/填表日期”分列但行号变化的模板。
+    if (!tax_period_start || !tax_period_end) {
+      const flatTop = compactText(dateCells.join(' '))
+      const start = flatTop.match(/税款所属期(?:间)?起?[:：]?(\d{4}年\d{1,2}月\d{1,2}日)/)
+      const end = flatTop.match(/税款所属期(?:间)?止?[:：]?(\d{4}年\d{1,2}月\d{1,2}日)/)
+      tax_period_start = tax_period_start ?? (start ? parseDateFromText(start[1]) : null)
+      tax_period_end = tax_period_end ?? (end ? parseDateFromText(end[1]) : null)
+    }
   }
 
   if (!credit_code) credit_code = findCreditCodeLoose(grid)
 
   return {
-    form_code: DEFAULT_FORM_CODE,
+    form_code: detectedFormCode,
     form_type_label,
-    correction_type: DEFAULT_CORRECTION,
-    void_flag: DEFAULT_VOID_FLAG,
+    correction_type: detectedCorrection,
+    void_flag: detectedVoidFlag,
     taxpayer_name: taxpayerName,
     credit_code,
     tax_period_start,

@@ -5,7 +5,12 @@ import {
   isValidUnifiedSocialCreditCode,
   repairUnifiedSocialCreditCode,
 } from './declarationIndex'
-import { isImportedContent, type GridCell, type ImportedExcelContent } from './excelImport'
+import {
+  detectPreviewHeaderRows,
+  isImportedContent,
+  type GridCell,
+  type ImportedExcelContent,
+} from './excelImport'
 import { FORM_DATA_EXCEL_IMPORTED_EVENT } from './formDataExcelUpload'
 import { supabase } from './supabase'
 import type { Json } from '../types/database'
@@ -116,6 +121,7 @@ function buildRepairedContent(
   if (!isImportedContent(row.content)) return null
 
   const content = cloneContent(row.content)
+  content.previewHeaderRows = detectPreviewHeaderRows(content.grid)
   const sheet = XLSX.utils.aoa_to_sheet(content.grid)
   const declarationIndex = extractDeclarationIndexFromGrid(content.grid, sheet)
   const rawCreditCode = declarationIndex.credit_code

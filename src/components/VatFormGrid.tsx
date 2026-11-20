@@ -6,6 +6,7 @@ type Props = {
   grid: GridCell[][]
   merges: Range[]
   colWidths?: number[]
+  previewHeaderRows?: number
 }
 
 const UNBORDERED_HEADER_ROWS = 4
@@ -63,19 +64,21 @@ function looksLikeEmptyDash(s: string): boolean {
 function amountColumnIndexes(cols: number): Set<number> {
   if (cols === 10) return new Set([6, 7, 8, 9])
   if (cols === 14) return new Set([6, 7, 8, 9, 10, 11, 12, 13])
+  // HTML 版“主表”压缩为 9 列：项目、栏次、六个金额列。
+  if (cols === 9) return new Set([3, 4, 5, 6, 7, 8])
   return new Set()
 }
 
 function isAmountCell(colIndex: number, rowIndex: number, cols: number, raw: GridCell): boolean {
-  if (rowIndex <= 9) return false
+  if (rowIndex <= (cols === 9 ? 4 : 9)) return false
   if (!amountColumnIndexes(cols).has(colIndex)) return false
   return normalizeNumericText(raw) !== null
 }
 
 function cellAlignClass(colIndex: number, rowIndex: number, raw: GridCell, cols: number): string {
-  if (rowIndex <= 7) return ''
+  if (rowIndex <= (cols === 9 ? 4 : 7)) return ''
   if (colIndex === 0) return 'vat-center'
-  if (colIndex === 4) return 'vat-center'
+  if (colIndex === 4 && cols !== 9) return 'vat-center'
   if (typeof raw === 'string' && looksLikeEmptyDash(raw)) return 'vat-center'
   if (isAmountCell(colIndex, rowIndex, cols, raw)) return 'vat-num'
   if (typeof raw === 'number' && Number.isFinite(raw)) return 'vat-num'
@@ -90,7 +93,12 @@ function cellContent(raw: GridCell, colIndex: number, rowIndex: number, cols: nu
   return <span className="vat-cell-content">{text || '\u00a0'}</span>
 }
 
-function rowClassTd(rowIndex: number): string {
+function rowClassTd(rowIndex: number, cols: number): string {
+  if (cols === 9) {
+    if (rowIndex <= 2) return 'vat-cell-meta'
+    if (rowIndex <= 4) return 'vat-cell-head'
+    return 'vat-cell-body'
+  }
   if (rowIndex <= 7) return 'vat-cell-meta'
   if (rowIndex <= 9) return 'vat-cell-head'
   return 'vat-cell-body'
@@ -162,7 +170,7 @@ function widenAmountColumns(weights: number[], cols: number): number[] {
  * ref 落在版心根节点，供导出 PDF 完整截图（勿包在 overflow 滚动容器内）。
  */
 export const VatFormGrid = forwardRef<HTMLDivElement, Props>(function VatFormGrid(
-  { grid, merges, colWidths },
+  { grid, merges, colWidths, previewHeaderRows },
   ref,
 ) {
   if (!grid.length) {
@@ -174,13 +182,17 @@ export const VatFormGrid = forwardRef<HTMLDivElement, Props>(function VatFormGri
   }
 
   const normalized = normalizeGrid(grid)
-  const headerRows = Math.min(UNBORDERED_HEADER_ROWS, normalized.length)
+  const headerRows = Math.min(
+    previewHeaderRows ?? UNBORDERED_HEADER_ROWS,
+    normalized.length,
+  )
   const tableGrid = normalized.slice(headerRows)
   const rows = tableGrid.length
   const cols = normalized[0]?.length ?? 0
   const maxRow = rows - 1
   const maxCol = cols - 1
   const colPercents = columnPercentages(normalized, cols, colWidths)
+  const unitRow = headerRows >= 4 ? normalized[3] : []
 
   const covered: boolean[][] = Array.from({ length: rows }, () =>
     Array(cols).fill(false),
@@ -224,7 +236,7 @@ export const VatFormGrid = forwardRef<HTMLDivElement, Props>(function VatFormGri
             key={`${r}-${c}`}
             rowSpan={rs}
             colSpan={cs}
-            className={`${rowClassTd(originalRowIndex)} ${cellAlignClass(c, originalRowIndex, raw, cols)}`.trim()}
+            className={`${rowClassTd(originalRowIndex, cols)} ${cellAlignClass(c, originalRowIndex, raw, cols)}`.trim()}
           >
             {cellContent(raw, c, originalRowIndex, cols)}
           </td>,
@@ -234,7 +246,7 @@ export const VatFormGrid = forwardRef<HTMLDivElement, Props>(function VatFormGri
         cells.push(
           <td
             key={`${r}-${c}`}
-            className={`${rowClassTd(originalRowIndex)} ${cellAlignClass(c, originalRowIndex, raw, cols)}`.trim()}
+            className={`${rowClassTd(originalRowIndex, cols)} ${cellAlignClass(c, originalRowIndex, raw, cols)}`.trim()}
           >
             {cellContent(raw, c, originalRowIndex, cols)}
           </td>,
@@ -268,7 +280,7 @@ export const VatFormGrid = forwardRef<HTMLDivElement, Props>(function VatFormGri
           <div className="vat-form-title">{rowText(normalized[0])}</div>
           <div className="vat-form-subtitle">{rowText(normalized[1])}</div>
           <div className="vat-form-note">{rowText(normalized[2])}</div>
-          <div className="vat-form-unit">{rowText(normalized[3])}</div>
+          <div className="vat-form-unit">{rowText(unitRow)}</div>
         </div>
         <table className="vat-sheet-table vat-sheet-merged">
           {colsEls}

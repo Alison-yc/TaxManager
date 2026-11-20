@@ -22,6 +22,8 @@ export type ImportedExcelContent = {
   colWidths?: number[]
   /** 合并单元格信息（与原表一致时再导出） */
   merges: XLSX.Range[]
+  /** 预览时顶部无边框信息区占用的行数；不同导出器可能是 3 或 4 */
+  previewHeaderRows?: number
   summary: string
   /** 入库索引字段快照（写入 form_data JSON 与各列冗余） */
   declaration_index?: {
@@ -35,7 +37,11 @@ export type ImportedExcelContent = {
     tax_period_end: string | null
     declaration_date: string | null
     tax_amount_due: number | null
-    template_kind?: 'official_split_cells' | 'combined_period_in_cell'
+    template_kind?:
+      | 'official_split_cells'
+      | 'combined_period_in_cell'
+      | 'compact_main_table'
+      | 'unknown'
   }
 }
 
@@ -108,7 +114,6 @@ function sheetToGrid(sheet: XLSX.WorkSheet): {
   }
 
   const range = XLSX.utils.decode_range(sheet['!ref'])
-  const colCount = range.e.c - range.s.c + 1
   const grid: GridCell[][] = []
   for (let r = range.s.r; r <= range.e.r; r++) {
     const row: GridCell[] = []
@@ -132,7 +137,35 @@ function sheetToGrid(sheet: XLSX.WorkSheet): {
     }
     grid.push(row)
   }
-  return { grid, colWidths: sheetColumnWidths(sheet, colCount), merges }
+  // 某些“Excel 兼容 HTML”文件的 !ref 会比实际内容多出一个空列。
+  // 只裁掉末尾完全为空且不被合并区域覆盖的列，保留真实表格的空白列。
+  let lastUsedColumn = grid.reduce((last, row) => {
+    for (let c = row.length - 1; c >= 0; c -= 1) {
+      if (cellHasDisplayValue(row[c])) return Math.max(last, c)
+    }
+    return last
+  }, -1)
+  for (const merge of merges) lastUsedColumn = Math.max(lastUsedColumn, merge.e.c)
+  const trimmedGrid = lastUsedColumn >= 0
+    ? grid.map((row) => row.slice(0, lastUsedColumn + 1))
+    : grid
+  return {
+    grid: trimmedGrid,
+    colWidths: sheetColumnWidths(sheet, trimmedGrid[0]?.length ?? 0),
+    merges,
+  }
+}
+
+function cellHasDisplayValue(cell: GridCell | undefined): boolean {
+  return cell !== undefined && cell !== null && String(cell).trim() !== ''
+}
+
+export function detectPreviewHeaderRows(grid: GridCell[][]): number {
+  const headerIndex = grid.slice(0, 8).findIndex((row) => {
+    const text = row.map((cell) => String(cell ?? '').replace(/\s/g, '')).join(' ')
+    return /项目/.test(text) && /栏次/.test(text)
+  })
+  return headerIndex === 3 ? 3 : Math.min(4, grid.length)
 }
 
 function sheetColumnWidths(sheet: XLSX.WorkSheet, colCount: number): number[] {
@@ -192,6 +225,7 @@ export function parseExcelFile(buffer: ArrayBuffer, fileName: string): Json {
     grid,
     colWidths,
     merges,
+    previewHeaderRows: detectPreviewHeaderRows(grid),
     summary: displaySummary,
     declaration_index,
   }

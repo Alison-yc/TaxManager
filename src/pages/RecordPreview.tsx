@@ -281,6 +281,7 @@ export function RecordPreview({ variant = 'declaration' }: { variant?: PreviewVa
               grid={content.grid}
               merges={content.merges}
               colWidths={content.colWidths}
+              previewHeaderRows={content.previewHeaderRows}
             />
           </div>
         </section>

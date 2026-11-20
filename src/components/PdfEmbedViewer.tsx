@@ -158,15 +158,19 @@ export function PdfEmbedViewer({
 
   useEffect(() => {
     if (!chromeless) return
+    let alive = true
     if (pdfData) {
-      setError(null)
-      setLoadedPdf({ key: pdfLoadKey, data: pdfData.slice(0) })
-      return
+      queueMicrotask(() => {
+        if (!alive) return
+        setError(null)
+        setLoadedPdf({ key: pdfLoadKey, data: pdfData.slice(0) })
+      })
+      return () => {
+        alive = false
+      }
     }
     if (useDirectUrl && !iframeUrl) return
     if (!useDirectUrl && !storagePath) return
-
-    let alive = true
 
     void (async () => {
       try {

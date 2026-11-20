@@ -3,7 +3,7 @@ const FZKTJW_MARKER = /FZKTJW--GB1-0[\s\S]{0,220}?\/FontFile2\s+(\d+)\s+\d+\s+R/
 function readLengthObject(bytes: Uint8Array, objNum: number): number | null {
   const text = new TextDecoder('latin1').decode(bytes)
   const re = new RegExp(`${objNum} 0 obj\\s*\\r?\\n\\s*(\\d+)\\s*\\r?\\n`, 'g')
-  let match: RegExpExecArray | null = null
+  let match: RegExpExecArray | null
   let last: RegExpExecArray | null = null
   while ((match = re.exec(text)) !== null) {
     last = match
