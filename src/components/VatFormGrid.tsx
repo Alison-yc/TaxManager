@@ -61,40 +61,61 @@ function looksLikeEmptyDash(s: string): boolean {
   return /^[—–-]+$/.test(s.trim())
 }
 
-function amountColumnIndexes(cols: number): Set<number> {
+function amountColumnIndexes(cols: number, compactLayout: boolean): Set<number> {
   if (cols === 10) return new Set([6, 7, 8, 9])
   if (cols === 14) return new Set([6, 7, 8, 9, 10, 11, 12, 13])
-  // HTML 版“主表”压缩为 9 列：项目、栏次、六个金额列。
-  if (cols === 9) return new Set([3, 4, 5, 6, 7, 8])
+  if (cols === 9) {
+    // 普通 9 列布局：项目、项目名称、空列、栏次、空列、四个金额列。
+    // HTML 版紧凑主表：项目、项目名称、栏次、六个金额列。
+    return compactLayout ? new Set([3, 4, 5, 6, 7, 8]) : new Set([5, 6, 7, 8])
+  }
   return new Set()
 }
 
-function isAmountCell(colIndex: number, rowIndex: number, cols: number, raw: GridCell): boolean {
-  if (rowIndex <= (cols === 9 ? 4 : 9)) return false
-  if (!amountColumnIndexes(cols).has(colIndex)) return false
+function isAmountCell(
+  colIndex: number,
+  rowIndex: number,
+  cols: number,
+  raw: GridCell,
+  compactLayout: boolean,
+): boolean {
+  if (rowIndex <= (compactLayout ? 4 : 9)) return false
+  if (!amountColumnIndexes(cols, compactLayout).has(colIndex)) return false
   return normalizeNumericText(raw) !== null
 }
 
-function cellAlignClass(colIndex: number, rowIndex: number, raw: GridCell, cols: number): string {
-  if (rowIndex <= (cols === 9 ? 4 : 7)) return ''
+function cellAlignClass(
+  colIndex: number,
+  rowIndex: number,
+  raw: GridCell,
+  cols: number,
+  compactLayout: boolean,
+): string {
+  if (rowIndex <= (compactLayout ? 4 : 7)) return ''
   if (colIndex === 0) return 'vat-center'
-  if (colIndex === 4 && cols !== 9) return 'vat-center'
+  if (colIndex === 4 && !compactLayout) return 'vat-center'
   if (typeof raw === 'string' && looksLikeEmptyDash(raw)) return 'vat-center'
-  if (isAmountCell(colIndex, rowIndex, cols, raw)) return 'vat-num'
+  if (isAmountCell(colIndex, rowIndex, cols, raw, compactLayout)) return 'vat-num'
   if (typeof raw === 'number' && Number.isFinite(raw)) return 'vat-num'
   if (typeof raw === 'string' && raw && looksLikeAmount(raw)) return 'vat-num'
   return ''
 }
 
-function cellContent(raw: GridCell, colIndex: number, rowIndex: number, cols: number): JSX.Element {
-  const text = isAmountCell(colIndex, rowIndex, cols, raw)
+function cellContent(
+  raw: GridCell,
+  colIndex: number,
+  rowIndex: number,
+  cols: number,
+  compactLayout: boolean,
+): JSX.Element {
+  const text = isAmountCell(colIndex, rowIndex, cols, raw, compactLayout)
     ? normalizeNumericText(raw)
     : cellText(raw)
   return <span className="vat-cell-content">{text || '\u00a0'}</span>
 }
 
-function rowClassTd(rowIndex: number, cols: number): string {
-  if (cols === 9) {
+function rowClassTd(rowIndex: number, compactLayout: boolean): string {
+  if (compactLayout) {
     if (rowIndex <= 2) return 'vat-cell-meta'
     if (rowIndex <= 4) return 'vat-cell-head'
     return 'vat-cell-body'
@@ -128,7 +149,12 @@ function estimatedColumnWeights(grid: GridCell[][], cols: number): number[] {
   return weights
 }
 
-function columnPercentages(grid: GridCell[][], cols: number, colWidths?: number[]): number[] {
+function columnPercentages(
+  grid: GridCell[][],
+  cols: number,
+  colWidths: number[] | undefined,
+  compactLayout: boolean,
+): number[] {
   const explicit = colWidths?.slice(0, cols) ?? []
   const hasExplicit = explicit.length === cols && explicit.some((w) => w > 0)
   const baseWeights = hasExplicit
@@ -138,15 +164,15 @@ function columnPercentages(grid: GridCell[][], cols: number, colWidths?: number[
       : cols === 14
         ? FOURTEEN_COL_TEMPLATE_WIDTHS
         : estimatedColumnWeights(grid, cols)
-  const weights = widenAmountColumns(baseWeights, cols)
+  const weights = widenAmountColumns(baseWeights, cols, compactLayout)
 
   const total = weights.reduce((sum, w) => sum + w, 0)
   if (total <= 0) return Array(cols).fill(100 / Math.max(1, cols))
   return weights.map((w) => (w / total) * 100)
 }
 
-function widenAmountColumns(weights: number[], cols: number): number[] {
-  const amountCols = amountColumnIndexes(cols)
+function widenAmountColumns(weights: number[], cols: number, compactLayout: boolean): number[] {
+  const amountCols = amountColumnIndexes(cols, compactLayout)
   if (amountCols.size === 0) return weights
 
   const amountBoost = cols === 10 ? 1.075 : 1.055
@@ -191,7 +217,8 @@ export const VatFormGrid = forwardRef<HTMLDivElement, Props>(function VatFormGri
   const cols = normalized[0]?.length ?? 0
   const maxRow = rows - 1
   const maxCol = cols - 1
-  const colPercents = columnPercentages(normalized, cols, colWidths)
+  const compactLayout = headerRows === 3 && cols === 9
+  const colPercents = columnPercentages(normalized, cols, colWidths, compactLayout)
   const unitRow = headerRows >= 4 ? normalized[3] : []
 
   const covered: boolean[][] = Array.from({ length: rows }, () =>
@@ -236,9 +263,9 @@ export const VatFormGrid = forwardRef<HTMLDivElement, Props>(function VatFormGri
             key={`${r}-${c}`}
             rowSpan={rs}
             colSpan={cs}
-            className={`${rowClassTd(originalRowIndex, cols)} ${cellAlignClass(c, originalRowIndex, raw, cols)}`.trim()}
+            className={`${rowClassTd(originalRowIndex, compactLayout)} ${cellAlignClass(c, originalRowIndex, raw, cols, compactLayout)}`.trim()}
           >
-            {cellContent(raw, c, originalRowIndex, cols)}
+            {cellContent(raw, c, originalRowIndex, cols, compactLayout)}
           </td>,
         )
       } else {
@@ -246,9 +273,9 @@ export const VatFormGrid = forwardRef<HTMLDivElement, Props>(function VatFormGri
         cells.push(
           <td
             key={`${r}-${c}`}
-            className={`${rowClassTd(originalRowIndex, cols)} ${cellAlignClass(c, originalRowIndex, raw, cols)}`.trim()}
+            className={`${rowClassTd(originalRowIndex, compactLayout)} ${cellAlignClass(c, originalRowIndex, raw, cols, compactLayout)}`.trim()}
           >
-            {cellContent(raw, c, originalRowIndex, cols)}
+            {cellContent(raw, c, originalRowIndex, cols, compactLayout)}
           </td>,
         )
       }
