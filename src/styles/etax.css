@@ -3350,7 +3350,12 @@
   gap: 8px;
   color: #111827;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
+}
+
+.etax-record-main-form .ant-select,
+.etax-record-main-form .ant-select-selection-item {
+  font-weight: 400;
 }
 
 .etax-record-preview-frame.vat-preview-frame {
@@ -3372,7 +3377,7 @@
 }
 
 .etax-record-preview-frame .vat-sheet-merged {
-  border: 2px solid #000;
+  border: 1px solid #555;
   font-size: 10px;
   line-height: 1.2;
 }
@@ -3406,27 +3411,25 @@
 }
 
 .etax-record-preview-frame .vat-sheet-merged td {
-  border-color: #000;
-  border-width: 1.8px;
-  overflow: hidden;
+  border-color: #555;
+  border-width: 1px;
   padding: 2px 3px;
   line-height: 1.2;
 }
 
 .etax-record-preview-frame .vat-cell-content {
   display: block;
-  overflow: hidden;
 }
 
 .etax-record-preview-frame .vat-cell-meta {
   height: 30px;
-  max-height: 30px;
   vertical-align: middle;
 }
 
 .etax-record-preview-frame .vat-cell-meta .vat-cell-content {
-  max-height: 28px;
   line-height: 12px;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .etax-record-preview-frame .vat-cell-title {

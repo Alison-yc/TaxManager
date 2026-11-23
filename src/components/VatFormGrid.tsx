@@ -168,7 +168,25 @@ function columnPercentages(
 
   const total = weights.reduce((sum, w) => sum + w, 0)
   if (total <= 0) return Array(cols).fill(100 / Math.max(1, cols))
-  return weights.map((w) => (w / total) * 100)
+  const percentages = weights.map((w) => (w / total) * 100)
+
+  // 旧官方 10 列主表：法人标签在第 5 列、两个地址在第 8/10 列。
+  // 对 colgroup 整列调整，表头、金额区和表尾始终共用相同的纵向边界。
+  const hasOfficialMetadata = cols === 10 && grid.slice(4, 8).some(
+    (row) => /法定代表人/.test(cellText(row[4] ?? '').replace(/\s/g, '')),
+  )
+  if (!hasOfficialMetadata) return percentages
+
+  const minimums = new Map([[4, 6.5], [7, 12.5], [9, 12.5]])
+  const adjusted = percentages.map((width, col) => Math.max(width, minimums.get(col) ?? 0))
+  const extra = adjusted.reduce((sum, width) => sum + width, 0) - 100
+  const donorTotal = percentages.reduce(
+    (sum, width, col) => minimums.has(col) ? sum : sum + width,
+    0,
+  )
+  return adjusted.map((width, col) => minimums.has(col)
+    ? width
+    : width - extra * percentages[col] / donorTotal)
 }
 
 function widenAmountColumns(weights: number[], cols: number, compactLayout: boolean): number[] {
