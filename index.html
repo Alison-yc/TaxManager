@@ -4,24 +4,87 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" sizes="32x32" href="%BASE_URL%favicon.ico?v=20260430" />
     <link rel="shortcut icon" href="%BASE_URL%favicon.ico?v=20260430" />
-    <link rel="preload" as="image" href="%BASE_URL%assets/etax/login-bg.optimized.jpg" fetchpriority="high" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>国家税务总局电子税务局</title>
+    <style>
+      .startup-status { box-sizing: border-box; max-width: 440px; margin: 56px 24px; font: 16px/1.5 system-ui, sans-serif; }
+      .startup-status button { padding: 6px 12px; font: inherit; cursor: pointer; }
+      .startup-status [hidden] { display: none; }
+    </style>
     <script>
-      ;(() => {
-        const params = new URLSearchParams(window.location.search)
-        const route = params.get('spa-route')
-        if (!route) return
-        params.delete('spa-route')
-        const rest = params.toString()
-        const basePath = window.location.pathname.replace(/\/$/, '')
-        const nextUrl = `${basePath}${route}${rest ? `${route.includes('?') ? '&' : '?'}${rest}` : ''}`
-        window.history.replaceState(null, '', nextUrl)
+      (function () {
+        // 这段脚本独立于应用入口，模块下载失败时也能提供重试。
+        function reloadPage() {
+          var url = new URL(window.location.href)
+          url.searchParams.set('tm-retry', String(Date.now()))
+          window.location.replace(url)
+        }
+
+        function showFailure(message, canRetry) {
+          var status = document.getElementById('startup-message')
+          var retry = document.getElementById('startup-retry')
+          if (!status || !retry) return
+          status.textContent = message
+          retry.hidden = !canRetry
+          retry.onclick = reloadPage
+        }
+
+        if (!('noModule' in document.createElement('script')) || !window.URLSearchParams) {
+          document.addEventListener('DOMContentLoaded', function () {
+            showFailure('当前浏览器版本较旧，请更新 Chrome 或 Edge 后访问。', false)
+          })
+          return
+        }
+
+        var url = new URL(window.location.href)
+        var route = url.searchParams.get('spa-route')
+        var isRetry = url.searchParams.has('tm-retry')
+        if (route) {
+          var base = url.pathname.replace(/\/$/, '')
+          var restored = new URL(url.origin + base + route)
+          url.searchParams.forEach(function (value, key) {
+            if (key !== 'spa-route' && key !== 'tm-retry') restored.searchParams.append(key, value)
+          })
+          url = restored
+          isRetry = isRetry || url.searchParams.has('tm-retry')
+        }
+        if (route || isRetry) {
+          url.searchParams.delete('tm-retry')
+          window.history.replaceState(null, '', url)
+        }
+
+        function recoverResourceLoad() {
+          showFailure('网站资源加载失败，请检查网络后重试。', true)
+          if (!isRetry) {
+            isRetry = true
+            reloadPage()
+          }
+        }
+
+        window.addEventListener('error', function (event) {
+          var element = event.target
+          if (element && element.tagName === 'SCRIPT' && element.type === 'module') {
+            recoverResourceLoad()
+          }
+        }, true)
+        window.addEventListener('vite:preloadError', recoverResourceLoad)
+        window.setTimeout(function () {
+          var retry = document.getElementById('startup-retry')
+          if (retry && retry.hidden) {
+            showFailure('网站资源加载较慢，请检查网络后重试。', true)
+          }
+        }, 10000)
       })()
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <main class="startup-status">
+        <p id="startup-message" role="status">正在加载网站…</p>
+        <button id="startup-retry" type="button" hidden>重新加载</button>
+        <noscript>请启用 JavaScript 后重新打开网页。</noscript>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

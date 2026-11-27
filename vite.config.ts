@@ -10,6 +10,7 @@ export default defineConfig({
   plugins: [react()],
   base,
   build: {
+    target: ['chrome96', 'edge96', 'firefox114', 'safari16.4', 'ios16.4'],
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
